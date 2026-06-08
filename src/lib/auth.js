@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 
 /**
  * Couche d'authentification.
@@ -7,18 +7,18 @@ import { supabase } from './supabase.js';
  */
 
 export async function getCurrentUser() {
-  const { data } = await supabase.auth.getSession();
+  const { data } = await backend.auth.getSession();
   return data.session?.user ?? null;
 }
 
 export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await backend.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data.user;
 }
 
 export async function signUp(email, password, displayName) {
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await backend.auth.signUp({
     email,
     password,
     options: { data: { display_name: displayName } },
@@ -27,7 +27,7 @@ export async function signUp(email, password, displayName) {
 
   // Crée le profil (role forcé côté serveur via RLS : impossible de mettre 'dm').
   if (data.user) {
-    const { error: pErr } = await supabase.from('profiles').insert({
+    const { error: pErr } = await backend.db.from('profiles').insert({
       id: data.user.id,
       email,
       display_name: displayName,
@@ -40,7 +40,7 @@ export async function signUp(email, password, displayName) {
 }
 
 export async function signOut() {
-  await supabase.auth.signOut();
+  await backend.auth.signOut();
 }
 
 /**
@@ -52,17 +52,17 @@ export async function changePassword(currentPassword, newPassword) {
   const pwd = String(newPassword || '');
   if (pwd.length < 6) throw new Error('Mot de passe trop court (min. 6 caractères).');
 
-  const { data } = await supabase.auth.getUser();
+  const { data } = await backend.auth.getUser();
   const email = data?.user?.email;
   if (!email) throw new Error('Session introuvable — reconnecte-toi.');
 
-  const { error: vErr } = await supabase.auth.signInWithPassword({
+  const { error: vErr } = await backend.auth.signInWithPassword({
     email,
     password: String(currentPassword || ''),
   });
   if (vErr) throw new Error('Mot de passe actuel incorrect.');
 
-  const { error } = await supabase.auth.updateUser({ password: pwd });
+  const { error } = await backend.auth.updateUser({ password: pwd });
   if (error) throw error;
 }
 
@@ -71,7 +71,7 @@ export async function changePassword(currentPassword, newPassword) {
  * @returns {{ profile: object|null, role: 'dm'|'player', isDM: boolean }}
  */
 export async function loadProfile(userId) {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('profiles')
     .select('*')
     .eq('id', userId)
@@ -88,7 +88,7 @@ export async function loadProfile(userId) {
 }
 
 export function onAuthChange(callback) {
-  return supabase.auth.onAuthStateChange((_event, session) => {
+  return backend.auth.onAuthStateChange((_event, session) => {
     callback(session?.user ?? null);
   });
 }

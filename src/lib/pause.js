@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 
 /**
@@ -21,11 +21,11 @@ function render() {
 }
 
 export async function initPause() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', 'paused').maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', 'paused').maybeSingle();
   store.set({ paused: !!data?.value?.on });
   render();
   store.subscribe(render);
-  supabase
+  backend.realtime
     .channel('paused_feed')
     .on(
       'postgres_changes',
@@ -40,7 +40,7 @@ export async function togglePause() {
   if (!store.get().isDM) return;
   const on = !store.get().paused;
   store.set({ paused: on });
-  await supabase.from('session_state').upsert(
+  await backend.db.from('session_state').upsert(
     { key: 'paused', value: { on }, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );

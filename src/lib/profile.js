@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 
 /**
@@ -38,7 +38,7 @@ export function initials(name) {
 
 /** Charge l'annuaire des profils (tous les utilisateurs). */
 export async function loadDirectory() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('profiles')
     .select('id, display_name, email, role, color')
     .order('display_name', { ascending: true });
@@ -56,7 +56,7 @@ export async function updateMyProfile(patch) {
   const clean = {};
   if (patch.display_name !== undefined) clean.display_name = String(patch.display_name).trim();
   if (patch.color !== undefined) clean.color = patch.color;
-  const { error } = await supabase
+  const { error } = await backend.db
     .from('profiles')
     .update({ ...clean, updated_at: new Date().toISOString() })
     .eq('id', uid);

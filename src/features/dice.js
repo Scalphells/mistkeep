@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 
@@ -154,7 +154,7 @@ export async function sendD20Check(modifier = 0, label = '', opts = {}) {
 
 /** Charge les derniers jets visibles (RLS filtre les jets MJ). */
 export async function loadRecentRolls() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('dice_rolls')
     .select('*')
     .order('created_at', { ascending: false })
@@ -174,7 +174,7 @@ export async function loadRecentRolls() {
 let _rollChannel = null;
 export function subscribeRolls() {
   if (_rollChannel) return () => {}; // abonnement unique pour la session
-  const channel = supabase
+  const channel = backend.realtime
     .channel('dice_rolls_feed')
     .on(
       'postgres_changes',

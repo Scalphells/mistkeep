@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 import { debounce } from './utils.js';
 
@@ -92,7 +92,7 @@ async function resolveUrl(u) {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
   const key = u.startsWith(`${BUCKET}/`) ? u.slice(BUCKET.length + 1) : u;
-  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 6);
+  const { data } = await backend.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 6);
   return data?.signedUrl || null;
 }
 
@@ -228,7 +228,7 @@ function applyState(s) {
 }
 
 async function fetchState() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
   return data?.value || null;
 }
 
@@ -236,20 +236,20 @@ export async function initAmbience() {
   document.addEventListener('pointerdown', unlockOnGesture);
   document.addEventListener('keydown', unlockOnGesture);
   applyState(await fetchState());
-  channel = supabase
+  channel = backend.realtime
     .channel('ambience_feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (payload) => {
       applyState(payload.new?.value || null);
     })
     .subscribe();
   // Filet temps réel : applique aussi l'état diffusé par le MJ (ajout/retrait).
-  bcast = supabase.channel('amb_rt', { config: { broadcast: { self: false } } });
+  bcast = backend.realtime.channel('amb_rt', { config: { broadcast: { self: false } } });
   bcast.on('broadcast', { event: 'state' }, ({ payload }) => applyState(payload?.value || { layers: [] })).subscribe();
 }
 
 export function stopAmbience() {
-  if (channel) supabase.removeChannel(channel);
-  if (bcast) supabase.removeChannel(bcast);
+  if (channel) backend.realtime.removeChannel(channel);
+  if (bcast) backend.realtime.removeChannel(bcast);
   channel = null;
   bcast = null;
   for (const rec of audios.values()) teardown(rec);
@@ -259,7 +259,7 @@ export function stopAmbience() {
 /* ── Contrôles MJ (pistes partagées) ── */
 const persist = debounce(async () => {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('session_state').upsert(
+  const { error } = await backend.db.from('session_state').upsert(
     { key: KEY, value: { layers: layers() }, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );
@@ -297,7 +297,7 @@ export async function uploadAmbience(file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
   const key = `audio/${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg' });
+  const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg' });
   if (error) throw new Error(error.message);
   addLayer({ url: `${BUCKET}/${key}`, name: file.name.replace(/\.[^.]+$/, '') });
 }

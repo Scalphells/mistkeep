@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { addCombatant } from './initiative.js';
 
@@ -24,7 +24,7 @@ export const KINDS = {
 
 export async function loadCompendium() {
   // Les joueurs ne reçoivent que les sorts (RLS) ; le MJ reçoit tout.
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('compendium')
     .select('*')
     .order('name', { ascending: true });
@@ -43,7 +43,7 @@ export async function createEntry(kind, name) {
     data: kind === 'table' ? { desc: '', entries: [] } : { desc: '' },
     created_by: store.get().user?.id ?? null,
   };
-  const { data, error } = await supabase.from('compendium').insert(row).select().single();
+  const { data, error } = await backend.db.from('compendium').insert(row).select().single();
   if (error) {
     console.error('[compendium] création échouée:', error.message);
     return null;
@@ -58,7 +58,7 @@ export async function updateEntry(id, patch) {
   store.set({
     compendium: store.get().compendium.map((e) => (e.id === id ? { ...e, ...patch } : e)),
   });
-  const { error } = await supabase
+  const { error } = await backend.db
     .from('compendium')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id);
@@ -67,7 +67,7 @@ export async function updateEntry(id, patch) {
 
 export async function deleteEntry(id) {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('compendium').delete().eq('id', id);
+  const { error } = await backend.db.from('compendium').delete().eq('id', id);
   if (error) {
     console.error('[compendium] suppression échouée:', error.message);
     return;
@@ -303,7 +303,7 @@ export async function srdImport(kind, index, opts = {}) {
   if (!store.get().isDM) return null;
   const { name, data } = await srdMapped(kind, index, opts);
   const row = { kind, name, data, created_by: store.get().user?.id ?? null };
-  const { data: ins, error } = await supabase.from('compendium').insert(row).select().single();
+  const { data: ins, error } = await backend.db.from('compendium').insert(row).select().single();
   if (error) throw new Error(error.message);
   store.set({ compendium: [...store.get().compendium, ins] });
   return ins.id;
@@ -347,7 +347,7 @@ let _cmpSubbed = false;
 export function subscribeCompendium() {
   if (_cmpSubbed) return () => {}; // abonnement unique pour la session
   _cmpSubbed = true;
-  const channel = supabase
+  const channel = backend.realtime
     .channel('compendium_feed')
     .on(
       'postgres_changes',
@@ -378,5 +378,5 @@ export function subscribeCompendium() {
       }
     )
     .subscribe();
-  return () => supabase.removeChannel(channel);
+  return () => backend.realtime.removeChannel(channel);
 }

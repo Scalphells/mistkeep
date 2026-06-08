@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 
@@ -19,7 +19,7 @@ async function resolve(path) {
   if (!path) return null;
   if (/^https?:\/\//i.test(path)) return path;
   const key = path.startsWith(`${BUCKET}/`) ? path.slice(BUCKET.length + 1) : path;
-  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 3);
+  const { data } = await backend.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 3);
   return data?.signedUrl || null;
 }
 
@@ -54,16 +54,16 @@ async function apply(s) {
 }
 
 export async function initSpotlight() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
   apply(data?.value);
-  channel = supabase
+  channel = backend.realtime
     .channel('spotlight_feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (p) => apply(p.new?.value))
     .subscribe();
 }
 
 async function upsert(value) {
-  await supabase.from('session_state').upsert(
+  await backend.db.from('session_state').upsert(
     { key: KEY, value, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );

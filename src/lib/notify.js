@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
 
@@ -24,7 +24,7 @@ export function initNotify() {
   if (channel) return;
   const myId = store.get().user?.id;
 
-  channel = supabase
+  channel = backend.realtime
     .channel('notify_feed')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
       if (!m || m.sender_id === myId) return; // pas mes propres messages
@@ -52,6 +52,6 @@ export function initNotify() {
 }
 
 export function stopNotify() {
-  if (channel) supabase.removeChannel(channel);
+  if (channel) backend.realtime.removeChannel(channel);
   channel = null;
 }

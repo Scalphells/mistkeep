@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 
@@ -56,13 +56,13 @@ function normalize(v) {
 }
 
 export async function loadCampaign() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
   store.set({ campaign: normalize(data?.value) });
 }
 
 const _persist = debounce(async () => {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('session_state').upsert(
+  const { error } = await backend.db.from('session_state').upsert(
     { key: KEY, value: store.get().campaign, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );

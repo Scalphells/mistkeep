@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 
 /**
  * File d'attente d'écritures hors-ligne.
@@ -48,7 +48,7 @@ export async function insertWithOutbox(table, row) {
   const payload = { ...row };
   if (!payload.id) payload.id = crypto.randomUUID();
   try {
-    const { error } = await supabase.from(table).insert(payload);
+    const { error } = await backend.db.from(table).insert(payload);
     if (error) return { ok: false, error, row: payload }; // erreur serveur → réelle
     return { ok: true, row: payload };
   } catch {
@@ -65,7 +65,7 @@ export async function flushOutbox() {
   while (queue.length) {
     const op = queue[0];
     try {
-      const { error } = await supabase
+      const { error } = await backend.db
         .from(op.table)
         .upsert(op.payload, { onConflict: 'id', ignoreDuplicates: true });
       if (error) {

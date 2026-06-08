@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 
@@ -12,13 +12,13 @@ import { debounce } from '../lib/utils.js';
 const KEY = 'imagebank';
 
 export async function loadImageBank() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
   store.set({ imagebank: Array.isArray(data?.value) ? data.value : [] });
 }
 
 const persist = debounce(async () => {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('session_state').upsert(
+  const { error } = await backend.db.from('session_state').upsert(
     { key: KEY, value: store.get().imagebank, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );

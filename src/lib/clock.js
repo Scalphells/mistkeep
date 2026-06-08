@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 
 /**
@@ -69,7 +69,7 @@ export function toggleClock() {
 async function persist(clock) {
   store.set({ clock });
   if (!store.get().isDM) return;
-  await supabase.from('session_state').upsert(
+  await backend.db.from('session_state').upsert(
     { key: 'clock', value: clock, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );
@@ -101,13 +101,13 @@ export async function initClock() {
     _el.className = 'clock-panel';
     document.body.appendChild(_el);
   }
-  const { data } = await supabase.from('session_state').select('value').eq('key', 'clock').maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', 'clock').maybeSingle();
   if (data?.value && typeof data.value.min === 'number') store.set({ clock: data.value });
   render();
   store.subscribe(() => {
     if (_open) render();
   });
-  supabase
+  backend.realtime
     .channel('clock_feed')
     .on(
       'postgres_changes',

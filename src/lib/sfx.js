@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
 
@@ -20,7 +20,7 @@ async function resolveUrl(u) {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
   const key = u.startsWith(`${BUCKET}/`) ? u.slice(BUCKET.length + 1) : u;
-  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 6);
+  const { data } = await backend.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 6);
   return data?.signedUrl || null;
 }
 
@@ -43,7 +43,7 @@ export function playSfx(url, name) {
 async function persistBoard(board) {
   store.set({ sfxboard: board });
   if (!store.get().isDM) return;
-  await supabase.from('session_state').upsert(
+  await backend.db.from('session_state').upsert(
     { key: KEY, value: board, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );
@@ -109,7 +109,7 @@ async function onUpload(e) {
   try {
     const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
     const key = `audio/sfx_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg' });
+    const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg' });
     if (error) throw new Error(error.message);
     const name = file.name.replace(/\.[^.]+$/, '');
     persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name, url: `${BUCKET}/${key}` }]);
@@ -140,16 +140,16 @@ export async function initSfx() {
     _el.className = 'sfx-panel';
     document.body.appendChild(_el);
   }
-  const { data } = await supabase.from('session_state').select('value').eq('key', KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
   if (Array.isArray(data?.value)) store.set({ sfxboard: data.value });
   // Canal éphémère : les autres entendent le son (l'émetteur l'a déjà joué).
-  _ch = supabase.channel('sfx_rt', { config: { broadcast: { self: false } } });
+  _ch = backend.realtime.channel('sfx_rt', { config: { broadcast: { self: false } } });
   _ch.on('broadcast', { event: 'play' }, ({ payload }) => payload?.url && playLocal(payload.url)).subscribe();
   render();
   store.subscribe(() => {
     if (_open) render();
   });
-  supabase
+  backend.realtime
     .channel('sfxboard_feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (p) => {
       if (Array.isArray(p.new?.value)) store.set({ sfxboard: p.new.value });

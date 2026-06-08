@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { showToast } from './toast.js';
 
 /**
@@ -11,7 +11,7 @@ const TABLES = ['characters', 'compendium', 'scenes', 'session_notes', 'handouts
 export async function exportData() {
   const out = { app: 'mistkeep', exportedAt: new Date().toISOString() };
   for (const t of TABLES) {
-    const { data, error } = await supabase.from(t).select('*');
+    const { data, error } = await backend.db.from(t).select('*');
     out[t] = error ? [] : data;
   }
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });

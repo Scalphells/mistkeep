@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
@@ -78,7 +78,7 @@ export function skillBonus(data, skillKey) {
 /* ── Chargement ───────────────────────────────────────────── */
 
 export async function loadCharacters() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('characters')
     .select('id, owner_id, name, data')
     .order('name', { ascending: true });
@@ -103,7 +103,7 @@ export async function loadCharacters() {
 
 /** Charge la liste des comptes (pour l'attribution de fiches — MJ). */
 export async function loadPlayers() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('profiles')
     .select('id, display_name, email, role, color')
     .order('display_name', { ascending: true });
@@ -130,7 +130,7 @@ export async function resolvePortraitUrls() {
     const p = c.data?.portrait;
     if (p && !_portraitCache.has(p)) {
       const key = p.startsWith(`${PORTRAIT_BUCKET}/`) ? p.slice(PORTRAIT_BUCKET.length + 1) : p;
-      const { data, error } = await supabase.storage.from(PORTRAIT_BUCKET).createSignedUrl(key, 60 * 60 * 6);
+      const { data, error } = await backend.storage.from(PORTRAIT_BUCKET).createSignedUrl(key, 60 * 60 * 6);
       if (!error && data) {
         _portraitCache.set(p, data.signedUrl);
         changed = true;
@@ -145,7 +145,7 @@ export async function uploadPortrait(id, file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `portraits/${id}_${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from(PORTRAIT_BUCKET).upload(key, file, {
+  const { error } = await backend.storage.from(PORTRAIT_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
   });
@@ -189,7 +189,7 @@ export function updateCharacter(id, patch) {
       debounce(async (charId) => {
         const cur = store.get().characters.find((c) => c.id === charId);
         if (!cur) return;
-        const { error } = await supabase
+        const { error } = await backend.db
           .from('characters')
           .update({
             data: cur.data,
@@ -221,7 +221,7 @@ function syncHpToInitiative(charId, patch) {
 
   // Seul le MJ peut écrire dans `initiative` (RLS).
   if (!store.get().isDM) return;
-  supabase
+  backend.db
     .from('initiative')
     .update({ ...cp, updated_at: new Date().toISOString() })
     .eq('char_id', charId)
@@ -241,7 +241,7 @@ export async function createCharacter(name) {
     saves: [], profs: [], exp: [], atks: [], sc: null, slots: {}, spells: [],
     feats: '', equip: '', notes: '', ds: { s: 0, f: 0 }, xp: 0,
   };
-  const { error } = await supabase.from('characters').insert({ id, name, data });
+  const { error } = await backend.db.from('characters').insert({ id, name, data });
   if (error) {
     console.error('[characters] création échouée:', error.message);
     return null;
@@ -266,7 +266,7 @@ export async function renameCharacter(id, name) {
   store.set({ characters });
   const target = characters.find((c) => c.id === id);
   if (!target || !canEdit(target)) return;
-  const { error } = await supabase.from('characters').update({ name: nm, updated_at: new Date().toISOString() }).eq('id', id);
+  const { error } = await backend.db.from('characters').update({ name: nm, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) console.error('[characters] renommage échoué:', error.message);
 }
 
@@ -278,7 +278,7 @@ export function replaceCharacterData(id, data) {
   if (!target || !canEdit(target)) return;
   const cur = characters.find((c) => c.id === id);
   syncHpToInitiative(id, cur.data);
-  supabase
+  backend.db
     .from('characters')
     .update({ data: cur.data, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null })
     .eq('id', id)
@@ -290,7 +290,7 @@ export function replaceCharacterData(id, data) {
 /** Supprime une fiche (MJ uniquement). */
 export async function deleteCharacter(id) {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('characters').delete().eq('id', id);
+  const { error } = await backend.db.from('characters').delete().eq('id', id);
   if (error) {
     console.error('[characters] suppression échouée:', error.message);
     return;
@@ -305,7 +305,7 @@ export async function deleteCharacter(id) {
 /** Attribue une fiche à un joueur (MJ uniquement). */
 export async function assignOwner(id, ownerId) {
   if (!store.get().isDM) return;
-  const { error } = await supabase
+  const { error } = await backend.db
     .from('characters')
     .update({ owner_id: ownerId || null })
     .eq('id', id);
@@ -325,7 +325,7 @@ let _charSubbed = false;
 export function subscribeCharacters() {
   if (_charSubbed) return () => {}; // abonnement unique pour la session
   _charSubbed = true;
-  const channel = supabase
+  const channel = backend.realtime
     .channel('characters_feed')
     .on(
       'postgres_changes',

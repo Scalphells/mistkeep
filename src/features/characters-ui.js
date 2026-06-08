@@ -1,6 +1,6 @@
 import { store } from '../state.js';
 import { escapeHtml, debounce } from '../lib/utils.js';
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { modalConfirm, modalPrompt, modalAlert } from '../lib/modal.js';
 import { sendRoll, sendD20Check } from './dice.js';
 import { portraitUrl, uploadPortrait } from './characters.js';
@@ -1517,7 +1517,7 @@ async function updateName(id, name) {
     nameSavers.set(
       id,
       debounce(async (charId, value) => {
-        await supabase.from('characters').update({ name: value }).eq('id', charId);
+        await backend.db.from('characters').update({ name: value }).eq('id', charId);
       }, 700)
     );
   }

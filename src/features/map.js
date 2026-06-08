@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { updateLayer } from '../lib/ambience.js';
@@ -49,7 +49,7 @@ export const DEFAULT_MAP = {
 
 /** Liste des scènes (sans le gros `state`). */
 async function fetchScenes() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('scenes')
     .select('id, name, sort')
     .order('sort', { ascending: true })
@@ -62,7 +62,7 @@ async function fetchScenes() {
 }
 
 async function fetchActiveSceneId() {
-  const { data } = await supabase
+  const { data } = await backend.db
     .from('session_state')
     .select('value')
     .eq('key', ACTIVE_KEY)
@@ -76,7 +76,7 @@ async function loadSceneState(id) {
     store.set({ map: { ...DEFAULT_MAP } });
     return;
   }
-  const { data, error } = await supabase.from('scenes').select('state').eq('id', id).maybeSingle();
+  const { data, error } = await backend.db.from('scenes').select('state').eq('id', id).maybeSingle();
   if (error) {
     console.warn('[scenes] chargement état impossible:', error.message);
     return;
@@ -107,7 +107,7 @@ export async function loadMap() {
 }
 
 async function insertScene(name, state) {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('scenes')
     .insert({ name, state, sort: store.get().scenes.length, created_by: store.get().user?.id ?? null })
     .select('id, name, sort')
@@ -120,7 +120,7 @@ async function insertScene(name, state) {
 }
 
 async function setActivePointer(id) {
-  await supabase.from('session_state').upsert(
+  await backend.db.from('session_state').upsert(
     { key: ACTIVE_KEY, value: { id }, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
     { onConflict: 'key' }
   );
@@ -164,14 +164,14 @@ export function applySceneSoundscape() {
 export async function renameScene(id, name) {
   if (!store.get().isDM) return;
   store.set({ scenes: store.get().scenes.map((s) => (s.id === id ? { ...s, name } : s)) });
-  await supabase.from('scenes').update({ name }).eq('id', id);
+  await backend.db.from('scenes').update({ name }).eq('id', id);
 }
 
 export async function deleteScene(id) {
   if (!store.get().isDM) return;
   const scenes = store.get().scenes;
   if (scenes.length <= 1) return; // garder au moins une scène
-  await supabase.from('scenes').delete().eq('id', id);
+  await backend.db.from('scenes').delete().eq('id', id);
   const remaining = scenes.filter((s) => s.id !== id);
   store.set({ scenes: remaining });
   if (store.get().activeSceneId === id) await switchScene(remaining[0].id);
@@ -231,7 +231,7 @@ export async function refreshBgUrl() {
   }
   if (path === _bgUrlForPath && _bgUrl) return;
   const key = path.startsWith(`${BG_BUCKET}/`) ? path.slice(BG_BUCKET.length + 1) : path;
-  const { data, error } = await supabase.storage
+  const { data, error } = await backend.storage
     .from(BG_BUCKET)
     .createSignedUrl(key, 60 * 60 * 6); // 6 h
   if (error) {
@@ -250,7 +250,7 @@ const saveDebounced = debounce(async () => {
   const m = store.get().map;
   const id = store.get().activeSceneId;
   if (!m || !id) return;
-  const { error } = await supabase
+  const { error } = await backend.db
     .from('scenes')
     .update({ state: m, updated_at: new Date().toISOString() })
     .eq('id', id);
@@ -276,7 +276,7 @@ export async function uploadBackground(file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const key = `${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from(BG_BUCKET).upload(key, file, {
+  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/jpeg',
   });
@@ -674,7 +674,7 @@ export async function resolveTokenUrls() {
   for (const path of paths) {
     if (_tokenUrlCache.has(path)) continue;
     const key = path.startsWith(`${BG_BUCKET}/`) ? path.slice(BG_BUCKET.length + 1) : path;
-    const { data, error } = await supabase.storage.from(BG_BUCKET).createSignedUrl(key, 60 * 60 * 6);
+    const { data, error } = await backend.storage.from(BG_BUCKET).createSignedUrl(key, 60 * 60 * 6);
     if (!error && data) {
       _tokenUrlCache.set(path, data.signedUrl);
       changed = true;
@@ -689,7 +689,7 @@ export async function signedTokenUrl(path) {
   if (!path) return null;
   if (_tokenUrlCache.has(path)) return _tokenUrlCache.get(path);
   const key = path.startsWith(`${BG_BUCKET}/`) ? path.slice(BG_BUCKET.length + 1) : path;
-  const { data, error } = await supabase.storage.from(BG_BUCKET).createSignedUrl(key, 60 * 60 * 6);
+  const { data, error } = await backend.storage.from(BG_BUCKET).createSignedUrl(key, 60 * 60 * 6);
   if (error || !data) return null;
   _tokenUrlCache.set(path, data.signedUrl);
   return data.signedUrl;
@@ -701,7 +701,7 @@ export async function uploadTokenAsset(file) {
   if (!store.get().isDM) return null;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `tokens/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const { error } = await supabase.storage.from(BG_BUCKET).upload(key, file, {
+  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
   });
@@ -714,7 +714,7 @@ export async function uploadLibraryImage(file) {
   if (!store.get().isDM) return null;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `tokens/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const { error } = await supabase.storage.from(BG_BUCKET).upload(key, file, {
+  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
   });
@@ -739,7 +739,7 @@ export async function uploadTokenImage(file, tokenId) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `tokens/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const { error } = await supabase.storage.from(BG_BUCKET).upload(key, file, {
+  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
   });
@@ -752,7 +752,7 @@ export async function uploadTokenImage(file, tokenId) {
 /* ── Realtime (état de la carte) ──────────────────────────── */
 
 export function subscribeMap() {
-  const ch = supabase
+  const ch = backend.realtime
     .channel('scenes_feed')
     // État des scènes : si la scène active est modifiée, on re-fusionne.
     .on('postgres_changes', { event: '*', schema: 'public', table: 'scenes' }, async (payload) => {
@@ -790,7 +790,7 @@ export function subscribeMap() {
     )
     .subscribe();
 
-  return () => supabase.removeChannel(ch);
+  return () => backend.realtime.removeChannel(ch);
 }
 
 /* ── Ping (broadcast éphémère) ────────────────────────────── */
@@ -799,7 +799,7 @@ let _pingChannel = null;
 
 /** Canal de diffusion éphémère de la carte : ping, déplacement de jeton, vue. */
 export function subscribeMapBroadcast({ onPing, onTokenMove, onView, onDraw, onCursor, onSceneDirty, onTemplate } = {}) {
-  _pingChannel = supabase.channel('map_rt', { config: { broadcast: { self: true } } });
+  _pingChannel = backend.realtime.channel('map_rt', { config: { broadcast: { self: true } } });
   _pingChannel
     .on('broadcast', { event: 'ping' }, ({ payload }) => onPing?.(payload))
     .on('broadcast', { event: 'tokenmove' }, ({ payload }) => onTokenMove?.(payload))
@@ -811,7 +811,7 @@ export function subscribeMapBroadcast({ onPing, onTokenMove, onView, onDraw, onC
     .subscribe();
 
   return () => {
-    if (_pingChannel) supabase.removeChannel(_pingChannel);
+    if (_pingChannel) backend.realtime.removeChannel(_pingChannel);
     _pingChannel = null;
   };
 }

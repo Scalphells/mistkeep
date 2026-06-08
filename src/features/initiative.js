@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { loadCharacters, abilityMod, updateCharacter, saveBonus, ABILITIES } from './characters.js';
 import { addPin, updatePin, updateToken, toggleDoor } from './map.js';
@@ -25,7 +25,7 @@ const MAX_LOG = 200;
 
 /** Charge le journal de combat partagé. */
 export async function loadCombatLog() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', LOG_KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', LOG_KEY).maybeSingle();
   store.set({ combatLog: Array.isArray(data?.value) ? data.value : [] });
 }
 
@@ -34,7 +34,7 @@ export function logCombat(text, dm = false) {
   if (!store.get().isDM) return;
   const log = [...store.get().combatLog, { t: Date.now(), text, dm }].slice(-MAX_LOG);
   store.set({ combatLog: log });
-  supabase
+  backend.db
     .from('session_state')
     .upsert({ key: LOG_KEY, value: log, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null }, { onConflict: 'key' })
     .then(({ error }) => {
@@ -60,7 +60,7 @@ export function logAction(text, dm = false) {
 export async function clearCombatLog() {
   if (!store.get().isDM) return;
   store.set({ combatLog: [] });
-  await supabase
+  await backend.db
     .from('session_state')
     .upsert({ key: LOG_KEY, value: [], updated_at: new Date().toISOString() }, { onConflict: 'key' });
 }
@@ -97,11 +97,11 @@ function normRow(c) {
 
 export async function loadInitiative() {
   const [list, meta] = await Promise.all([
-    supabase
+    backend.db
       .from('initiative')
       .select('*')
       .order('sort_order', { ascending: true }),
-    supabase.from('session_state').select('value').eq('key', META_KEY).maybeSingle(),
+    backend.db.from('session_state').select('value').eq('key', META_KEY).maybeSingle(),
   ]);
 
   if (list.error) {
@@ -136,7 +136,7 @@ export async function addCombatant({ name, initiative, hp, hpMax, hpTemp, charId
   };
   // Affichage optimiste immédiat (sans attendre l'écho realtime).
   store.set({ initiative: [...list, normRow(row)] });
-  const { error } = await supabase.from('initiative').insert(row);
+  const { error } = await backend.db.from('initiative').insert(row);
   if (error) console.error('[init] ajout échoué:', error.message);
   await resequence();
   return entity_id;
@@ -173,7 +173,7 @@ export async function updateCombatant(entityId, patch) {
   );
   store.set({ initiative });
 
-  const { error } = await supabase
+  const { error } = await backend.db
     .from('initiative')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('entity_id', entityId);
@@ -201,7 +201,7 @@ function syncHpToCharacter(charId, patch) {
 
   const cur = characters.find((c) => c.id === charId);
   if (cur) {
-    supabase
+    backend.db
       .from('characters')
       .update({ data: cur.data, updated_at: new Date().toISOString() })
       .eq('id', charId)
@@ -413,7 +413,7 @@ export function removeEffect(entityId, index) {
 /** Supprime un combattant (MJ). */
 export async function removeCombatant(entityId) {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('initiative').delete().eq('entity_id', entityId);
+  const { error } = await backend.db.from('initiative').delete().eq('entity_id', entityId);
   if (error) {
     console.error('[init] suppression échouée:', error.message);
     return;
@@ -454,7 +454,7 @@ export async function rollAllInitiative() {
   });
   store.set({ initiative: rolled });
   for (const c of rolled) {
-    await supabase
+    await backend.db
       .from('initiative')
       .update({ initiative: c.initiative, updated_at: new Date().toISOString() })
       .eq('entity_id', c.entity_id);
@@ -466,7 +466,7 @@ export async function rollAllInitiative() {
 /** Vide le combat (MJ). */
 export async function clearCombat() {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('initiative').delete().neq('entity_id', '');
+  const { error } = await backend.db.from('initiative').delete().neq('entity_id', '');
   if (error) console.error('[init] reset échoué:', error.message);
   store.set({ initiative: [] });
   await setMeta(0, 1);
@@ -523,7 +523,7 @@ export async function prevTurn() {
 
 async function setMeta(turn, round) {
   store.set({ initTurn: turn, initRound: round });
-  const { error } = await supabase.from('session_state').upsert(
+  const { error } = await backend.db.from('session_state').upsert(
     {
       key: META_KEY,
       value: { turn, round },
@@ -557,7 +557,7 @@ async function resequence() {
   });
   store.set({ initiative: sorted.map((c, i) => ({ ...c, sort_order: i })) });
   for (const u of updates) {
-    await supabase.from('initiative').update({ sort_order: u.sort_order }).eq('entity_id', u.entity_id);
+    await backend.db.from('initiative').update({ sort_order: u.sort_order }).eq('entity_id', u.entity_id);
   }
 }
 
@@ -575,7 +575,7 @@ export async function setManualOrder(orderedIds) {
   if (reordered.length !== byId.size) return; // garde-fou : liste incohérente
   store.set({ initiative: reordered.map((c, i) => ({ ...c, sort_order: i })) });
   for (let i = 0; i < reordered.length; i++) {
-    await supabase.from('initiative').update({ sort_order: i }).eq('entity_id', reordered[i].entity_id);
+    await backend.db.from('initiative').update({ sort_order: i }).eq('entity_id', reordered[i].entity_id);
   }
 }
 
@@ -596,7 +596,7 @@ let _initSubbed = false;
 export function subscribeInitiative() {
   if (_initSubbed) return () => {}; // abonnement unique pour la session
   _initSubbed = true;
-  const chInit = supabase
+  const chInit = backend.realtime
     .channel('initiative_feed')
     .on(
       'postgres_changes',
@@ -605,7 +605,7 @@ export function subscribeInitiative() {
     )
     .subscribe();
 
-  const chMeta = supabase
+  const chMeta = backend.realtime
     .channel('init_meta_feed')
     .on(
       'postgres_changes',
@@ -636,7 +636,7 @@ export function subscribeInitiative() {
 }
 
 async function refreshList() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('initiative')
     .select('*')
     .order('sort_order', { ascending: true });
@@ -647,7 +647,7 @@ async function refreshList() {
 let _combatRt = null;
 export function initCombatChannel() {
   if (_combatRt) return;
-  _combatRt = supabase.channel('combat_rt', { config: { broadcast: { self: false } } });
+  _combatRt = backend.realtime.channel('combat_rt', { config: { broadcast: { self: false } } });
   _combatRt
     .on('broadcast', { event: 'action' }, ({ payload }) => {
       if (store.get().isDM && payload?.text) logCombat(payload.text);

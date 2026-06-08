@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 
@@ -15,7 +15,7 @@ export function canEditNote(n) {
 }
 
 export async function loadNotes() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('session_notes')
     .select('*')
     .order('created_at', { ascending: false });
@@ -59,14 +59,14 @@ export async function updateNote(id, patch) {
   store.set({
     sessionNotes: store.get().sessionNotes.map((n) => (n.id === id ? { ...n, ...clean } : n)),
   });
-  const { error } = await supabase.from('session_notes').update(clean).eq('id', id);
+  const { error } = await backend.db.from('session_notes').update(clean).eq('id', id);
   if (error) console.error('[notes] mise à jour échouée:', error.message);
 }
 
 export async function deleteNote(id) {
   const cur = store.get().sessionNotes.find((n) => n.id === id);
   if (cur && !canEditNote(cur)) return;
-  const { error } = await supabase.from('session_notes').delete().eq('id', id);
+  const { error } = await backend.db.from('session_notes').delete().eq('id', id);
   if (error) {
     console.error('[notes] suppression échouée:', error.message);
     return;
@@ -75,7 +75,7 @@ export async function deleteNote(id) {
 }
 
 export function subscribeNotes() {
-  const channel = supabase
+  const channel = backend.realtime
     .channel('session_notes_feed')
     .on(
       'postgres_changes',
@@ -98,5 +98,5 @@ export function subscribeNotes() {
     )
     .subscribe();
 
-  return () => supabase.removeChannel(channel);
+  return () => backend.realtime.removeChannel(channel);
 }

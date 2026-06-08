@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 
@@ -19,7 +19,7 @@ const MAX_LEN = 2000;
 
 /** Charge l'historique récent des messages (RLS filtre les canaux privés). */
 export async function loadMessages() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('messages')
     .select('*')
     .order('created_at', { ascending: false })
@@ -72,7 +72,7 @@ export async function sendMessage(content, channel = 'public', recipientId = nul
  */
 export async function clearChannel(channel = 'public') {
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('messages').delete().eq('channel', channel);
+  const { error } = await backend.db.from('messages').delete().eq('channel', channel);
   if (error) {
     console.error('[chat] effacement échoué:', error.message);
     return;
@@ -89,7 +89,7 @@ export async function clearChannel(channel = 'public') {
 let _msgChannel = null;
 export function subscribeMessages() {
   if (_msgChannel) return () => {}; // abonnement unique pour la session
-  const channel = supabase
+  const channel = backend.realtime
     .channel('messages_feed')
     .on(
       'postgres_changes',

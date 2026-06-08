@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 
@@ -50,7 +50,7 @@ export async function loadVault() {
   // 2. Serveur (MJ uniquement — RLS bloque les joueurs)
   if (!store.get().isDM) return;
 
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('vault_notes')
     .select('path, content');
 
@@ -80,7 +80,7 @@ export function saveNote(path, content) {
     pendingSaves.set(
       path,
       debounce(async (p, c) => {
-        const { error } = await supabase.from('vault_notes').upsert(
+        const { error } = await backend.db.from('vault_notes').upsert(
           {
             path: p,
             content: c,
@@ -115,11 +115,11 @@ export async function renameNote(oldPath, newPath) {
 
   if (!store.get().isDM) return;
   // Insère la nouvelle, supprime l'ancienne.
-  await supabase.from('vault_notes').upsert(
+  await backend.db.from('vault_notes').upsert(
     { path: newPath, content: files[newPath], updated_by: store.get().user?.id ?? null },
     { onConflict: 'path' }
   );
-  await supabase.from('vault_notes').delete().eq('path', oldPath);
+  await backend.db.from('vault_notes').delete().eq('path', oldPath);
 }
 
 /** Supprime une note. */
@@ -130,7 +130,7 @@ export async function deleteNote(path) {
   store.set({ vaultFiles: files, fileTree: buildTree(files) });
 
   if (!store.get().isDM) return;
-  const { error } = await supabase.from('vault_notes').delete().eq('path', path);
+  const { error } = await backend.db.from('vault_notes').delete().eq('path', path);
   if (error) console.error('[vault] suppression échouée:', error.message);
 }
 

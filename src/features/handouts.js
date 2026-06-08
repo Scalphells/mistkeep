@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 
 /**
@@ -23,7 +23,7 @@ export function handoutUrl(path) {
 /* ── Chargement ───────────────────────────────────────────── */
 
 export async function loadHandouts() {
-  const { data, error } = await supabase
+  const { data, error } = await backend.db
     .from('handouts')
     .select('*')
     .order('pushed_at', { ascending: false });
@@ -45,7 +45,7 @@ async function resolveUrls() {
       const key = h.image_url.startsWith(`${HBUCKET}/`)
         ? h.image_url.slice(HBUCKET.length + 1)
         : h.image_url;
-      const { data, error } = await supabase.storage
+      const { data, error } = await backend.storage
         .from(HBUCKET)
         .createSignedUrl(key, 60 * 60 * 6); // 6 h
       if (!error && data) {
@@ -70,7 +70,7 @@ export async function createHandout({ title, description, content_type, text_con
     target_player: target_player || null,
     pushed_by: store.get().user?.id ?? null,
   };
-  const { error } = await supabase.from('handouts').insert(row);
+  const { error } = await backend.db.from('handouts').insert(row);
   if (error) throw new Error(error.message);
 }
 
@@ -79,7 +79,7 @@ export async function uploadHandout(file, { title, description, target_player })
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const key = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error: upErr } = await supabase.storage.from(HBUCKET).upload(key, file, {
+  const { error: upErr } = await backend.storage.from(HBUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/jpeg',
   });
@@ -93,7 +93,7 @@ export async function uploadHandout(file, { title, description, target_player })
     target_player: target_player || null,
     pushed_by: store.get().user?.id ?? null,
   };
-  const { error } = await supabase.from('handouts').insert(row);
+  const { error } = await backend.db.from('handouts').insert(row);
   if (error) throw new Error(error.message);
 }
 
@@ -101,7 +101,7 @@ export async function uploadHandout(file, { title, description, target_player })
 export async function deleteHandout(id) {
   if (!store.get().isDM) return;
   const h = store.get().handouts.find((x) => x.id === id);
-  const { error } = await supabase.from('handouts').delete().eq('id', id);
+  const { error } = await backend.db.from('handouts').delete().eq('id', id);
   if (error) {
     console.error('[handouts] suppression échouée:', error.message);
     return;
@@ -110,7 +110,7 @@ export async function deleteHandout(id) {
     const key = h.image_url.startsWith(`${HBUCKET}/`)
       ? h.image_url.slice(HBUCKET.length + 1)
       : h.image_url;
-    supabase.storage.from(HBUCKET).remove([key]).then(({ error: e }) => {
+    backend.storage.from(HBUCKET).remove([key]).then(({ error: e }) => {
       if (e) console.warn('[handouts] image non supprimée:', e.message);
     });
     _urlCache.delete(h.image_url);
@@ -121,7 +121,7 @@ export async function deleteHandout(id) {
 /* ── Realtime ─────────────────────────────────────────────── */
 
 export function subscribeHandouts() {
-  const channel = supabase
+  const channel = backend.realtime
     .channel('handouts_feed')
     .on(
       'postgres_changes',
@@ -143,5 +143,5 @@ export function subscribeHandouts() {
     )
     .subscribe();
 
-  return () => supabase.removeChannel(channel);
+  return () => backend.realtime.removeChannel(channel);
 }
