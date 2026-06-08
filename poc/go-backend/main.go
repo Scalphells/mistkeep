@@ -1,30 +1,36 @@
-// Mistkeep — Go backend PoC.
+// Mistkeep — Go backend PoC (G1 SQLite + G2 bcrypt).
 //
-// Demonstrates, with the Go standard library only (no external modules), the
-// pieces that would replace Supabase:
-//   - auth: signup / login / logout / me (cookie session)
-//   - data: a "characters" resource with authorization (the RLS equivalent)
-//   - realtime: a hub that pushes data changes and relays ephemeral events
+// Demonstrates the pieces that would replace Supabase, now with persistence:
+//   - auth: signup / login / logout / me (cookie session, bcrypt password hash)
+//   - data: a "characters" resource with authorization (the RLS equivalent),
+//           stored in SQLite (pure Go driver, no CGO)
+//   - realtime: an in-memory hub that pushes data changes and relays events
 //
-// Storage is in-memory and passwords use SHA-256 — both are PoC shortcuts.
-// Production would use SQLite (modernc.org/sqlite), bcrypt/argon2, and WebSocket
-// (this PoC uses Server-Sent Events to stay dependency-free).
+// Realtime still uses Server-Sent Events here; production would use WebSocket.
 //
-// Run:  go run .   then open http://localhost:8787
+// First run:
+//   go mod tidy      # downloads modernc.org/sqlite and golang.org/x/crypto
+//   go run .         # then open http://localhost:8787
+//
+// Data is stored in ./data/mistkeep.db (delete it to reset).
 package main
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
-	"crypto/subtle"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	_ "modernc.org/sqlite"
 )
 
 // ---- Models -------------------------------------------------------------
@@ -34,8 +40,6 @@ type User struct {
 	Email       string `json:"email"`
 	DisplayName string `json:"display_name"`
 	Role        string `json:"role"` // "dm" | "player"
-	salt        string
-	hash        string
 }
 
 type Character struct {
@@ -45,23 +49,140 @@ type Character struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-// ---- In-memory store (swap for SQLite later) ----------------------------
+// ---- Store (SQLite) -----------------------------------------------------
 
-type Store struct {
-	mu         sync.RWMutex
-	users      map[string]*User
-	byEmail    map[string]*User
-	sessions   map[string]string // token -> userID
-	characters map[string]*Character
+const schema = `
+CREATE TABLE IF NOT EXISTS users (
+  id           TEXT PRIMARY KEY,
+  email        TEXT UNIQUE NOT NULL,
+  display_name TEXT,
+  role         TEXT NOT NULL,
+  pass_hash    TEXT NOT NULL,
+  created_at   TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token      TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS characters (
+  id       TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name     TEXT NOT NULL,
+  data     TEXT NOT NULL DEFAULT '{}'
+);`
+
+type Store struct{ db *sql.DB }
+
+func OpenStore(path string) (*Store, error) {
+	if err := os.MkdirAll("data", 0o755); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec(schema); err != nil {
+		return nil, err
+	}
+	return &Store{db: db}, nil
 }
 
-func NewStore() *Store {
-	return &Store{
-		users:      map[string]*User{},
-		byEmail:    map[string]*User{},
-		sessions:   map[string]string{},
-		characters: map[string]*Character{},
+func (s *Store) countUsers() (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n)
+	return n, err
+}
+
+func (s *Store) createUser(email, name, role, passHash string) (*User, error) {
+	u := &User{ID: id("u"), Email: email, DisplayName: name, Role: role}
+	_, err := s.db.Exec(
+		`INSERT INTO users(id,email,display_name,role,pass_hash,created_at) VALUES(?,?,?,?,?,?)`,
+		u.ID, email, name, role, passHash, now())
+	return u, err
+}
+
+// userByEmail returns the user and its password hash (empty user if not found).
+func (s *Store) userByEmail(email string) (*User, string, error) {
+	u := &User{}
+	var hash string
+	err := s.db.QueryRow(
+		`SELECT id,email,display_name,role,pass_hash FROM users WHERE email=?`, email).
+		Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, "", nil
 	}
+	return u, hash, err
+}
+
+func (s *Store) createSession(userID string) (string, error) {
+	tok := token()
+	_, err := s.db.Exec(`INSERT INTO sessions(token,user_id,created_at) VALUES(?,?,?)`, tok, userID, now())
+	return tok, err
+}
+
+func (s *Store) userBySession(tok string) (*User, error) {
+	u := &User{}
+	err := s.db.QueryRow(
+		`SELECT u.id,u.email,u.display_name,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?`, tok).
+		Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return u, err
+}
+
+func (s *Store) deleteSession(tok string) { _, _ = s.db.Exec(`DELETE FROM sessions WHERE token=?`, tok) }
+
+func (s *Store) listCharacters() ([]*Character, error) {
+	rows, err := s.db.Query(`SELECT id,owner_id,name,data FROM characters ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []*Character{}
+	for rows.Next() {
+		c := &Character{}
+		var data string
+		if err := rows.Scan(&c.ID, &c.OwnerID, &c.Name, &data); err != nil {
+			return nil, err
+		}
+		c.Data = json.RawMessage(data)
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) getCharacter(cid string) (*Character, error) {
+	c := &Character{}
+	var data string
+	err := s.db.QueryRow(`SELECT id,owner_id,name,data FROM characters WHERE id=?`, cid).
+		Scan(&c.ID, &c.OwnerID, &c.Name, &data)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	c.Data = json.RawMessage(data)
+	return c, nil
+}
+
+func (s *Store) createCharacter(owner, name string, data json.RawMessage) (*Character, error) {
+	c := &Character{ID: id("c"), OwnerID: owner, Name: name, Data: data}
+	_, err := s.db.Exec(`INSERT INTO characters(id,owner_id,name,data) VALUES(?,?,?,?)`,
+		c.ID, owner, name, string(data))
+	return c, err
+}
+
+func (s *Store) updateCharacter(c *Character) error {
+	_, err := s.db.Exec(`UPDATE characters SET name=?, data=? WHERE id=?`, c.Name, string(c.Data), c.ID)
+	return err
+}
+
+func (s *Store) deleteCharacter(cid string) error {
+	_, err := s.db.Exec(`DELETE FROM characters WHERE id=?`, cid)
+	return err
 }
 
 // ---- Realtime hub -------------------------------------------------------
@@ -96,7 +217,7 @@ func (h *Hub) broadcast(room, msg string) {
 	for ch := range h.rooms[room] {
 		select {
 		case ch <- msg:
-		default: // drop if the client is slow
+		default:
 		}
 	}
 }
@@ -118,17 +239,11 @@ func (s *Server) userFrom(r *http.Request) *User {
 	if err != nil {
 		return nil
 	}
-	s.store.mu.RLock()
-	defer s.store.mu.RUnlock()
-	uid, ok := s.store.sessions[c.Value]
-	if !ok {
-		return nil
-	}
-	return s.store.users[uid]
+	u, _ := s.store.userBySession(c.Value)
+	return u
 }
 
-// ---- Authorization (the RLS equivalent) ---------------------------------
-
+// Authorization — the RLS equivalent.
 func canWriteCharacter(u *User, c *Character) bool {
 	return u.Role == "dm" || c.OwnerID == u.ID
 }
@@ -145,26 +260,34 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "email and password required")
 		return
 	}
-	s.store.mu.Lock()
-	if _, exists := s.store.byEmail[in.Email]; exists {
-		s.store.mu.Unlock()
+	if existing, _, _ := s.store.userByEmail(in.Email); existing != nil {
 		httpErr(w, 409, "email already registered")
 		return
 	}
+	n, err := s.store.countUsers()
+	if err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
 	role := "player"
-	if len(s.store.users) == 0 {
+	if n == 0 {
 		role = "dm" // the first account is the DM
 	}
-	salt := token()[:16]
-	u := &User{
-		ID: id("u"), Email: in.Email, DisplayName: in.DisplayName,
-		Role: role, salt: salt, hash: hashPw(salt, in.Password),
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	if err != nil {
+		httpErr(w, 500, "hash error")
+		return
 	}
-	s.store.users[u.ID] = u
-	s.store.byEmail[u.Email] = u
-	tok := token()
-	s.store.sessions[tok] = u.ID
-	s.store.mu.Unlock()
+	u, err := s.store.createUser(in.Email, in.DisplayName, role, string(hash))
+	if err != nil {
+		httpErr(w, 500, "could not create user")
+		return
+	}
+	tok, err := s.store.createSession(u.ID)
+	if err != nil {
+		httpErr(w, 500, "session error")
+		return
+	}
 	setSession(w, tok)
 	writeJSON(w, 200, publicUser(u))
 }
@@ -178,25 +301,27 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "bad request")
 		return
 	}
-	s.store.mu.Lock()
-	u := s.store.byEmail[in.Email]
-	if u == nil || subtle.ConstantTimeCompare([]byte(u.hash), []byte(hashPw(u.salt, in.Password))) != 1 {
-		s.store.mu.Unlock()
+	u, hash, err := s.store.userByEmail(in.Email)
+	if err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
+	if u == nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(in.Password)) != nil {
 		httpErr(w, 401, "invalid credentials")
 		return
 	}
-	tok := token()
-	s.store.sessions[tok] = u.ID
-	s.store.mu.Unlock()
+	tok, err := s.store.createSession(u.ID)
+	if err != nil {
+		httpErr(w, 500, "session error")
+		return
+	}
 	setSession(w, tok)
 	writeJSON(w, 200, publicUser(u))
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("mk_session"); err == nil {
-		s.store.mu.Lock()
-		delete(s.store.sessions, c.Value)
-		s.store.mu.Unlock()
+		s.store.deleteSession(c.Value)
 	}
 	http.SetCookie(w, &http.Cookie{Name: "mk_session", Value: "", Path: "/", MaxAge: -1})
 	w.WriteHeader(204)
@@ -218,13 +343,12 @@ func (s *Server) listChars(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 401, "unauthenticated")
 		return
 	}
-	s.store.mu.RLock()
-	defer s.store.mu.RUnlock()
-	out := make([]*Character, 0, len(s.store.characters))
-	for _, c := range s.store.characters {
-		out = append(out, c)
+	list, err := s.store.listCharacters()
+	if err != nil {
+		httpErr(w, 500, "db error")
+		return
 	}
-	writeJSON(w, 200, out)
+	writeJSON(w, 200, list)
 }
 
 func (s *Server) createChar(w http.ResponseWriter, r *http.Request) {
@@ -244,10 +368,11 @@ func (s *Server) createChar(w http.ResponseWriter, r *http.Request) {
 	if in.Data == nil {
 		in.Data = json.RawMessage("{}")
 	}
-	c := &Character{ID: id("c"), OwnerID: u.ID, Name: in.Name, Data: in.Data}
-	s.store.mu.Lock()
-	s.store.characters[c.ID] = c
-	s.store.mu.Unlock()
+	c, err := s.store.createCharacter(u.ID, in.Name, in.Data)
+	if err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
 	s.emit("character.created", c)
 	writeJSON(w, 201, c)
 }
@@ -266,15 +391,16 @@ func (s *Server) patchChar(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "bad request")
 		return
 	}
-	s.store.mu.Lock()
-	c := s.store.characters[r.PathValue("id")]
+	c, err := s.store.getCharacter(r.PathValue("id"))
+	if err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
 	if c == nil {
-		s.store.mu.Unlock()
 		httpErr(w, 404, "not found")
 		return
 	}
 	if !canWriteCharacter(u, c) {
-		s.store.mu.Unlock()
 		httpErr(w, 403, "forbidden")
 		return
 	}
@@ -284,7 +410,10 @@ func (s *Server) patchChar(w http.ResponseWriter, r *http.Request) {
 	if in.Data != nil {
 		c.Data = in.Data
 	}
-	s.store.mu.Unlock()
+	if err := s.store.updateCharacter(c); err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
 	s.emit("character.updated", c)
 	writeJSON(w, 200, c)
 }
@@ -295,22 +424,25 @@ func (s *Server) deleteChar(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 401, "unauthenticated")
 		return
 	}
-	id := r.PathValue("id")
-	s.store.mu.Lock()
-	c := s.store.characters[id]
+	cid := r.PathValue("id")
+	c, err := s.store.getCharacter(cid)
+	if err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
 	if c == nil {
-		s.store.mu.Unlock()
 		httpErr(w, 404, "not found")
 		return
 	}
 	if !canWriteCharacter(u, c) {
-		s.store.mu.Unlock()
 		httpErr(w, 403, "forbidden")
 		return
 	}
-	delete(s.store.characters, id)
-	s.store.mu.Unlock()
-	s.emit("character.deleted", map[string]string{"id": id})
+	if err := s.store.deleteCharacter(cid); err != nil {
+		httpErr(w, 500, "db error")
+		return
+	}
+	s.emit("character.deleted", map[string]string{"id": cid})
 	w.WriteHeader(204)
 }
 
@@ -350,8 +482,6 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// rtBroadcast relays an ephemeral event (ping, cursor, "pull players here")
-// to everyone, without touching the database.
 func (s *Server) rtBroadcast(w http.ResponseWriter, r *http.Request) {
 	if s.userFrom(r) == nil {
 		httpErr(w, 401, "unauthenticated")
@@ -380,11 +510,7 @@ func token() string {
 	return hex.EncodeToString(b)
 }
 
-// PoC only. Use bcrypt or argon2id in production.
-func hashPw(salt, pw string) string {
-	h := sha256.Sum256([]byte(salt + ":" + pw))
-	return hex.EncodeToString(h[:])
-}
+func now() string { return time.Now().UTC().Format(time.RFC3339) }
 
 func setSession(w http.ResponseWriter, tok string) {
 	http.SetCookie(w, &http.Cookie{
@@ -406,7 +532,11 @@ func httpErr(w http.ResponseWriter, status int, msg string) {
 // ---- Wiring -------------------------------------------------------------
 
 func main() {
-	s := &Server{store: NewStore(), hub: NewHub()}
+	store, err := OpenStore("data/mistkeep.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := &Server{store: store, hub: NewHub()}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /auth/signup", s.signup)
@@ -425,6 +555,6 @@ func main() {
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	addr := ":8787"
-	log.Printf("Mistkeep PoC backend on http://localhost%s", addr)
+	log.Printf("Mistkeep PoC backend (SQLite) on http://localhost%s", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
