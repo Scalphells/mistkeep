@@ -1,0 +1,702 @@
+import { store } from '../state.js';
+import { escapeHtml } from '../lib/utils.js';
+import { modalConfirm, modalPrompt } from '../lib/modal.js';
+import { showToast } from '../lib/toast.js';
+import { openEncounterBuilder } from './encounter-ui.js';
+import {
+  loadInitiative,
+  addCombatant,
+  addPartyFromCharacters,
+  updateCombatant,
+  adjustHp,
+  toggleCondition,
+  addEffect,
+  removeEffect,
+  rollAllInitiative,
+  removeCombatant,
+  clearCombat,
+  clearCombatLog,
+  nextTurn,
+  prevTurn,
+  reorderByInitiative,
+  subscribeInitiative,
+  logCombat,
+  sendTurnAction,
+  sendEndTurn,
+  sendPlayerRequest,
+  rollDeathSave,
+  setDeathSave,
+  resolveGroupSave,
+  setManualOrder,
+  setCombatantStatus,
+} from './initiative.js';
+import { ABILITIES } from './characters.js';
+import { loadCompendium } from './compendium.js';
+import { openStatblock, parseStatblockActions } from '../lib/statblock.js';
+import { hpTierLabel } from '../lib/hptiers.js';
+
+/**
+ * UI du tracker d'initiative. Le MJ pilote (ajout, PV, tour) ; les joueurs
+ * suivent le combat en temps réel (lecture seule).
+ */
+
+import { CONDITIONS, condIcon } from '../lib/conditions.js';
+
+/** Rappel d'un jet de Concentration si un combattant concentré subit des dégâts. */
+function concentrationCheck(entityId, damage) {
+  const c = store.get().initiative.find((x) => x.entity_id === entityId);
+  if (!c || damage <= 0) return;
+  const concentrating =
+    (c.effects || []).some((e) => e.concentration) || (c.conditions || []).includes('Concentration');
+  if (!concentrating) return;
+  const dc = Math.max(10, Math.floor(damage / 2));
+  showToast(`🧠 ${c.name} : jet de Concentration, DD ${dc} (sauvegarde de Constitution)`, {
+    type: 'warn',
+    icon: '⚠️',
+    timeout: 8000,
+  });
+}
+
+/** Entrée de compendium (monstre/PNJ) au même nom, avec actions jouables. */
+function statblockFor(name) {
+  const n = String(name || '').trim().toLowerCase();
+  if (!n) return null;
+  const e = (store.get().compendium || []).find(
+    (x) => (x.kind === 'monster' || x.kind === 'npc') && x.name.trim().toLowerCase() === n
+  );
+  return e && parseStatblockActions(e.data?.desc).length ? e : null;
+}
+
+export async function mountInitiative(container) {
+  await loadInitiative();
+  if (!store.get().compendium?.length) loadCompendium(); // pour relier les statblocs par nom
+  const unsubRealtime = subscribeInitiative();
+  const unsubStore = store.subscribe(render);
+  render(container);
+
+  return () => {
+    unsubStore();
+    unsubRealtime();
+  };
+}
+
+function render(arg) {
+  const container =
+    arg instanceof HTMLElement ? arg : document.getElementById('init-root');
+  if (!container) return;
+
+  // Si on est en train de saisir dans un champ, on ne ré-rend pas (préserve focus).
+  if (
+    container.id === 'init-root' &&
+    container.contains(document.activeElement) &&
+    document.activeElement.tagName === 'INPUT'
+  ) {
+    updateDynamic(container);
+    return;
+  }
+
+  const { isDM } = store.get();
+  container.id = 'init-root';
+  container.innerHTML = `
+    <div class="init-wrap">
+      <div class="init-header">
+        <div class="init-round">Round <strong id="init-round">${store.get().initRound}</strong></div>
+        ${
+          isDM
+            ? `<div class="init-controls">
+                 <button class="btn init-ctrl" id="init-prev">◀ Préc.</button>
+                 <button class="btn init-ctrl" id="init-next">Suiv. ▶</button>
+                 <button class="dice-btn" id="init-party">+ Importer PJ</button>
+                 <button class="dice-btn" id="init-roll" title="Lancer l'initiative (d20 + Dex pour les PJ)">🎲 Initiative</button>
+                 <button class="dice-btn" id="init-encounter" title="Constructeur de rencontre">🐉 Rencontre</button>
+                 <button class="dice-btn" id="init-groupsave" title="Jet de sauvegarde de groupe (boule de feu, souffle…)">💥 Sauvegarde</button>
+                 <button class="dice-btn" id="init-clear">Reset</button>
+               </div>`
+            : `<div class="init-readonly">👁 Suivi du combat</div>`
+        }
+      </div>
+      ${isDM ? actionBar(false) : isMyTurn() ? actionBar(true) : ''}
+      ${isDM ? addForm() : playerCombatPanel()}
+      <div class="init-list" id="init-list"></div>
+      <details class="init-log">
+        <summary>📜 Journal de combat ${isDM ? '<button class="init-log-clear" id="init-log-clear" title="Vider le journal">🧹</button>' : ''}</summary>
+        <div class="init-log-list" id="init-log-list"></div>
+      </details>
+    </div>
+  `;
+
+  renderList(container);
+  renderLog(container);
+
+  if (isDM) {
+    container.querySelector('#init-prev').addEventListener('click', prevTurn);
+    container.querySelector('#init-next').addEventListener('click', nextTurn);
+    container.querySelector('#init-party').addEventListener('click', addPartyFromCharacters);
+    container.querySelector('#init-roll').addEventListener('click', rollAllInitiative);
+    container.querySelector('#init-encounter').addEventListener('click', openEncounterBuilder);
+    container.querySelector('#init-groupsave').addEventListener('click', openGroupSave);
+    container.querySelector('#init-clear').addEventListener('click', async () => {
+      if (await modalConfirm('Vider le combat ?', { title: 'Combat', danger: true, okLabel: 'Vider' }))
+        clearCombat();
+    });
+    container.querySelector('#init-log-clear')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      clearCombatLog();
+    });
+    bindAddForm(container);
+  }
+
+  // Barre d'action du tour : MJ (écrit direct) ou joueur actif (diffuse au MJ).
+  const mine = !isDM && isMyTurn();
+  if (isDM || mine) {
+    container.querySelector('#iab-end')?.addEventListener('click', () => {
+      if (isDM) nextTurn();
+      else {
+        sendEndTurn();
+        showToast('⏳ Fin de tour signalée au MJ.', { timeout: 1800 });
+      }
+    });
+    container.querySelectorAll('[data-action]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const active = store.get().initiative[store.get().initTurn];
+        if (!active) return;
+        const text = `▶ ${active.name} : action — ${b.dataset.action}.`;
+        if (isDM) logCombat(text, !active.char_id); // action d'un monstre = MJ only
+        else {
+          sendTurnAction(text);
+          showToast(`Action annoncée : ${b.dataset.action}`, { timeout: 1500 });
+        }
+      })
+    );
+  }
+
+  // Panneau d'autonomie joueur (rejoindre/quitter, initiative, états).
+  if (!isDM) {
+    const panel = container.querySelector('.init-playerpanel');
+    if (panel) {
+      const charId = panel.dataset.char;
+      panel.querySelector('[data-pp="join"]')?.addEventListener('click', () => {
+        sendPlayerRequest({ kind: 'join', charId });
+        showToast('➕ Demande envoyée au MJ.', { timeout: 1600 });
+      });
+      panel.querySelector('[data-pp="leave"]')?.addEventListener('click', () => sendPlayerRequest({ kind: 'leave', charId }));
+      panel.querySelector('[data-pp="rollinit"]')?.addEventListener('click', () => {
+        sendPlayerRequest({ kind: 'rollinit', charId });
+        showToast('🎲 Initiative envoyée au MJ.', { timeout: 1600 });
+      });
+      panel.querySelectorAll('.ipp-cond').forEach((b) =>
+        b.addEventListener('click', () => {
+          const comb = store.get().initiative.find((c) => c.char_id === charId);
+          const set = new Set(comb?.conditions || []);
+          const k = b.dataset.cond;
+          if (set.has(k)) set.delete(k);
+          else set.add(k);
+          sendPlayerRequest({ kind: 'conds', charId, conditions: [...set] });
+        })
+      );
+    }
+  }
+}
+
+function renderLog(container) {
+  const el = container.querySelector('#init-log-list');
+  if (!el) return;
+  const log = (store.get().combatLog || []).filter((e) => store.get().isDM || !e.dm);
+  if (!log.length) {
+    el.innerHTML = `<div class="init-log-empty">Aucun événement.</div>`;
+    return;
+  }
+  el.innerHTML = log
+    .slice(-120)
+    .map((e) => {
+      const time = new Date(e.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      return `<div class="init-log-row"><time>${time}</time> ${escapeHtml(e.text)}</div>`;
+    })
+    .join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+/** Barre d'action du combattant dont c'est le tour (MJ). */
+const TURN_ACTIONS = [
+  ['Attaque', '⚔'], ['Sort', '✨'], ['Pointe', '🏃'], ['Esquive', '🛡'],
+  ['Désengagement', '💨'], ['Aide', '🤝'], ['Se cacher', '🫥'], ['Préparer', '⏳'],
+];
+function actionBar(mine) {
+  const { initiative, initTurn } = store.get();
+  const active = initiative[initTurn];
+  if (!active) return '';
+  return `<div class="init-actionbar ${mine ? 'mine' : ''}">
+      <div class="iab-head">${mine ? '🎯 <strong>À toi de jouer !</strong>' : `🎯 Au tour de <strong>${escapeHtml(active.name)}</strong>`}</div>
+      <div class="iab-acts">
+        ${TURN_ACTIONS.map(([a, ic]) => `<button class="iab-btn" data-action="${escapeHtml(a)}">${ic} ${a}</button>`).join('')}
+      </div>
+      <button class="btn iab-end" id="iab-end">${mine ? 'Fin de mon tour ▶' : 'Fin du tour ▶'}</button>
+      ${mine ? '<div class="iab-hint">Actions et fin de tour signalées au MJ.</div>' : ''}
+    </div>`;
+}
+
+/** Personnage du joueur courant (actif en priorité, sinon premier possédé). */
+function myCharacter() {
+  const { characters, user, activeChar } = store.get();
+  const owned = (characters || []).filter((c) => c.owner_id === user?.id);
+  return owned.find((c) => c.id === activeChar) || owned[0] || null;
+}
+
+/** Panneau d'autonomie du joueur en combat (rejoindre/quitter, initiative, états). */
+function playerCombatPanel() {
+  const mine = myCharacter();
+  if (!mine) return '';
+  const comb = store.get().initiative.find((c) => c.char_id === mine.id);
+  const conds = comb?.conditions || [];
+  return `<div class="init-playerpanel" data-char="${mine.id}">
+      <div class="ipp-head">🎭 ${escapeHtml(mine.name)}</div>
+      ${
+        comb
+          ? `<div class="ipp-row">
+               <span class="ipp-init" title="Mon initiative">Init <b>${comb.initiative ?? 0}</b></span>
+               <button class="dice-btn" data-pp="rollinit">🎲 Lancer mon init.</button>
+               <button class="dice-btn" data-pp="leave">✖ Quitter</button>
+             </div>
+             <div class="ipp-conds-lbl">Mes états :</div>
+             <div class="ipp-conds">${CONDITIONS
+               .map((c) => `<button class="ipp-cond ${conds.includes(c.n) ? 'on' : ''}" data-cond="${escapeHtml(c.n)}" title="${escapeHtml(c.n)}">${c.i}</button>`)
+               .join('')}</div>`
+          : `<button class="dice-btn" data-pp="join">➕ Rejoindre le combat</button>`
+      }
+    </div>`;
+}
+
+/** Le combattant actif est-il le personnage du joueur courant ? */
+function isMyTurn() {
+  const { initiative, initTurn, characters, user, isDM } = store.get();
+  if (isDM) return false;
+  const active = initiative[initTurn];
+  if (!active?.char_id) return false;
+  return characters.find((c) => c.id === active.char_id)?.owner_id === user?.id;
+}
+
+function addForm() {
+  return `
+    <form class="init-add" id="init-add">
+      <input id="ia-name" placeholder="Nom du combattant" required />
+      <input id="ia-init" type="number" placeholder="Init" style="width:64px" />
+      <input id="ia-hp" type="number" placeholder="PV" style="width:64px" />
+      <input id="ia-hpmax" type="number" placeholder="PV max" style="width:72px" />
+      <input id="ia-qty" type="number" min="1" value="1" title="Nombre d'exemplaires (groupe de monstres)" style="width:52px" />
+      <button class="btn" type="submit">Ajouter</button>
+    </form>`;
+}
+
+function bindAddForm(container) {
+  container.querySelector('#init-add').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = container.querySelector('#ia-name').value.trim();
+    if (!name) return;
+    const init = container.querySelector('#ia-init').value;
+    const hp = container.querySelector('#ia-hp').value;
+    const hpMax = container.querySelector('#ia-hpmax').value;
+    const qty = Math.max(1, Math.min(30, Number(container.querySelector('#ia-qty').value) || 1));
+    // Groupe de monstres : « Gobelin 1 », « Gobelin 2 »… ; un seul → nom brut.
+    for (let i = 1; i <= qty; i++) {
+      await addCombatant({ name: qty > 1 ? `${name} ${i}` : name, initiative: init, hp, hpMax });
+    }
+    container.querySelector('#init-add').reset();
+    container.querySelector('#ia-qty').value = '1';
+    container.querySelector('#ia-name').focus();
+  });
+}
+
+/** Modale « Jet de sauvegarde de groupe » (AoE). MJ. */
+function openGroupSave() {
+  const list = store.get().initiative;
+  if (!list.length) {
+    showToast('Aucun combattant pour un jet de groupe.', { timeout: 2400 });
+    return;
+  }
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay show';
+  ov.innerHTML = `
+    <div class="modal-card gsave-card" role="dialog" aria-modal="true">
+      <h3 class="modal-title">💥 Jet de sauvegarde de groupe</h3>
+      <div class="gsave-row">
+        <label>Caractéristique
+          <select id="gs-ab">${ABILITIES.map((a) => `<option value="${a.key}" ${a.key === 'dex' ? 'selected' : ''}>${a.label}</option>`).join('')}</select>
+        </label>
+        <label>DD <input type="number" id="gs-dc" value="15" min="1" style="width:64px"/></label>
+      </div>
+      <div class="gsave-row">
+        <label>Dégâts <input type="number" id="gs-dmg" value="0" min="0" style="width:74px" title="Total des dégâts déjà lancés"/></label>
+        <label>Type <input type="text" id="gs-type" placeholder="feu, foudre…" style="width:110px"/></label>
+      </div>
+      <div class="gsave-row">
+        <label class="gsave-chk"><input type="radio" name="gs-half" value="half" checked/> ½ dégâts si réussite</label>
+        <label class="gsave-chk"><input type="radio" name="gs-half" value="none"/> Aucun si réussite</label>
+      </div>
+      <div class="gsave-targets">
+        <div class="gsave-targets-h">Combattants concernés <button class="gsave-toggle" id="gs-toggle">Tout (dé)cocher</button></div>
+        <div class="gsave-list" id="gs-list">
+          ${list
+            .map(
+              (c) => `<label class="gsave-t"><input type="checkbox" value="${c.entity_id}" checked/> ${escapeHtml(c.name)}${c.hp === 0 ? ' <em>(0 PV)</em>' : ''}</label>`
+            )
+            .join('')}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="gs-cancel">Annuler</button>
+        <button class="modal-btn primary" id="gs-go">Lancer &amp; résoudre</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = () => {
+    ov.remove();
+    document.removeEventListener('keydown', onKey, true);
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  ov.addEventListener('mousedown', (e) => {
+    if (e.target === ov) close();
+  });
+  ov.querySelector('#gs-cancel').addEventListener('click', close);
+  ov.querySelector('#gs-toggle').addEventListener('click', (e) => {
+    e.preventDefault();
+    const boxes = [...ov.querySelectorAll('#gs-list input')];
+    const allOn = boxes.every((b) => b.checked);
+    boxes.forEach((b) => (b.checked = !allOn));
+  });
+  ov.querySelector('#gs-go').addEventListener('click', () => {
+    const ability = ov.querySelector('#gs-ab').value;
+    const dc = Number(ov.querySelector('#gs-dc').value) || 10;
+    const amount = Math.max(0, Number(ov.querySelector('#gs-dmg').value) || 0);
+    const halfOnSuccess = ov.querySelector('input[name="gs-half"]:checked').value === 'half';
+    const type = ov.querySelector('#gs-type').value.trim();
+    const entityIds = [...ov.querySelectorAll('#gs-list input:checked')].map((b) => b.value);
+    if (!entityIds.length) {
+      showToast('Sélectionne au moins un combattant.', { timeout: 2200 });
+      return;
+    }
+    resolveGroupSave({ ability, dc, amount, halfOnSuccess, type, entityIds });
+    close();
+  });
+}
+
+function renderList(container) {
+  const el = container.querySelector('#init-list');
+  if (!el) return;
+  const { initiative, initTurn, initRound, isDM } = store.get();
+
+  if (!initiative.length) {
+    el.innerHTML = `<div class="char-empty">Aucun combattant. ${isDM ? 'Ajoute-en un ou importe les PJ.' : ''}</div>`;
+    return;
+  }
+
+  el.innerHTML = initiative
+    .map((c, i) => combatantRow(c, i, i === initTurn, isDM, initRound))
+    .join('');
+
+  // Ciblage : disponible pour TOUS (MJ et joueurs), avant la sortie MJ-only.
+  el.querySelectorAll('[data-target]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const c = store.get().initiative.find((x) => x.entity_id === b.dataset.target);
+      if (!c) return;
+      const id = tokenIdForComb(c);
+      if (!id) {
+        showToast('Ce combattant n’a pas de jeton sur la carte.', { timeout: 2400 });
+        return;
+      }
+      const set = new Set(store.get().targets || []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      store.set({ targets: [...set] });
+      showToast(set.has(id) ? `🎯 ${c.name} ciblé (${set.size})` : `Cible retirée (${set.size})`, { timeout: 1400 });
+    })
+  );
+
+  // Jet de sauvegarde contre la mort : MJ direct, joueur via requête au MJ.
+  el.querySelectorAll('[data-dsroll]').forEach((b) =>
+    b.addEventListener('click', () => {
+      if (isDM) rollDeathSave(b.dataset.dsroll);
+      else if (b.dataset.char) {
+        sendPlayerRequest({ kind: 'deathsave', charId: b.dataset.char });
+        showToast('🎲 Sauvegarde contre la mort envoyée au MJ.', { timeout: 1800 });
+      }
+    })
+  );
+
+  if (!isDM) return;
+
+  // Ajustement manuel des pastilles de jets de mort (MJ).
+  el.querySelectorAll('[data-ds]').forEach((b) =>
+    b.addEventListener('click', () => setDeathSave(b.dataset.id, b.dataset.ds, Number(b.dataset.dsi)))
+  );
+
+  el.querySelectorAll('[data-init]').forEach((input) =>
+    input.addEventListener('change', async () => {
+      await updateCombatant(input.dataset.init, { initiative: Number(input.value) || 0 });
+      await reorderByInitiative();
+    })
+  );
+  el.querySelectorAll('[data-hpdelta]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const delta = Number(b.dataset.hpdelta);
+      adjustHp(b.dataset.id, delta);
+      if (delta < 0) concentrationCheck(b.dataset.id, -delta);
+    })
+  );
+  el.querySelectorAll('[data-hpset]').forEach((input) =>
+    input.addEventListener('change', () => {
+      const cb = store.get().initiative.find((c) => c.entity_id === input.dataset.hpset);
+      const oldHp = cb?.hp ?? 0;
+      const newHp = Number(input.value) || 0;
+      updateCombatant(input.dataset.hpset, { hp: newHp });
+      if (newHp < oldHp) concentrationCheck(input.dataset.hpset, oldHp - newHp);
+    })
+  );
+  el.querySelectorAll('[data-hptemp]').forEach((input) =>
+    input.addEventListener('change', () =>
+      updateCombatant(input.dataset.hptemp, { hp_temp: Math.max(0, Number(input.value) || 0) })
+    )
+  );
+  el.querySelectorAll('[data-remove]').forEach((b) =>
+    b.addEventListener('click', () => removeCombatant(b.dataset.remove))
+  );
+  el.querySelectorAll('[data-cond]').forEach((sel) =>
+    sel.addEventListener('change', () => {
+      if (sel.value) {
+        toggleCondition(sel.dataset.cond, sel.value);
+        sel.value = '';
+      }
+    })
+  );
+  el.querySelectorAll('[data-delcond]').forEach((b) =>
+    b.addEventListener('click', () =>
+      toggleCondition(b.dataset.id, b.dataset.delcond)
+    )
+  );
+  el.querySelectorAll('[data-add-effect]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const conc = b.dataset.concentration === '1';
+      const name = await modalPrompt(conc ? 'Sort/effet de concentration :' : 'Nom de l\'effet :', {
+        title: conc ? 'Concentration' : 'Effet',
+        placeholder: conc ? 'Ex. Bénédiction' : 'Ex. Marqué',
+      });
+      if (!name || !name.trim()) return;
+      let rounds = '';
+      if (!conc) {
+        rounds = await modalPrompt('Durée en rounds (vide = jusqu\'à dissipation) :', { title: 'Durée', placeholder: 'Ex. 10' });
+        if (rounds === null) return;
+      }
+      addEffect(b.dataset.addEffect, { name: name.trim(), rounds: rounds && rounds.trim() ? rounds.trim() : null, concentration: conc });
+    })
+  );
+  el.querySelectorAll('[data-deleffect]').forEach((b) =>
+    b.addEventListener('click', () => removeEffect(b.dataset.id, Number(b.dataset.deleffect)))
+  );
+  el.querySelectorAll('[data-statblock]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const e = statblockFor(b.dataset.statblock);
+      if (e) openStatblock(e);
+    })
+  );
+  el.querySelectorAll('[data-status]').forEach((b) =>
+    b.addEventListener('click', () => setCombatantStatus(b.dataset.id, b.dataset.status))
+  );
+
+  // Réordonnancement manuel par glisser-déposer (MJ).
+  let dragEid = null;
+  el.querySelectorAll('.init-row[data-eid]').forEach((row) => {
+    row.addEventListener('dragstart', (e) => {
+      dragEid = row.dataset.eid;
+      e.dataTransfer.effectAllowed = 'move';
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => {
+      dragEid = null;
+      el.querySelectorAll('.init-row').forEach((r) => r.classList.remove('dragging', 'drop-target'));
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (dragEid && row.dataset.eid !== dragEid) row.classList.add('drop-target');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('drop-target');
+      if (!dragEid || row.dataset.eid === dragEid) return;
+      const ids = [...el.querySelectorAll('.init-row[data-eid]')].map((r) => r.dataset.eid);
+      const from = ids.indexOf(dragEid);
+      if (from < 0) return;
+      ids.splice(from, 1);
+      const to = ids.indexOf(row.dataset.eid); // insère le glissé AVANT la cible
+      ids.splice(to, 0, dragEid);
+      setManualOrder(ids);
+    });
+  });
+}
+
+/** Id du jeton sur la carte lié à ce combattant (par entity_id ou char_id). */
+function tokenIdForComb(c) {
+  const toks = store.get().map?.tokens || [];
+  const t = toks.find((x) => (c.entity_id && x.entityId === c.entity_id) || (c.char_id && x.charId === c.char_id));
+  return t?.id || null;
+}
+
+/** Type d'un combattant pour la couleur du turn order. */
+function combType(c) {
+  if (!c.char_id) return 'monster';
+  const ch = (store.get().characters || []).find((x) => x.id === c.char_id);
+  return ch?.owner_id ? 'pj' : 'npc';
+}
+
+/** Ce combattant correspond-il au personnage du joueur courant ? */
+function isOwnedByMe(c) {
+  if (!c.char_id) return false;
+  const { characters, user } = store.get();
+  return characters.find((x) => x.id === c.char_id)?.owner_id === user?.id;
+}
+
+/** Bloc « jets de sauvegarde contre la mort » (PJ à 0 PV). */
+function deathSavesHtml(c, isDM) {
+  const ds = c.death_saves;
+  if (c.hp !== 0 || !c.char_id || !ds) return '';
+  const stable = ds.s >= 3;
+  const dead = ds.f >= 3;
+  const mine = isOwnedByMe(c);
+  const pip = (kind, i, on) =>
+    `<button class="ds-pip ds-${kind} ${on ? 'on' : ''}" ${
+      isDM ? `data-ds="${kind}" data-dsi="${i}" data-id="${c.entity_id}"` : 'disabled'
+    }></button>`;
+  const succ = [1, 2, 3].map((i) => pip('s', i, ds.s >= i)).join('');
+  const fail = [1, 2, 3].map((i) => pip('f', i, ds.f >= i)).join('');
+  const status = dead
+    ? '<span class="ds-status dead">☠️ Mort</span>'
+    : stable
+      ? '<span class="ds-status stable">🟢 Stabilisé</span>'
+      : '';
+  const roll =
+    (isDM || mine) && !stable && !dead
+      ? `<button class="ds-roll" data-dsroll="${c.entity_id}" data-char="${escapeHtml(c.char_id)}" title="Lancer une sauvegarde contre la mort">🎲</button>`
+      : '';
+  return `<div class="init-deathsaves" title="Jets de sauvegarde contre la mort">
+      <span class="ds-lbl">Mort</span>
+      <span class="ds-succ" title="Réussites">${succ}</span>
+      <span class="ds-fail" title="Échecs">${fail}</span>
+      ${roll}${status}
+    </div>`;
+}
+
+function combatantRow(c, i, active, isDM, round) {
+  const hpPct =
+    c.hp_max && c.hp !== null
+      ? Math.max(0, Math.min(100, (c.hp / c.hp_max) * 100))
+      : null;
+  const dead = c.hp === 0;
+
+  const conds = (c.conditions || [])
+    .map(
+      (cond) =>
+        `<span class="cond-tag">${condIcon(cond)} ${escapeHtml(cond)}${
+          isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-delcond="${escapeHtml(cond)}">×</button>` : ''
+        }</span>`
+    )
+    .join('');
+
+  const effects = (c.effects || [])
+    .map((ef, idx) => {
+      const rem = ef.until == null ? null : ef.until - (round || 1);
+      const expired = rem != null && rem <= 0;
+      const remTxt = ef.until == null ? '∞' : expired ? 'fini' : `${rem}`;
+      return `<span class="eff-tag ${ef.concentration ? 'conc' : ''} ${expired ? 'expired' : ''}">
+        ${ef.concentration ? '🧠 ' : ''}${escapeHtml(ef.name)} <em>${remTxt}</em>${
+        isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-deleffect="${idx}">×</button>` : ''
+      }</span>`;
+    })
+    .join('');
+
+  const effAdd = isDM
+    ? `<span class="eff-add">
+         <button class="eff-btn" data-add-effect="${c.entity_id}" title="Ajouter un effet">＋ effet</button>
+         <button class="eff-btn" data-add-effect="${c.entity_id}" data-concentration="1" title="Concentration">🧠</button>
+       </span>`
+    : '';
+
+  const stBadge =
+    c.status === 'ready'
+      ? '<span class="init-status ready" title="Action préparée">⏳ Prête</span>'
+      : c.status === 'delayed'
+        ? '<span class="init-status delayed" title="Tour retardé">⏸ Retardée</span>'
+        : '';
+
+  return `
+    <div class="init-row t-${combType(c)} ${active ? 'active' : ''} ${dead ? 'dead' : ''} ${c.status ? `st-${c.status}` : ''}" ${isDM ? `draggable="true" data-eid="${c.entity_id}"` : ''}>
+      <div class="init-order">${isDM ? '<span class="init-grip" title="Glisser pour réordonner">⠿</span>' : ''}${i + 1}</div>
+      <div class="init-score">
+        ${
+          isDM
+            ? `<input type="number" value="${c.initiative}" data-init="${c.entity_id}" />`
+            : `<span>${c.initiative}</span>`
+        }
+      </div>
+      <div class="init-name">
+        <strong>${escapeHtml(c.name)}</strong>
+        ${(() => {
+          const tid = tokenIdForComb(c);
+          const on = tid && (store.get().targets || []).includes(tid);
+          return `<button class="init-target ${on ? 'on' : ''}" data-target="${c.entity_id}" title="${tid ? 'Cibler / décibler' : 'Aucun jeton sur la carte'}">🎯</button>`;
+        })()}
+        ${isDM && statblockFor(c.name) ? `<button class="sb-mini" data-statblock="${escapeHtml(c.name)}" title="Statbloc / attaques">⚔</button>` : ''}
+        ${stBadge}
+        <div class="init-conds">${conds}${effects}${effAdd}</div>
+        ${deathSavesHtml(c, isDM)}
+      </div>
+      <div class="init-hp">
+        ${
+          c.hp === null
+            ? '<span class="init-nohp">—</span>'
+            : isDM
+            ? `<button class="hp-btn sm" data-id="${c.entity_id}" data-hpdelta="-1">−</button>
+               <input type="number" class="init-hp-in" value="${c.hp}" data-hpset="${c.entity_id}" />
+               <button class="hp-btn sm" data-id="${c.entity_id}" data-hpdelta="1">+</button>
+               <span class="init-hpmax">/${c.hp_max ?? '?'}</span>
+               <span class="init-temp" title="PV temporaires">
+                 <span class="init-temp-lbl">PV temp</span>
+                 <input type="number" min="0" class="init-temp-in" value="${c.hp_temp ?? 0}" data-hptemp="${c.entity_id}" />
+               </span>`
+            : c.char_id
+            ? `<span>${c.hp}${c.hp_max ? ` / ${c.hp_max}` : ''}</span>${
+                c.hp_temp ? ` <span class="init-temp-badge" title="PV temporaires">+${c.hp_temp}</span>` : ''
+              }`
+            : `<span class="init-hptier">${hpPct !== null ? hpTierLabel(hpPct) : '—'}</span>`
+        }
+        ${hpPct !== null ? `<div class="init-hpbar"><span style="width:${hpPct}%"></span></div>` : ''}
+      </div>
+      ${
+        isDM
+          ? `<div class="init-actions">
+               <button class="init-st-btn ${c.status === 'ready' ? 'on' : ''}" data-status="ready" data-id="${c.entity_id}" title="Action préparée">⏳</button>
+               <button class="init-st-btn ${c.status === 'delayed' ? 'on' : ''}" data-status="delayed" data-id="${c.entity_id}" title="Retarder le tour">⏸</button>
+               <select class="cond-select" data-cond="${c.entity_id}">
+                 <option value="">+ État</option>
+                 ${CONDITIONS.map((x) => `<option value="${x.n}">${x.i} ${x.n}</option>`).join('')}
+               </select>
+               <button class="mini-del" data-remove="${c.entity_id}">×</button>
+             </div>`
+          : ''
+      }
+    </div>`;
+}
+
+/** Mise à jour légère pendant la saisie (round + surbrillance du tour). */
+function updateDynamic(container) {
+  const roundEl = container.querySelector('#init-round');
+  if (roundEl) roundEl.textContent = store.get().initRound;
+  const rows = container.querySelectorAll('.init-row');
+  const { initTurn } = store.get();
+  rows.forEach((r, i) => r.classList.toggle('active', i === initTurn));
+  renderLog(container);
+}

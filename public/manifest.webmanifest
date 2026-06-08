@@ -1,0 +1,19 @@
+{
+  "name": "Vault du MJ",
+  "short_name": "Vault MJ",
+  "description": "Gestionnaire de table JDR — vault privé + outils de jeu en temps réel.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d0d12",
+  "theme_color": "#7c6af7",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

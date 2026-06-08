@@ -1,0 +1,19 @@
+# Politique de cache (compatible Cloudflare Pages, Netlify, etc.).
+# Le shell (HTML) et le service worker ne sont JAMAIS mis en cache durablement :
+# ils doivent toujours refléter le dernier déploiement (et pointer vers les assets
+# hashés courants). Les assets hashés, eux, sont immuables (le nom change à chaque build).
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
