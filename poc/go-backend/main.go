@@ -555,6 +555,12 @@ func main() {
 
 	mux.HandleFunc("GET /realtime", s.ws)
 
+	// File storage (see storage.go).
+	mux.HandleFunc("POST /storage/{bucket}", s.storageUpload)
+	mux.HandleFunc("POST /storage/{bucket}/sign", s.storageSign)
+	mux.HandleFunc("GET /storage/{bucket}/{path...}", s.storageGet)
+	mux.HandleFunc("DELETE /storage/{bucket}", s.storageDelete)
+
 	// Front end embedded in the binary (single-file deploy).
 	sub, err := fs.Sub(staticFS, "static")
 	if err != nil {

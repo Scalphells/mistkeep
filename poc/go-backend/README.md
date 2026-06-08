@@ -35,6 +35,7 @@ The UI is embedded (`go:embed`), so the binary runs on its own.
 | Auth | `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` (cookie session, bcrypt) |
 | Data (generic) | `GET/POST/PATCH/DELETE /api/{table}` — see `api.go` for the table whitelist and per-table rules |
 | Realtime | WebSocket `GET /realtime`: emits `{table,eventType,new}` on writes; relays ephemeral events |
+| Storage | `POST /storage/{bucket}` (upload), `/sign`, `GET /storage/{bucket}/{path...}`, `DELETE` — private, on disk (see `storage.go`) |
 
 The data layer (`api.go`) is table-driven: a registry lists each table's columns,
 primary key, JSON columns, and authorization rule (`dm` / `owner` / `auth`). Only
