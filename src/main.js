@@ -209,7 +209,7 @@ function renderAuth(mode) {
   root.innerHTML = `
     <div class="auth-screen">
       <div class="auth-card">
-        <h1>⚔ VAULT DU MJ</h1>
+        <h1>⚔ MISTKEEP</h1>
         ${
           isLogin
             ? ''
