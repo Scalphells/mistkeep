@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { backend } from './backend.js';
 import { store } from '../state.js';
 
 /**
@@ -28,7 +28,7 @@ export function getPartyLoot() {
 }
 
 export async function loadPartyLoot() {
-  const { data } = await supabase.from('session_state').select('value').eq('key', KEY).maybeSingle();
+  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
   store.set({ partyLoot: normalize(data?.value) });
 }
 
@@ -36,7 +36,7 @@ let _subbed = false;
 export function subscribePartyLoot() {
   if (_subbed) return () => {};
   _subbed = true;
-  supabase
+  backend.realtime
     .channel('party_loot_feed')
     .on(
       'postgres_changes',
@@ -50,7 +50,7 @@ export function subscribePartyLoot() {
 async function persist(next) {
   if (!store.get().isDM) return;
   store.set({ partyLoot: next }); // affichage optimiste
-  const { error } = await supabase
+  const { error } = await backend.db
     .from('session_state')
     .upsert(
       { key: KEY, value: next, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
