@@ -1,0 +1,42 @@
+_format_version: "2.1"
+
+# Minimal API gateway routing for the Supabase services the app uses.
+# The services themselves enforce auth (JWT signed with JWT_SECRET); Kong only
+# routes and handles CORS here.
+
+services:
+  - name: auth-v1
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1
+        paths: ["/auth/v1"]
+        strip_path: true
+    plugins:
+      - name: cors
+
+  - name: rest-v1
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1
+        paths: ["/rest/v1"]
+        strip_path: true
+    plugins:
+      - name: cors
+
+  - name: realtime-v1
+    url: http://realtime:4000/socket/
+    routes:
+      - name: realtime-v1
+        paths: ["/realtime/v1"]
+        strip_path: true
+    plugins:
+      - name: cors
+
+  - name: storage-v1
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1
+        paths: ["/storage/v1"]
+        strip_path: true
+    plugins:
+      - name: cors

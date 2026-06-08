@@ -34,6 +34,13 @@ proprietary text, rules, art, or adventure data. Bring your own material.
 
 ## Self-hosting
 
+Two options:
+
+- **All-in-one Docker** (front end + full Supabase stack + database on one
+  machine, no cloud account): see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+- **Hosted Supabase** (front end deployed to any static host, data on a Supabase
+  project): follow the steps below.
+
 1. Create a Supabase project. From Project Settings > API, note the project URL
    and the public `anon` key.
 2. In the Supabase SQL editor, run the files in `supabase/migrations/` in order
