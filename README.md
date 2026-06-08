@@ -1,110 +1,92 @@
-# Mistkeep — table virtuelle JDR auto-hébergeable
+# Mistkeep
 
-Une table virtuelle (VTT) légère et originale pour mener des parties de jeu de
-rôle **D&D 5e (contenu ouvert SRD 5.1)** en ligne avec ta table : fiches de
-personnage, suivi d'initiative, carte tactique avec jetons et **vision
-dynamique**, chat, **journal de combat façon cartes**, compendium, gestion de
-ressources de classe, trésor de groupe, journal de quêtes, et plus.
+A self-hostable virtual tabletop (VTT) for running D&D 5e (SRD 5.1) games online:
+character sheets, initiative tracking, a tactical map with tokens and dynamic
+vision, chat, a card-based combat log, and a compendium.
 
-Front-end statique (Vite, JavaScript natif, sans framework) + **Supabase**
-(authentification, base PostgreSQL, temps réel, stockage de fichiers). Tu héberges
-**ta propre instance** : tes données t'appartiennent, aucun service central.
+Static front end (Vite, plain JavaScript, no framework) on top of Supabase
+(auth, PostgreSQL, realtime, file storage). You run your own instance and keep
+your own data.
 
-> ⚠️ **Outils, pas contenu.** Ce dépôt ne fournit que des *outils* et du contenu
-> **ouvert (SRD 5.1)**. Il ne contient **aucun** texte, règle, illustration ou
-> donnée propriétaire (univers commerciaux, modules publiés, etc.). Tu importes
-> **ton propre matériel** dans ton instance privée, pour ton usage à ta table.
+This repository contains tools and open content (SRD 5.1) only. It ships no
+proprietary text, rules, art, or adventure data. Bring your own material.
 
-## ✨ Fonctionnalités
+> Note: the application interface is currently in French. Internationalisation
+> is not done yet.
 
-- **Fiches D&D 5e** : caractéristiques, jets, compétences, sorts, emplacements,
-  ressources de classe, inventaire & monnaie, repos court/long, dés de vie.
-- **Combat** : initiative (avec jets de groupe pour les hordes), PV/états/effets à
-  durée, **jets de sauvegarde contre la mort**, **sauvegardes de groupe (AoE)**,
-  journal de combat en cartes riches.
-- **Carte tactique** : jetons (dispositions, auras, élévation), **vision dynamique**
-  (murs, portes, lumières, brouillard à 3 niveaux, vision dans le noir), gabarits
-  de sort, dessin, scènes multiples, ambiance (obscurité/météo), **HUD de jeton**.
-- **Partagé** : chat (public/privé, modes de jet), handouts, compendium (SRD
-  importable via [dnd5eapi](https://www.dnd5eapi.co/)), trésor de groupe, quêtes.
-- **Disposition « Rail VTT »** optionnelle façon table virtuelle (carte centrale +
-  fenêtres flottantes).
+## Features
 
-## 🧱 Prérequis
+- Characters: ability scores, rolls, skills, spells and slots, class resources,
+  inventory and currency, short/long rest, hit dice.
+- Combat: initiative (including group rolls), HP, conditions and timed effects,
+  death saving throws, area saving throws, card-based combat log.
+- Map: tokens (disposition, auras, elevation), dynamic vision (walls, doors,
+  lights, three-level fog, darkvision), spell templates, drawing, multiple
+  scenes, scene atmosphere, token HUD.
+- Shared: chat (public/private, roll modes), handouts, compendium (SRD import
+  via dnd5eapi.co), party loot, quest log.
+- Optional VTT layout with a central map and floating windows.
 
-- **Node.js ≥ 20.19**
-- Un projet **Supabase** (la [formule gratuite](https://supabase.com/) suffit
-  largement pour une table).
+## Requirements
 
-## 🚀 Déployer ta propre instance (≈ 10 min)
+- Node.js >= 20.19
+- A Supabase project (the free tier is enough).
 
-### 1. Créer le projet Supabase
-Crée un projet sur [supabase.com](https://supabase.com/). Note, dans
-**Project Settings → API** : l'**URL du projet** et la **clé `anon` publique**.
+## Self-hosting
 
-### 2. Créer le schéma
-Dans **Supabase → SQL Editor**, exécute **dans l'ordre** chaque fichier de
-`supabase/migrations/` (`0001_…` puis `0002_…`, etc., jusqu'au dernier). Ils
-créent les tables, la sécurité (RLS) et les buckets de stockage.
+1. Create a Supabase project. From Project Settings > API, note the project URL
+   and the public `anon` key.
+2. In the Supabase SQL editor, run the files in `supabase/migrations/` in order
+   (`0001_*`, then `0002_*`, and so on).
+3. Configure and run:
 
-### 3. Configurer le front
-```bash
-git clone <ce-dépôt>
-cd mistkeep
-npm install
-cp .env.example .env      # renseigne VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY
+   ```
+   git clone <repo>
+   cd mistkeep
+   npm install
+   cp .env.example .env   # set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+   npm run dev
+   ```
+
+4. Create your account, then grant yourself the DM role once in the SQL editor:
+
+   ```sql
+   update public.profiles set role = 'dm' where email = 'you@example.com';
+   ```
+
+5. Build with `npm run build` and deploy `dist/` to any static host (Cloudflare
+   Pages, Netlify, Vercel, GitHub Pages), setting `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_ANON_KEY`.
+
+## Development
+
+```
+npm run dev     # local dev server
+npm test        # unit tests (Vitest)
+npm run build   # production build
 ```
 
-### 4. Créer les comptes & désigner le MJ
-Lance l'app (`npm run dev`), crée ton compte (et ceux des joueurs, ou laisse-les
-s'inscrire). Puis, **une fois**, dans **Supabase → SQL Editor**, donne le rôle MJ
-à ton compte :
-```sql
-update public.profiles set role = 'dm' where email = 'TON_EMAIL';
-```
+State lives in a small central store (`src/state.js`). Each feature exposes a
+`mount(container)` function under `src/features/`. Pure, testable logic lives in
+`src/lib/`.
 
-### 5. Déployer (statique)
-```bash
-npm run build      # produit dist/
-```
-Déploie le dossier `dist/` sur n'importe quel hébergeur de fichiers statiques
-gratuit (Cloudflare Pages, Netlify, Vercel, GitHub Pages…), en y déclarant les
-variables d'environnement `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`.
+## Security
 
-Tes joueurs ouvrent l'URL, créent leur compte, et c'est parti. 🎲
+- The DM/player role is stored in the database (`profiles.role`) and enforced by
+  row-level security. The client never decides permissions.
+- Sensitive writes are DM-only via RLS. Storage (maps, handouts) is private and
+  served through signed URLs.
 
-## 🛠 Développement
+## Content and rights
 
-```bash
-npm run dev        # serveur local (http://localhost:5173)
-npm test           # tests unitaires (Vitest)
-npm run build      # build de production
-```
+The application is an engine. Campaign content (NPCs, locations, published-module
+text, art) is not included. Only use material you have the rights to. SRD 5.1 is
+available under an open licence.
 
-Architecture : store central (`src/state.js`), une fonction `mount(container)`
-par fonctionnalité (`src/features/`), logique pure et testable dans `src/lib/`,
-routeur de vues léger (`src/features/nav.js`).
+## Contributing
 
-## 🔒 Sécurité (points clés)
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-- Le rôle (`dm`/`player`) est la **source de vérité en base** (`profiles.role`),
-  protégé par RLS + trigger anti-escalade. Aucune décision de droit côté client.
-- Les écritures sensibles sont **réservées au MJ** par RLS (`public.is_dm()`).
-- Le stockage (cartes, handouts) est **privé** ; accès par URL signées.
+## Licence
 
-## 📜 Contenu & droits
-
-L'application est un **moteur**. Le **contenu** de ta campagne (PNJ, lieux,
-textes de modules commerciaux, illustrations…) reste le tien et **n'est pas
-fourni** ici. N'importe que du contenu dont tu as les droits ; le SRD 5.1 est
-disponible sous licence ouverte.
-
-## 🤝 Contribuer
-
-Les contributions sont bienvenues — voir [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## ⚖️ Licence
-
-[GNU AGPL-3.0-or-later](LICENSE). En résumé : tu peux utiliser, modifier et
-redistribuer librement, mais toute version modifiée **distribuée ou exploitée
-comme service en ligne** doit publier son code source sous la même licence.
+[GNU AGPL-3.0-or-later](LICENSE).

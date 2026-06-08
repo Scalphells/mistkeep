@@ -3,7 +3,7 @@
   "version": "5.0.0",
   "type": "module",
   "license": "AGPL-3.0-or-later",
-  "description": "Table virtuelle JDR (D&D 5e / SRD 5.1) auto-hébergeable : fiches, initiative, carte & jetons avec vision dynamique, chat, journal de combat, compendium — temps réel via Supabase.",
+  "description": "Self-hostable D&D 5e (SRD 5.1) virtual tabletop: character sheets, initiative, tactical map with dynamic vision, chat, combat log, and compendium. Realtime via Supabase.",
   "keywords": ["ttrpg", "vtt", "dnd5e", "srd", "supabase", "vite", "self-hosted"],
   "scripts": {
     "dev": "vite",

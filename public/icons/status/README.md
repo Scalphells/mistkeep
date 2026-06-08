@@ -1,18 +1,19 @@
-# Logos custom des états (status)
+# Custom status icons
 
-Dépose ici un fichier **`<slug>.svg`** par état pour remplacer son emoji partout
-(tracker de combat, jetons de la carte, dock, aperçu du groupe). Repli automatique
-sur l'emoji si le fichier n'est pas listé.
+Drop a `<slug>.svg` file here to replace a condition's emoji everywhere it shows
+(combat tracker, map tokens, dock, party overview). The emoji is used as a
+fallback whenever a file is not present.
 
-## Procédure
-1. Place le fichier, ex. `public/icons/status/poisoned.svg`.
-2. Ouvre `src/lib/conditions.js` et ajoute le slug dans `CUSTOM_STATUS_ICONS`,
-   ex. `new Set(['poisoned'])`.
-3. (PNG possible : adapte l'extension dans `statusIconHtml`.)
+## How to enable
 
-## Slugs attendus (fichier = `<slug>.svg`)
+1. Add the file, e.g. `public/icons/status/poisoned.svg`.
+2. Open `src/lib/conditions.js` and add the slug to `CUSTOM_STATUS_ICONS`,
+   e.g. `new Set(['poisoned'])`.
+3. (PNG is possible: adjust the extension in `statusIconHtml`.)
 
-| État | slug (nom de fichier) |
+## Expected slugs (file = `<slug>.svg`)
+
+| Condition (FR label in UI) | slug (file name) |
 |---|---|
 | Aveuglé | `blinded` |
 | Charmé | `charmed` |
@@ -31,5 +32,5 @@ sur l'emoji si le fichier n'est pas listé.
 | Épuisement | `exhaustion` |
 | Concentration | `concentration` |
 
-> Format conseillé : SVG carré, lisible en très petit (≈14 px), monochrome ou
-> contrasté. Assure-toi d'avoir les droits sur les images que tu déposes.
+Recommended format: square SVG, legible at ~14 px, monochrome or high-contrast.
+Make sure you have the rights to any image you add.

@@ -1,22 +1,23 @@
-# Contribuer
+# Contributing
 
-Merci de ton intérêt ! Quelques règles simples.
+## Before you start
 
-## Avant de coder
-- Ouvre une **issue** pour discuter d'un changement non trivial.
-- Garde les PR **ciblées** (un sujet par PR).
+- Open an issue to discuss non-trivial changes.
+- Keep pull requests focused: one topic per PR.
 
-## Qualité
-- `npm test` et `npm run build` doivent passer.
-- Suis le style du code existant (JS natif, modules ES, pas de framework).
-- La logique métier va dans `src/lib/` (pure, testable) ; ajoute des tests Vitest.
+## Quality
 
-## Règle d'or : outils, pas contenu
-N'ajoute **aucun** contenu propriétaire (textes, règles, illustrations, données de
-modules ou d'univers commerciaux). Seul le contenu **ouvert (SRD 5.1)** ou
-original est accepté. Les fonctionnalités doivent rester du *moteur*, l'utilisateur
-apportant sa propre matière.
+- `npm test` and `npm run build` must pass.
+- Match the existing style: plain ES modules, no framework.
+- Put business logic in `src/lib/` (pure, testable) and add Vitest tests.
 
-## Sécurité
-Toute écriture sensible doit rester protégée par RLS côté Supabase. Ne déplace
-jamais une décision de droit vers le client.
+## Tools, not content
+
+Do not add proprietary content (text, rules, art, or data from commercial
+modules or settings). Only open content (SRD 5.1) or original work is accepted.
+Features should be engine, not material.
+
+## Security
+
+Sensitive writes must stay protected by Supabase row-level security. Never move
+a permission decision to the client.
