@@ -6,7 +6,7 @@ import { showToast } from '../lib/toast.js';
 import { loadCharacters, updateCharacter, saveBonus } from './characters.js';
 import { loadInitiative, subscribeInitiative, adjustHp, toggleCondition, logCombat, addCombatant, sendPlayerRequest } from './initiative.js';
 import { rollDice } from './dice.js';
-import { condIcon } from '../lib/conditions.js';
+import { condIcon, condIconHtml } from '../lib/conditions.js';
 import { openAttackResolver } from '../lib/attack.js';
 import { openActionCard } from '../lib/actioncard.js';
 import {
@@ -737,7 +737,7 @@ export async function mountMap(container) {
         // États repris du combattant lié (par entity_id ou char_id).
         const comb = combatantForToken(t);
         const conds = (comb?.conditions || [])
-          .map((c) => `<span class="tok-cond" title="${escapeHtml(c)}">${condIcon(c)}</span>`)
+          .map((c) => `<span class="tok-cond" title="${escapeHtml(c)}">${condIconHtml(c)}</span>`)
           .join('');
         const isActive = !!(active && comb && active.entity_id === comb.entity_id);
         const cls = [

@@ -1,6 +1,6 @@
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
-import { condIcon } from './conditions.js';
+import { condIconHtml } from './conditions.js';
 import { navigateTo } from '../features/nav.js';
 
 /**
@@ -46,7 +46,7 @@ function render() {
                 const v = vitals(c);
                 const pct = v.max ? Math.max(0, Math.min(100, (v.hp / v.max) * 100)) : null;
                 const color = pct == null ? 'var(--muted)' : pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--yellow)' : 'var(--red)';
-                const conds = v.conds.map((x) => `<span title="${escapeHtml(x)}">${condIcon(x)}</span>`).join('');
+                const conds = v.conds.map((x) => `<span title="${escapeHtml(x)}">${condIconHtml(x)}</span>`).join('');
                 return `<button class="party-row" data-open-char="${c.id}">
                   <span class="party-nm">${escapeHtml(c.name)}${v.conc ? ' 🧠' : ''}</span>
                   <span class="party-vit">

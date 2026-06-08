@@ -1,7 +1,7 @@
 import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
 import { colorFor, initials } from '../lib/profile.js';
-import { condIcon } from '../lib/conditions.js';
+import { condIcon, condIconHtml } from '../lib/conditions.js';
 import { sendMessage } from './chat.js';
 import { sendRoll, sendD20Check } from './dice.js';
 import { ABILITIES, abilityMod, fmtMod, updateCharacter, portraitUrl } from './characters.js';
@@ -717,7 +717,7 @@ function updateCombat() {
         .map((c, i) => {
           const pct = c.hp_max && c.hp != null ? Math.max(0, Math.min(100, (c.hp / c.hp_max) * 100)) : null;
           const color = pct == null ? '' : pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--yellow)' : 'var(--red)';
-          const conds = (c.conditions || []).map((x) => condIcon(x)).join(' ');
+          const conds = (c.conditions || []).map((x) => condIconHtml(x)).join(' ');
           // PV cachés pour les monstres côté joueur : palier au lieu du chiffre.
           const monster = !c.char_id;
           const hpHtml =

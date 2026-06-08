@@ -40,7 +40,7 @@ import { hpTierLabel } from '../lib/hptiers.js';
  * suivent le combat en temps réel (lecture seule).
  */
 
-import { CONDITIONS, condIcon } from '../lib/conditions.js';
+import { CONDITIONS, condIcon, condIconHtml } from '../lib/conditions.js';
 
 /** Rappel d'un jet de Concentration si un combattant concentré subit des dégâts. */
 function concentrationCheck(entityId, damage) {
@@ -600,7 +600,7 @@ function combatantRow(c, i, active, isDM, round) {
   const conds = (c.conditions || [])
     .map(
       (cond) =>
-        `<span class="cond-tag">${condIcon(cond)} ${escapeHtml(cond)}${
+        `<span class="cond-tag">${condIconHtml(cond)} ${escapeHtml(cond)}${
           isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-delcond="${escapeHtml(cond)}">×</button>` : ''
         }</span>`
     )
