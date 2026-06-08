@@ -11,38 +11,30 @@ This runs the whole stack on one machine: the front end, the full Supabase API
 
 - Docker and Docker Compose v2.
 
-## 2. Generate secrets
+## 2. Generate secrets and .env
 
-You need four secrets: `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`, and
-`SECRET_KEY_BASE`.
-
-- `JWT_SECRET`: any random string of at least 40 characters.
-- `ANON_KEY` and `SERVICE_ROLE_KEY`: JWTs **signed with that `JWT_SECRET`**, with
-  payload `role: anon` and `role: service_role` respectively. The easiest way is
-  the generator in Supabase's self-hosting guide
-  (https://supabase.com/docs/guides/self-hosting/docker), or jwt.io with the
-  HS256 algorithm and your `JWT_SECRET`.
-- `SECRET_KEY_BASE`: any random string of at least 64 characters (realtime).
-
-Random strings, for example:
+Run the helper (needs `openssl`):
 
 ```
-openssl rand -hex 32   # JWT_SECRET
-openssl rand -hex 48   # SECRET_KEY_BASE
+./scripts/gen-keys.sh --write
 ```
 
-## 3. Configure
+This creates `.env` with strong random values for `POSTGRES_PASSWORD`,
+`JWT_SECRET`, `SECRET_KEY_BASE`, and the signed JWT `ANON_KEY` /
+`SERVICE_ROLE_KEY`. It refuses to overwrite an existing `.env`. Run it without
+`--write` to only print the values, or copy `.env.docker.example` and fill them
+in by hand.
 
-```
-cp .env.docker.example .env
-```
+The output contains secrets. Keep it private.
 
-Fill in `.env`. Keep `API_EXTERNAL_URL` reachable **from the browser**:
+## 3. Set the URLs
+
+Edit `.env` and keep `API_EXTERNAL_URL` reachable **from the browser**:
 `http://localhost:8000` for local play, or `http://<host-ip>:8000` so other
-players on your LAN can connect.
+players on your LAN can connect. `SITE_URL` is the front end.
 
-> The `ANON_KEY` and `API_EXTERNAL_URL` are baked into the front-end bundle at
-> build time (Vite). If you change them later, rebuild: `docker compose build frontend`.
+> `ANON_KEY` and `API_EXTERNAL_URL` are baked into the front-end bundle at build
+> time (Vite). If you change them later, rebuild: `docker compose build frontend`.
 
 ## 4. Start
 
@@ -80,6 +72,24 @@ Players just open the same URL and sign up.
   Supabase's current self-hosting compose. `realtime` is the most version-sensitive.
 - **Reset everything**: `docker compose down -v` removes the database and storage
   volumes (you lose all data).
+
+## Security
+
+- Use generated secrets (`scripts/gen-keys.sh`); never ship the example
+  placeholders. `.env` is gitignored — keep it private and out of any shared backup.
+- Only the front end (`3000`) and the API gateway (`8000`) are meant to be
+  reachable by players. The database is not published to the host, and Studio is
+  bound to `127.0.0.1:3001` — do not expose it on the LAN or the internet.
+- Open sign-up is on by default so players can register. Once everyone has an
+  account, set `GOTRUE_DISABLE_SIGNUP: "true"` on the `auth` service and run
+  `docker compose up -d auth` to stop new registrations — important if the
+  instance is reachable from the internet.
+- For internet play, put the stack behind a reverse proxy with TLS (HTTPS) and a
+  real domain; never expose plain HTTP. A private tunnel (Tailscale, Cloudflare
+  Tunnel) is a safer alternative to opening ports.
+- In-app access control is enforced by PostgreSQL row-level security (DM-only
+  writes; players limited to their own data). Do not disable RLS.
+- Keep images updated and review the pinned versions periodically.
 
 ## Notes
 

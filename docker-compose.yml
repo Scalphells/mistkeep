@@ -15,8 +15,8 @@ services:
   db:
     image: supabase/postgres:15.1.1.78
     restart: unless-stopped
-    ports:
-      - "5432:5432"
+    # Not published to the host: other services reach it over the internal
+    # network. Use `docker compose exec db psql -U postgres` for a shell.
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
@@ -202,8 +202,9 @@ services:
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DEFAULT_ORGANIZATION_NAME: Mistkeep
       DEFAULT_PROJECT_NAME: Mistkeep
+    # Admin UI has no auth: bind to localhost only, never expose it on the LAN.
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
 
   # ---- Front end (built with the Supabase URL baked in) ------------------
   frontend:
