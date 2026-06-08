@@ -1,42 +1,16 @@
-import { supabase } from './supabase.js';
+import { supabaseAdapter } from './backend/supabase-adapter.js';
+import { goAdapter } from './backend/go-adapter.js';
 
 /**
  * Data-access seam.
  *
- * Feature code talks to `backend.db / .realtime / .auth / .storage` instead of
- * importing the Supabase client directly. Today these delegate to Supabase, so
- * there is no behavior change. Later, a Go adapter can expose the same shape
- * against a self-hosted backend — one front end, two backends, swapped here.
+ * Feature code talks to `backend.db / .realtime / .auth / .storage` instead of a
+ * specific backend. The adapter is chosen at build time:
+ *   - default            -> Supabase (the hosted edition)
+ *   - VITE_BACKEND=go     -> the self-hosted Go server (poc/go-backend)
  *
- * The surface intentionally mirrors the small subset of the Supabase client the
- * app actually uses, so migrating a feature is just: import `backend` and call
- * `backend.db.from(...)` / `backend.realtime.channel(...)` / `backend.auth.*` /
- * `backend.storage.from(...)`.
+ * One front end, two backends — swapped here, nothing else changes.
  */
-export const backend = {
-  db: {
-    /** Query builder for a table (same chainable API as supabase.from). */
-    from: (table) => supabase.from(table),
-  },
+const useGo = import.meta.env && import.meta.env.VITE_BACKEND === 'go';
 
-  realtime: {
-    /** Open a realtime channel (postgres_changes / broadcast / presence). */
-    channel: (name, opts) => supabase.channel(name, opts),
-    removeChannel: (ch) => supabase.removeChannel(ch),
-  },
-
-  auth: {
-    signInWithPassword: (creds) => supabase.auth.signInWithPassword(creds),
-    signUp: (creds) => supabase.auth.signUp(creds),
-    signOut: () => supabase.auth.signOut(),
-    getUser: () => supabase.auth.getUser(),
-    getSession: () => supabase.auth.getSession(),
-    updateUser: (attrs) => supabase.auth.updateUser(attrs),
-    onAuthStateChange: (cb) => supabase.auth.onAuthStateChange(cb),
-  },
-
-  storage: {
-    /** File operations for a bucket (same API as supabase.storage.from). */
-    from: (bucket) => supabase.storage.from(bucket),
-  },
-};
+export const backend = useGo ? goAdapter : supabaseAdapter;
