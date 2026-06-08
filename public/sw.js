@@ -1,4 +1,4 @@
-/* Service worker — Vault du MJ (PWA hors-ligne, sans dépendance).
+/* Service worker — Mistkeep (PWA hors-ligne, sans dépendance).
  *
  * Stratégie :
  *   - navigation (HTML)  : network-first → fallback cache (app shell) ;

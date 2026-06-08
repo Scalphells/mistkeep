@@ -1,6 +1,6 @@
 {
-  "name": "Vault du MJ",
-  "short_name": "Vault MJ",
+  "name": "Mistkeep",
+  "short_name": "Mistkeep",
   "description": "Gestionnaire de table JDR — vault privé + outils de jeu en temps réel.",
   "start_url": "/",
   "scope": "/",

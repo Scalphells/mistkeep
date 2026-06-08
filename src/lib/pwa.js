@@ -56,7 +56,7 @@ export function initPWA() {
         console.warn('[pwa] service worker non enregistré:', err?.message);
       });
     });
-    console.info(`[vault-mj] build ${BUILD_ID}`);
+    console.info(`[mistkeep] build ${BUILD_ID}`);
   }
 
   // Détection de connectivité.

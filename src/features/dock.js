@@ -309,7 +309,7 @@ function buildPanel(body, which) {
     body.innerHTML = `
       <div class="dock-head">⚙ Paramètres</div>
       <div class="dock-scroll dk-settings">
-        <div class="dk-set-ver">Vault du MJ · build ${escapeHtml(BUILD_ID)}</div>
+        <div class="dk-set-ver">Mistkeep · build ${escapeHtml(BUILD_ID)}</div>
         <div class="dk-set-group">Affichage &amp; compte</div>
         <button class="dk-set-btn" data-set="prefs">🎛 Préférences d'affichage</button>
         <button class="dk-set-btn" data-set="profile">🙂 Mon profil &amp; mot de passe</button>

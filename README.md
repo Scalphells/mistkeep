@@ -1,4 +1,4 @@
-# Vault MJ — table virtuelle JDR auto-hébergeable
+# Mistkeep — table virtuelle JDR auto-hébergeable
 
 Une table virtuelle (VTT) légère et originale pour mener des parties de jeu de
 rôle **D&D 5e (contenu ouvert SRD 5.1)** en ligne avec ta table : fiches de
@@ -50,7 +50,7 @@ créent les tables, la sécurité (RLS) et les buckets de stockage.
 ### 3. Configurer le front
 ```bash
 git clone <ce-dépôt>
-cd vault-mj
+cd mistkeep
 npm install
 cp .env.example .env      # renseigne VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY
 ```

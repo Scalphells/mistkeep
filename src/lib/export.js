@@ -9,7 +9,7 @@ import { showToast } from './toast.js';
 const TABLES = ['characters', 'compendium', 'scenes', 'session_notes', 'handouts'];
 
 export async function exportData() {
-  const out = { app: 'vault-mj', exportedAt: new Date().toISOString() };
+  const out = { app: 'mistkeep', exportedAt: new Date().toISOString() };
   for (const t of TABLES) {
     const { data, error } = await supabase.from(t).select('*');
     out[t] = error ? [] : data;
@@ -18,7 +18,7 @@ export async function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `vault-mj-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `mistkeep-backup-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

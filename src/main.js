@@ -94,7 +94,7 @@ function renderShell() {
     <div id="shell" style="padding:16px 56px 16px 20px">
       <header style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <h1 class="app-title" style="font-size:15px;flex:1">
-          ⚔ Vault du MJ <span style="font-size:10px">v5</span>
+          ⚔ Mistkeep <span style="font-size:10px">v5</span>
         </h1>
         <button class="hbtn" id="search-btn" title="Rechercher (Ctrl+K)">🔍</button>
         <button class="hbtn" id="party-btn" title="Aperçu du groupe (PV/CA/états)">👥</button>
