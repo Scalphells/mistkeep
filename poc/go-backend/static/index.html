@@ -41,8 +41,8 @@
 
   <h2>Realtime</h2>
   <div class="row">
-    <button onclick="connectSSE()">Connect live feed</button>
-    <button onclick="call('POST','/realtime/broadcast',{kind:'ping',payload:{x:1,y:2}})">Send ping (ephemeral)</button>
+    <button onclick="connectWS()">Connect live feed</button>
+    <button onclick="sendPing()">Send ping (ephemeral)</button>
   </div>
   <pre id="log"></pre>
 
@@ -67,14 +67,19 @@
       } catch (e) { out('error: ' + e.message); }
     }
 
-    let es;
-    function connectSSE() {
-      if (es) es.close();
-      es = new EventSource('/realtime', { withCredentials: true });
-      es.onopen = () => log('[live] connected');
-      es.onerror = () => log('[live] error/closed');
-      es.onmessage = (ev) => log('[event] ' + ev.data);
-      es.addEventListener('ready', () => log('[live] ready'));
+    let ws;
+    function connectWS() {
+      if (ws) ws.close();
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}/realtime`);
+      ws.onopen = () => log('[live] connected (ws)');
+      ws.onclose = () => log('[live] closed');
+      ws.onerror = () => log('[live] error');
+      ws.onmessage = (ev) => log('[event] ' + ev.data);
+    }
+    function sendPing() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) { out('connect the live feed first'); return; }
+      ws.send(JSON.stringify({ kind: 'ping', payload: { x: 1, y: 2 } }));
     }
   </script>
 </body>

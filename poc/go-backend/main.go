@@ -18,20 +18,24 @@ package main
 import (
 	"crypto/rand"
 	"database/sql"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/coder/websocket"
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
+
+//go:embed static
+var staticFS embed.FS
 
 // ---- Models -------------------------------------------------------------
 
@@ -448,48 +452,44 @@ func (s *Server) deleteChar(w http.ResponseWriter, r *http.Request) {
 
 // ---- Realtime handlers --------------------------------------------------
 
-func (s *Server) sse(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 	if s.userFrom(r) == nil {
 		httpErr(w, 401, "unauthenticated")
 		return
 	}
-	fl, ok := w.(http.Flusher)
-	if !ok {
-		httpErr(w, 500, "streaming unsupported")
+	// PoC: skip Origin checks (same-origin in practice). Validate origin in production.
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	if err != nil {
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	defer c.CloseNow()
+	ctx := r.Context()
 	ch := make(chan string, 16)
 	s.hub.add("main", ch)
 	defer s.hub.remove("main", ch)
-	fmt.Fprint(w, "event: ready\ndata: {}\n\n")
-	fl.Flush()
-	ticker := time.NewTicker(25 * time.Second)
-	defer ticker.Stop()
+
+	// Reader: relay incoming client messages as ephemeral broadcasts (ping, cursor…).
+	go func() {
+		for {
+			_, data, err := c.Read(ctx)
+			if err != nil {
+				return
+			}
+			s.hub.broadcast("main", string(data))
+		}
+	}()
+
+	// Writer: push hub events to this client.
 	for {
 		select {
-		case <-r.Context().Done():
+		case <-ctx.Done():
 			return
 		case msg := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
-			fl.Flush()
-		case <-ticker.C:
-			fmt.Fprint(w, ": keep-alive\n\n")
-			fl.Flush()
+			if err := c.Write(ctx, websocket.MessageText, []byte(msg)); err != nil {
+				return
+			}
 		}
 	}
-}
-
-func (s *Server) rtBroadcast(w http.ResponseWriter, r *http.Request) {
-	if s.userFrom(r) == nil {
-		httpErr(w, 401, "unauthenticated")
-		return
-	}
-	body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<16))
-	s.hub.broadcast("main", string(body))
-	w.WriteHeader(204)
 }
 
 // ---- Helpers ------------------------------------------------------------
@@ -549,12 +549,16 @@ func main() {
 	mux.HandleFunc("PATCH /api/characters/{id}", s.patchChar)
 	mux.HandleFunc("DELETE /api/characters/{id}", s.deleteChar)
 
-	mux.HandleFunc("GET /realtime", s.sse)
-	mux.HandleFunc("POST /realtime/broadcast", s.rtBroadcast)
+	mux.HandleFunc("GET /realtime", s.ws)
 
-	mux.Handle("/", http.FileServer(http.Dir("static")))
+	// Front end embedded in the binary (single-file deploy).
+	sub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatal(err)
+	}
+	mux.Handle("/", http.FileServer(http.FS(sub)))
 
 	addr := ":8787"
-	log.Printf("Mistkeep PoC backend (SQLite) on http://localhost%s", addr)
+	log.Printf("Mistkeep PoC backend (SQLite + WebSocket, embedded UI) on http://localhost%s", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
