@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mistkeep Go PoC</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #e6e6ec; background: #14141b; }
+    h1 { font-size: 18px; } h2 { font-size: 14px; margin-top: 1.5rem; color: #b9a8ff; }
+    input, button { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid #34343f; background: #1d1d28; color: #e6e6ec; }
+    button { cursor: pointer; background: #6f5bf3; border-color: #6f5bf3; color: #fff; }
+    .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+    pre { background: #0e0e15; border: 1px solid #2a2a36; border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; }
+    #log { height: 180px; overflow: auto; }
+    .muted { color: #8a8a99; }
+  </style>
+</head>
+<body>
+  <h1>Mistkeep — Go backend PoC</h1>
+  <p class="muted">First account becomes the DM. Open a second browser/profile to test player vs DM authorization and live updates.</p>
+
+  <h2>Auth</h2>
+  <div class="row">
+    <input id="email" placeholder="email" value="dm@example.com" />
+    <input id="name" placeholder="display name" value="MJ" />
+    <input id="pw" type="password" placeholder="password" value="secret" />
+  </div>
+  <div class="row">
+    <button onclick="call('POST','/auth/signup',{email:v('email'),password:v('pw'),display_name:v('name')})">Sign up</button>
+    <button onclick="call('POST','/auth/login',{email:v('email'),password:v('pw')})">Log in</button>
+    <button onclick="call('GET','/auth/me')">Me</button>
+    <button onclick="call('POST','/auth/logout')">Log out</button>
+  </div>
+
+  <h2>Characters</h2>
+  <div class="row">
+    <input id="cname" placeholder="character name" value="Aelor" />
+    <button onclick="call('POST','/api/characters',{name:v('cname'),data:{lvl:1}})">Create</button>
+    <button onclick="call('GET','/api/characters')">List</button>
+  </div>
+
+  <h2>Realtime</h2>
+  <div class="row">
+    <button onclick="connectSSE()">Connect live feed</button>
+    <button onclick="call('POST','/realtime/broadcast',{kind:'ping',payload:{x:1,y:2}})">Send ping (ephemeral)</button>
+  </div>
+  <pre id="log"></pre>
+
+  <h2>Response</h2>
+  <pre id="out">—</pre>
+
+  <script>
+    const v = (id) => document.getElementById(id).value;
+    const out = (x) => document.getElementById('out').textContent = typeof x === 'string' ? x : JSON.stringify(x, null, 2);
+    const log = (x) => { const el = document.getElementById('log'); el.textContent += x + "\n"; el.scrollTop = el.scrollHeight; };
+
+    async function call(method, path, body) {
+      try {
+        const res = await fetch(path, {
+          method, credentials: 'include',
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const txt = await res.text();
+        let data; try { data = JSON.parse(txt); } catch { data = txt; }
+        out({ status: res.status, data });
+      } catch (e) { out('error: ' + e.message); }
+    }
+
+    let es;
+    function connectSSE() {
+      if (es) es.close();
+      es = new EventSource('/realtime', { withCredentials: true });
+      es.onopen = () => log('[live] connected');
+      es.onerror = () => log('[live] error/closed');
+      es.onmessage = (ev) => log('[event] ' + ev.data);
+      es.addEventListener('ready', () => log('[live] ready'));
+    }
+  </script>
+</body>
+</html>
