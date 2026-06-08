@@ -4,7 +4,8 @@ A proof of concept for the "single Go binary" backend that could replace Supabas
 for self-hosting (see the architecture notes in the project).
 
 Persists to **SQLite** (pure Go, no CGO), hashes passwords with **bcrypt**, pushes
-realtime over **WebSocket**, and **embeds its UI** in the binary.
+realtime over **WebSocket**, **embeds its UI**, and serves a **generic resource
+API** matching the front-end `goAdapter` contract.
 
 ## Run
 
@@ -16,9 +17,8 @@ go mod tidy   # first time: fetches modernc.org/sqlite, x/crypto, coder/websocke
 go run .
 ```
 
-Open http://localhost:8787. The **first account created becomes the DM**; open a
-second browser profile to sign up a player. Data lives in `./data/mistkeep.db`
-(delete it to reset).
+Open http://localhost:8787. The **first account becomes the DM**. Data lives in
+`./data/mistkeep.db` (delete it to reset).
 
 ### Build a single binary
 
@@ -26,34 +26,30 @@ second browser profile to sign up a player. Data lives in `./data/mistkeep.db`
 go build -o mistkeep-poc .
 ```
 
-The UI is embedded (`go:embed`), so the resulting binary runs on its own — no
-`static/` folder needed. That is the "single file you double-click" target.
+The UI is embedded (`go:embed`), so the binary runs on its own.
 
-## What it demonstrates
+## API
 
-| Supabase piece | Here |
+| Area | Endpoints |
 |---|---|
-| Auth (GoTrue) | `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` (cookie session, bcrypt) |
-| REST (`.from()`) | `GET/POST/PATCH/DELETE /api/characters` backed by SQLite |
-| Row-level security | `canWriteCharacter()` — DM may write any sheet; a player only their own |
-| Realtime | a hub over **WebSocket** (`GET /realtime`): pushes data changes, relays ephemeral events |
+| Auth | `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` (cookie session, bcrypt) |
+| Data (generic) | `GET/POST/PATCH/DELETE /api/{table}` — see `api.go` for the table whitelist and per-table rules |
+| Realtime | WebSocket `GET /realtime`: emits `{table,eventType,new}` on writes; relays ephemeral events |
 
-Try it: as a player, `PATCH` a character owned by someone else → `403`. As the DM
-→ allowed. Connect the live feed in two windows and create/update a character →
-both see the event. Restart the server → the data is still there.
+The data layer (`api.go`) is table-driven: a registry lists each table's columns,
+primary key, JSON columns, and authorization rule (`dm` / `owner` / `auth`). Only
+whitelisted tables/columns reach SQL; values use placeholders. This matches the
+`goAdapter` so the real front end can run against it with `VITE_BACKEND=go`.
 
 ## Status vs production
 
-| Done | Still a shortcut |
+| Done | Still a shortcut / to do |
 |---|---|
-| SQLite persistence | one resource (`characters`); production needs all tables |
-| bcrypt + DB sessions | no file storage yet (`/storage`) |
-| WebSocket realtime | origin checks skipped (`InsecureSkipVerify`) — validate in production |
-| UI embedded → single binary | not yet wired to the real front end (needs the `goAdapter`) |
+| SQLite persistence, bcrypt, DB sessions | column lists in `api.go` must be reconciled with the real migrations |
+| WebSocket realtime | origin checks skipped (`InsecureSkipVerify`) |
+| UI embedded → single binary | file storage (`/storage`) not implemented yet (G5) |
+| generic `/api/{table}` + per-table authz | needs an end-to-end run against the real front end to shake out bugs |
 
-## How it fits
-
-The front end already calls a data-access seam (`backend.db / .realtime / .auth /
-.storage`, in `src/lib/backend.js`). A `goAdapter` will translate those calls into
-requests against endpoints like these, while a `supabaseAdapter` keeps the hosted
-edition working — one front end, two backends.
+> This Go server was written without a local compiler in the loop. Run
+> `go mod tidy && go run .` and report build/run errors — that is the validation
+> step for the generic engine.

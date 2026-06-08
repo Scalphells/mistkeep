@@ -89,6 +89,9 @@ func OpenStore(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, err
 	}
+	if _, err := db.Exec(appSchema); err != nil {
+		return nil, err
+	}
 	return &Store{db: db}, nil
 }
 
@@ -544,10 +547,11 @@ func main() {
 	mux.HandleFunc("POST /auth/logout", s.logout)
 	mux.HandleFunc("GET /auth/me", s.me)
 
-	mux.HandleFunc("GET /api/characters", s.listChars)
-	mux.HandleFunc("POST /api/characters", s.createChar)
-	mux.HandleFunc("PATCH /api/characters/{id}", s.patchChar)
-	mux.HandleFunc("DELETE /api/characters/{id}", s.deleteChar)
+	// Generic resource engine (see api.go): every whitelisted table at /api/{table}.
+	mux.HandleFunc("GET /api/{table}", s.apiList)
+	mux.HandleFunc("POST /api/{table}", s.apiInsert)
+	mux.HandleFunc("PATCH /api/{table}", s.apiUpdate)
+	mux.HandleFunc("DELETE /api/{table}", s.apiDelete)
 
 	mux.HandleFunc("GET /realtime", s.ws)
 

@@ -123,6 +123,12 @@ class Channel {
     for (const h of this._handlers) {
       if (h.type === 'postgres_changes' && msg.table) {
         if (h.filter?.table && h.filter.table !== msg.table) continue;
+        // Honor a `col=eq.value` filter (e.g. per-key session_state feeds).
+        const f = h.filter?.filter;
+        if (f) {
+          const mm = /^(\w+)=eq\.(.+)$/.exec(f);
+          if (mm && String(msg.new?.[mm[1]]) !== mm[2]) continue;
+        }
         h.cb({ eventType: msg.eventType, new: msg.new, old: msg.old, table: msg.table });
       } else if (h.type === 'broadcast' && msg.room === this.name && msg.event === h.event) {
         h.cb({ event: msg.event, payload: msg.payload });
