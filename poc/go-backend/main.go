@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,10 +132,16 @@ func (s *Store) createSession(userID string) (string, error) {
 	return tok, err
 }
 
+// sessionTTL is how long a session stays valid. RFC3339 timestamps sort
+// lexicographically, so a string comparison enforces the cutoff.
+const sessionTTL = 30 * 24 * time.Hour
+
 func (s *Store) userBySession(tok string) (*User, error) {
 	u := &User{}
+	cutoff := time.Now().UTC().Add(-sessionTTL).Format(time.RFC3339)
 	err := s.db.QueryRow(
-		`SELECT u.id,u.email,u.display_name,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?`, tok).
+		`SELECT u.id,u.email,u.display_name,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.created_at>=?`,
+		tok, cutoff).
 		Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -209,6 +216,10 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "email and password required")
 		return
 	}
+	if len(in.Password) < 6 {
+		httpErr(w, 400, "password too short (min 6 characters)")
+		return
+	}
 	if existing, _, _ := s.store.userByEmail(in.Email); existing != nil {
 		httpErr(w, 409, "email already registered")
 		return
@@ -216,6 +227,12 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 	n, err := s.store.countUsers()
 	if err != nil {
 		httpErr(w, 500, "db error")
+		return
+	}
+	// Optional registration lockdown: the DM closes signups once players are in.
+	// The very first account (the DM) is always allowed so the server can bootstrap.
+	if n > 0 && os.Getenv("DISABLE_SIGNUP") == "1" {
+		httpErr(w, 403, "registration is closed")
 		return
 	}
 	role := "player"
@@ -237,7 +254,7 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 500, "session error")
 		return
 	}
-	setSession(w, tok)
+	setSession(w, r, tok)
 	writeJSON(w, 200, publicUser(u))
 }
 
@@ -264,7 +281,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 500, "session error")
 		return
 	}
-	setSession(w, tok)
+	setSession(w, r, tok)
 	writeJSON(w, 200, publicUser(u))
 }
 
@@ -292,8 +309,14 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 401, "unauthenticated")
 		return
 	}
-	// PoC: skip Origin checks (same-origin in practice). Validate origin in production.
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	// Reject cross-origin WebSocket handshakes (prevents cross-site hijacking).
+	// Same-origin is allowed by default; extra hosts can be permitted via
+	// ALLOWED_ORIGINS (comma-separated host patterns, e.g. "vtt.example.com").
+	opts := &websocket.AcceptOptions{}
+	if o := os.Getenv("ALLOWED_ORIGINS"); o != "" {
+		opts.OriginPatterns = strings.Split(o, ",")
+	}
+	c, err := websocket.Accept(w, r, opts)
 	if err != nil {
 		return
 	}
@@ -347,10 +370,20 @@ func token() string {
 
 func now() string { return time.Now().UTC().Format(time.RFC3339) }
 
-func setSession(w http.ResponseWriter, tok string) {
+// isHTTPS reports whether the client connection is secure, directly (TLS) or
+// via a trusted TLS-terminating proxy (X-Forwarded-Proto), or forced by env.
+func isHTTPS(r *http.Request) bool {
+	return r.TLS != nil ||
+		strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") ||
+		os.Getenv("SECURE_COOKIES") == "1"
+}
+
+func setSession(w http.ResponseWriter, r *http.Request, tok string) {
 	http.SetCookie(w, &http.Cookie{
 		Name: "mk_session", Value: tok, Path: "/",
 		HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Secure: isHTTPS(r),
+		MaxAge: int(sessionTTL / time.Second),
 	})
 }
 
@@ -362,6 +395,30 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func httpErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// withMiddleware adds baseline security headers and bounds request body sizes.
+// Storage uploads (multipart, self-capped) and the WebSocket opt out of the
+// body limit so large maps and long-lived connections still work.
+func withMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+
+		if r.Method == http.MethodPost || r.Method == http.MethodPatch || r.Method == http.MethodPut {
+			p := r.URL.Path
+			if !strings.HasPrefix(p, "/storage/") && p != "/realtime" {
+				limit := int64(16 << 20) // 16 MiB — scene state can be large
+				if strings.HasPrefix(p, "/auth/") {
+					limit = 64 << 10 // 64 KiB
+				}
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // ---- Wiring -------------------------------------------------------------
@@ -405,6 +462,14 @@ func main() {
 		port = "8787"
 	}
 	addr := ":" + port
-	log.Printf("Mistkeep PoC backend (SQLite + WebSocket, embedded UI) on http://localhost%s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: withMiddleware(mux),
+		// ReadHeaderTimeout guards against slowloris without capping long-lived
+		// WebSocket connections or large uploads (so no ReadTimeout/WriteTimeout).
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	log.Printf("Mistkeep backend (SQLite + WebSocket, embedded UI) on http://localhost%s", addr)
+	log.Fatal(srv.ListenAndServe())
 }

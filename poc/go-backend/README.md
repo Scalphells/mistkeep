@@ -24,10 +24,13 @@ mistkeep-windows-amd64.exe
 Open <http://localhost:8787>. **The first account that signs up becomes the
 DM**; everyone after is a player.
 
-| Variable   | Default  | Purpose                                             |
-|------------|----------|-----------------------------------------------------|
-| `PORT`     | `8787`   | Port to listen on.                                  |
-| `DATA_DIR` | `./data` | Where the database and uploaded files are written.  |
+| Variable          | Default  | Purpose                                                                 |
+|-------------------|----------|-------------------------------------------------------------------------|
+| `PORT`            | `8787`   | Port to listen on.                                                      |
+| `DATA_DIR`        | `./data` | Where the database and uploaded files are written.                      |
+| `DISABLE_SIGNUP`  | unset    | `1` closes registration (the existing DM/players keep working). The very first account is always allowed, so you can bootstrap then lock it down. |
+| `ALLOWED_ORIGINS` | unset    | Extra comma-separated host patterns allowed to open a WebSocket. Same-origin is always allowed; set this only if the front is served from a different host. |
+| `SECURE_COOKIES`  | unset    | `1` forces the `Secure` flag on the session cookie. Auto-detected over HTTPS or behind a proxy sending `X-Forwarded-Proto: https`. |
 
 ```
 PORT=9000 DATA_DIR=/srv/mistkeep ./mistkeep-linux-amd64
@@ -79,8 +82,13 @@ placeholders. The schema mirrors the SQL migrations in `supabase/migrations`.
 
 ## Security notes
 
-- Sessions are random tokens in an HTTP-only cookie; passwords are bcrypt-hashed.
+- Sessions are random tokens in an HTTP-only, `SameSite=Lax` cookie that expires
+  after 30 days (enforced server-side); passwords are bcrypt-hashed.
+- WebSocket handshakes are origin-checked: same-origin only, unless you widen it
+  with `ALLOWED_ORIGINS`.
+- Responses carry `X-Content-Type-Options`, `X-Frame-Options: DENY` and
+  `Referrer-Policy: no-referrer`; request bodies are size-bounded.
 - Storage buckets are private — reads require a session, writes require the DM.
-- Put a TLS-terminating reverse proxy (Caddy, nginx, …) in front for HTTPS, and
-  add a real origin check before exposing it to the internet (the WebSocket
-  currently skips origin validation — fine behind a trusted proxy / on a LAN).
+- For internet exposure: put a TLS-terminating reverse proxy (Caddy, nginx, …)
+  in front for HTTPS, and consider `DISABLE_SIGNUP=1` once your players have
+  registered. On a LAN it runs as-is.
