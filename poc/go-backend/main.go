@@ -73,6 +73,12 @@ func OpenStore(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// SQLite is single-writer. With the default connection pool, concurrent
+	// writes (e.g. rapid scene switches) contend for the lock and a read on
+	// another connection can observe a stale value before an in-flight write
+	// commits — which corrupted scene state. Serialize all access on one
+	// connection: every query runs in order, so a read always sees prior writes.
+	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(schema); err != nil {
 		return nil, err
 	}

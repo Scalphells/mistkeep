@@ -7,7 +7,7 @@
  *     (jamais mis en cache — auth, RLS et temps réel doivent rester live).
  */
 
-const CACHE = 'vaultmj-v3';
+const CACHE = 'vaultmj-v4';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -34,6 +34,12 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   // Laisser passer tout ce qui n'est pas notre origine (Supabase, CDN…).
   if (url.origin !== self.location.origin) return;
+
+  // Endpoints dynamiques du backend (auth, données, stockage, temps réel) :
+  // JAMAIS de cache. En self-host le backend est SUR la même origine que l'app,
+  // donc sans ce garde la stratégie stale-while-revalidate servirait des réponses
+  // d'API périmées (états de scène, etc.). On laisse passer tel quel au réseau.
+  if (/^\/(api|auth|storage|realtime)(\/|$)/.test(url.pathname)) return;
 
   // Navigation : réseau d'abord (sans cache HTTP, pour toujours obtenir le shell
   // à jour qui référence les assets hashés courants), repli sur le cache.
