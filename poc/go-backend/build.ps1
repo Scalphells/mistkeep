@@ -26,10 +26,11 @@ robocopy (Join-Path $root 'dist') (Join-Path $be 'static') /MIR /NFL /NDL /NJH /
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE)" }
 
 Write-Host '==> Compiling the binary...' -ForegroundColor Cyan
+$ver = (git describe --tags --always --dirty 2>$null); if (-not $ver) { $ver = 'dev' }
 Push-Location $be
 try {
   $env:CGO_ENABLED = '0'
-  go build -trimpath -ldflags '-s -w' -o mistkeep.exe .
+  go build -trimpath -ldflags "-s -w -X main.version=$ver" -o mistkeep.exe .
 } finally {
   Remove-Item Env:\CGO_ENABLED -ErrorAction SilentlyContinue
   Pop-Location

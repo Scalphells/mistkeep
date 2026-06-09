@@ -1,0 +1,58 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the self-hosted binaries and attach them to
+# a GitHub Release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the release and upload the binaries
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, so the version stamp is meaningful
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Build the front end (Go backend mode)
+        run: VITE_BACKEND=go npm run build
+
+      - name: Embed the front end
+        run: |
+          rm -rf poc/go-backend/static
+          mkdir -p poc/go-backend/static
+          cp -r dist/. poc/go-backend/static/
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: poc/go-backend/go.mod
+
+      - name: Cross-compile
+        working-directory: poc/go-backend
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          ver="${GITHUB_REF_NAME}"
+          mkdir -p release
+          for t in windows/amd64/.exe linux/amd64/ linux/arm64/ darwin/amd64/ darwin/arm64/; do
+            os="${t%%/*}"; rest="${t#*/}"; arch="${rest%%/*}"; ext="${rest#*/}"
+            name="mistkeep-${os}-${arch}${ext}"
+            echo "building $name"
+            GOOS="$os" GOARCH="$arch" go build -trimpath \
+              -ldflags "-s -w -X main.version=${ver}" -o "release/${name}" .
+          done
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: poc/go-backend/release/*
+          generate_release_notes: true

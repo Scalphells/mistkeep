@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -423,7 +424,34 @@ func withMiddleware(next http.Handler) http.Handler {
 
 // ---- Wiring -------------------------------------------------------------
 
+// version is stamped at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
+const usage = `mistkeep — self-hosted VTT server (single binary)
+
+Usage: mistkeep [--version | --help]
+
+Environment:
+  PORT             port to listen on (default 8787)
+  DATA_DIR         directory for the database + uploaded files (default ./data)
+  DISABLE_SIGNUP   set to 1 to close registration once players have signed up
+  ALLOWED_ORIGINS  extra comma-separated WebSocket origin host patterns
+  SECURE_COOKIES   set to 1 to force the Secure flag on the session cookie
+
+Open http://localhost:PORT and create the first account — it becomes the DM.`
+
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "-v", "--version", "version":
+			fmt.Println("mistkeep", version)
+			return
+		case "-h", "--help", "help":
+			fmt.Println(usage)
+			return
+		}
+	}
+
 	store, err := OpenStore(filepath.Join(dataDir(), "mistkeep.db"))
 	if err != nil {
 		log.Fatal(err)
@@ -470,6 +498,6 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	log.Printf("Mistkeep backend (SQLite + WebSocket, embedded UI) on http://localhost%s", addr)
+	log.Printf("Mistkeep %s (SQLite + WebSocket, embedded UI) on http://localhost%s", version, addr)
 	log.Fatal(srv.ListenAndServe())
 }

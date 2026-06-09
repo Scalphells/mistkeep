@@ -26,6 +26,7 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE)" }
 
 $out = Join-Path $be 'release'
 New-Item -ItemType Directory -Force $out | Out-Null
+$ver = (git describe --tags --always --dirty 2>$null); if (-not $ver) { $ver = 'dev' }
 
 $targets = @(
   @{ os = 'windows'; arch = 'amd64'; ext = '.exe' },
@@ -43,7 +44,7 @@ try {
     $env:GOARCH = $t.arch
     $name = "mistkeep-$($t.os)-$($t.arch)$($t.ext)"
     Write-Host "==> $name" -ForegroundColor Cyan
-    go build -trimpath -ldflags '-s -w' -o (Join-Path $out $name) .
+    go build -trimpath -ldflags "-s -w -X main.version=$ver" -o (Join-Path $out $name) .
   }
 } finally {
   Remove-Item Env:\GOOS, Env:\GOARCH, Env:\CGO_ENABLED -ErrorAction SilentlyContinue

@@ -22,13 +22,15 @@ cp -r "$root/dist/." "$be/static/"
 
 cd "$be"
 export CGO_ENABLED=0
+ver="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+ldflags="-s -w -X main.version=${ver}"
 
 if [ "${1:-}" = "release" ]; then
   mkdir -p release
   while read -r os arch ext; do
     name="mistkeep-${os}-${arch}${ext}"
     echo "==> $name"
-    GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags '-s -w' -o "release/$name" .
+    GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$ldflags" -o "release/$name" .
   done <<'TARGETS'
 windows amd64 .exe
 linux amd64
@@ -38,7 +40,7 @@ darwin arm64
 TARGETS
   echo "==> Binaries in $be/release"
 else
-  go build -trimpath -ldflags '-s -w' -o mistkeep .
+  go build -trimpath -ldflags "$ldflags" -o mistkeep .
   echo "==> Done: $be/mistkeep"
   echo "    Run it, open http://localhost:8787 — the first account becomes the DM."
 fi
