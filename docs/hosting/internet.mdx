@@ -1,0 +1,50 @@
+---
+title: "Exposer sur Internet"
+description: "Jouer à distance : reverse-proxy, HTTPS et bonnes pratiques de sécurité."
+---
+
+Sur un **réseau local**, Mistkeep fonctionne tel quel : vos joueurs ouvrent
+`http://<ip-locale-du-MJ>:8787`. Pour jouer **à distance**, exposez le serveur
+derrière un reverse-proxy qui gère le HTTPS.
+
+<Warning>
+  N'exposez jamais le port `8787` brut sur Internet en HTTP. Passez par un proxy
+  TLS (HTTPS) — c'est requis pour des cookies de session sûrs.
+</Warning>
+
+## Avec Caddy (le plus simple)
+
+[Caddy](https://caddyserver.com) obtient et renouvelle un certificat HTTPS
+automatiquement. Un `Caddyfile` minimal :
+
+```caddy
+vtt.mondomaine.fr {
+    reverse_proxy localhost:8787
+}
+```
+
+Caddy transmet `X-Forwarded-Proto: https`, donc Mistkeep active automatiquement
+le cookie `Secure`. Rien d'autre à configurer.
+
+## Sécurité intégrée
+
+Mistkeep est durci pour l'exposition :
+
+- **Sessions** : jeton aléatoire dans un cookie `HttpOnly`, `SameSite=Lax`,
+  expirant après 30 jours. Mots de passe hachés en bcrypt.
+- **WebSocket** : origine vérifiée (même domaine uniquement, sauf
+  `ALLOWED_ORIGINS`).
+- **En-têtes** : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
+- **Stockage** : privé — lecture authentifiée, écriture réservée au MJ.
+
+## Recommandations
+
+<CardGroup cols={2}>
+  <Card title="Fermer les inscriptions" icon="lock">
+    Après l'inscription de vos joueurs, relancez avec `DISABLE_SIGNUP=1` pour
+    empêcher la création de comptes inconnus.
+  </Card>
+  <Card title="Sauvegarder régulièrement" icon="floppy-disk">
+    Copiez le dossier `DATA_DIR` (voir [Configuration](/hosting/configuration)).
+  </Card>
+</CardGroup>

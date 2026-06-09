@@ -1,0 +1,52 @@
+---
+title: "Configuration"
+description: "Variables d'environnement : port, dossier de données, inscriptions, cookies."
+---
+
+Mistkeep se configure entièrement par **variables d'environnement** — aucun
+fichier de config à éditer.
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `PORT` | `8787` | Port d'écoute du serveur. |
+| `DATA_DIR` | `./data` | Dossier de la base de données et des fichiers envoyés. |
+| `DISABLE_SIGNUP` | — | `1` ferme les inscriptions (le MJ et les joueurs déjà inscrits continuent). Le tout premier compte est toujours autorisé, pour pouvoir démarrer puis verrouiller. |
+| `ALLOWED_ORIGINS` | — | Origines supplémentaires autorisées pour le WebSocket (motifs d'hôte séparés par des virgules). Le même domaine est toujours autorisé. |
+| `SECURE_COOKIES` | — | `1` force l'attribut `Secure` du cookie de session. Détecté automatiquement en HTTPS ou derrière un proxy envoyant `X-Forwarded-Proto: https`. |
+| `NO_BROWSER` | — | `1` empêche l'ouverture du navigateur au lancement (serveurs sans écran). |
+
+## Exemples
+
+<CodeGroup>
+```bash Linux / macOS
+PORT=9000 DATA_DIR=/srv/mistkeep ./mistkeep-linux-amd64
+```
+
+```powershell Windows
+$env:PORT=9000; $env:DATA_DIR="D:\mistkeep-data"; .\mistkeep-windows-amd64.exe
+```
+</CodeGroup>
+
+## Sauvegarde
+
+Toute une campagne tient dans le **dossier de données** (`DATA_DIR`) : la base
+`mistkeep.db` et le sous-dossier `storage/` (images, handouts). Copiez ce
+dossier pour sauvegarder, supprimez-le pour repartir de zéro.
+
+<Tip>
+  Fermez le serveur avant de copier `mistkeep.db` pour une sauvegarde cohérente.
+</Tip>
+
+## Inscriptions : ouvrir puis verrouiller
+
+Le déroulé recommandé pour une partie privée :
+
+<Steps>
+  <Step title="Démarrage ouvert">
+    Lancez normalement. Vous (1er compte) devenez MJ, vos joueurs s'inscrivent.
+  </Step>
+  <Step title="Verrouillage">
+    Une fois tout le monde inscrit, relancez avec `DISABLE_SIGNUP=1`. Plus aucun
+    nouveau compte ne peut être créé ; les comptes existants fonctionnent.
+  </Step>
+</Steps>

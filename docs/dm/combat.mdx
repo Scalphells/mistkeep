@@ -1,0 +1,54 @@
+---
+title: "Le combat"
+description: "Initiative, tours, conditions, effets à durée, sauvegardes de groupe."
+---
+
+Le suivi de combat gère l'ordre d'initiative, les tours, les points de vie et
+les états de chaque combattant.
+
+<Frame>
+  <img src="/images/combat-tracker.png" alt="Suivi d'initiative" />
+</Frame>
+
+## Ajouter des combattants
+
+<CardGroup cols={2}>
+  <Card title="Depuis une fiche" icon="scroll">
+    Bouton **⚔ Ajouter au combat** sur la fiche : ajoute ce personnage avec ses
+    PV, sans doublon.
+  </Card>
+  <Card title="Tout le groupe" icon="users">
+    **+ Importer PJ** dans l'onglet Combat ajoute tous les personnages d'un coup.
+  </Card>
+  <Card title="Un monstre" icon="dragon">
+    Depuis le [compendium](/dm/compendium) : **Ajouter au combat** (avec
+    multiplicateur ×N pour les groupes).
+  </Card>
+  <Card title="Manuellement" icon="plus">
+    Le formulaire d'ajout permet de saisir un combattant à la volée (nom, init,
+    PV).
+  </Card>
+</CardGroup>
+
+## Dérouler les tours
+
+Lancez l'initiative (d20 + Dex pour les PJ), puis avancez avec **Suivant**. Le
+combattant actif est mis en surbrillance, y compris sur la carte. Le joueur
+concerné reçoit une notification « À toi de jouer ».
+
+## Conditions et effets
+
+- **Conditions** (à terre, empoisonné, étourdi…) : affichées par icône sur le
+  combattant et son jeton.
+- **Effets à durée** : un sort comme *Bénédiction* expire automatiquement au
+  round prévu ; la **concentration** se brise quand sa source tombe.
+
+## PV et jets de mort
+
+Ajustez les PV (les dégâts entament d'abord les PV temporaires). À 0 PV, un PJ
+passe en **jets de sauvegarde contre la mort** suivis directement.
+
+## Sauvegarde de groupe
+
+Le bouton **💥 Sauvegarde** applique un jet de sauvegarde à plusieurs cibles
+d'un coup (boule de feu, souffle de dragon…) et résout les dégâts.

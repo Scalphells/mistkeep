@@ -1,0 +1,82 @@
+---
+title: "Installation"
+description: "Télécharger le binaire Mistkeep et le lancer — un seul fichier, aucune dépendance."
+---
+
+Mistkeep s'auto-héberge avec **un seul exécutable** : il embarque l'interface
+web et stocke les données en SQLite. Aucune base de données ni service externe à
+installer.
+
+## 1. Télécharger
+
+Récupérez le binaire de votre système sur la
+[page des releases](https://github.com/Scalphells/mistkeep/releases/latest).
+
+| Système | Fichier |
+|---|---|
+| Windows | `mistkeep-windows-amd64.exe` |
+| Linux (PC / serveur) | `mistkeep-linux-amd64` |
+| Linux ARM (Raspberry Pi 64-bit) | `mistkeep-linux-arm64` |
+| macOS (puce Apple, M1–M4) | `mistkeep-darwin-arm64` |
+| macOS (Intel) | `mistkeep-darwin-amd64` |
+
+## 2. Lancer
+
+<Tabs>
+  <Tab title="Windows">
+    Double-cliquez sur `mistkeep-windows-amd64.exe`.
+
+    <Warning>
+      Le binaire n'étant pas signé, SmartScreen affiche un avertissement au
+      premier lancement : **Informations complémentaires → Exécuter quand même**.
+    </Warning>
+  </Tab>
+  <Tab title="Linux">
+    ```bash
+    chmod +x mistkeep-linux-amd64
+    ./mistkeep-linux-amd64
+    ```
+  </Tab>
+  <Tab title="macOS">
+    ```bash
+    chmod +x mistkeep-darwin-arm64
+    ./mistkeep-darwin-arm64
+    ```
+
+    <Warning>
+      Gatekeeper bloque les binaires non signés au premier lancement :
+      **clic droit sur le fichier → Ouvrir**, puis confirmez (une seule fois).
+    </Warning>
+  </Tab>
+</Tabs>
+
+Le serveur démarre et **ouvre votre navigateur** sur <http://localhost:8787>.
+
+## 3. Créer le compte MJ
+
+Le **premier compte inscrit devient le Maître du Jeu**. Renseignez un e-mail et
+un mot de passe (6 caractères minimum) — et vous voilà MJ.
+
+<Frame caption="Écran d'inscription : le premier compte devient le MJ.">
+  <img src="/images/signup.png" alt="Inscription Mistkeep" />
+</Frame>
+
+<Tip>
+  Dans Chrome ou Edge, le bouton **« Installer »** de la barre d'adresse
+  transforme Mistkeep en application avec sa propre fenêtre et son icône.
+</Tip>
+
+## Faire jouer vos joueurs
+
+Vos joueurs ouvrent l'application dans leur navigateur à l'adresse de votre
+machine sur le réseau local : `http://<ip-locale-du-MJ>:8787`. Ils s'inscrivent
+à leur tour (comptes joueurs).
+
+Pour jouer à distance (hors réseau local), voir
+[Exposer sur Internet](/hosting/internet).
+
+## Où sont mes données ?
+
+Tout est écrit dans un dossier `data/` à côté du binaire (`mistkeep.db` + les
+fichiers envoyés). **Sauvegarder ce dossier = sauvegarder vos campagnes.** Pour
+le placer ailleurs, voir [Configuration](/hosting/configuration).

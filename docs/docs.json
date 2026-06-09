@@ -1,0 +1,53 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Mistkeep",
+  "colors": {
+    "primary": "#7c6af7",
+    "light": "#9d8ffa",
+    "dark": "#7c6af7"
+  },
+  "favicon": "/favicon.svg",
+  "logo": "/logo.svg",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Démarrer",
+        "pages": ["introduction", "installation", "quickstart"]
+      },
+      {
+        "group": "Guide du MJ",
+        "pages": [
+          "dm/map",
+          "dm/scenes",
+          "dm/combat",
+          "dm/characters",
+          "dm/compendium",
+          "dm/extras",
+          "dm/dice"
+        ]
+      },
+      {
+        "group": "Guide du joueur",
+        "pages": ["player/playing"]
+      },
+      {
+        "group": "Hébergement",
+        "pages": ["hosting/configuration", "hosting/internet"]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/Scalphells/mistkeep"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Scalphells/mistkeep"
+    }
+  }
+}
