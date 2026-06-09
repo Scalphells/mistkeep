@@ -1,0 +1,4 @@
+# Keep shell scripts LF so they run on Linux/macOS regardless of the OS that
+# committed them (Windows checkouts would otherwise rewrite them to CRLF and
+# break the shebang).
+*.sh text eol=lf
