@@ -7,7 +7,7 @@ import { portraitUrl, uploadPortrait } from './characters.js';
 import { longRestHitDiceRegain } from '../lib/rules.js';
 import { openPartyLoot } from './partyloot-ui.js';
 import { openQuests } from './quests-ui.js';
-import { logCombat } from './initiative.js';
+import { logCombat, addCombatant } from './initiative.js';
 import { openActionCard } from '../lib/actioncard.js';
 import { postCard } from '../lib/chatpost.js';
 import { renderMarkdown } from '../lib/markdown.js';
@@ -549,6 +549,13 @@ function renderSheet(scrollTop = false) {
               ? `<div class="rest-row">
                    <button class="rest-btn" data-rest="short" title="Repos court : récupère les ressources « repos court »">🔥 Repos court</button>
                    <button class="rest-btn" data-rest="long" title="Repos long : PV au max, emplacements restaurés, ½ dés de vie">🛌 Repos long</button>
+                 </div>`
+              : ''
+          }
+          ${
+            isDM
+              ? `<div class="rest-row">
+                   <button class="rest-btn" data-act="tocombat" title="Ajouter ce personnage au combat en cours">⚔ Ajouter au combat</button>
                  </div>`
               : ''
           }
@@ -1129,6 +1136,27 @@ function bindSheet(el, id, ed) {
     updateCharacter(id, { resources });
     showToast('🔥 Repos court : ressources récupérées.', { timeout: 2000 });
     postCard({ kind: 'note', icon: '🔥', title: `${cur.name} prend un repos court`, sub: 'Repos court', lines: ['Ressources « repos court » récupérées'] });
+  });
+
+  // Ajoute ce personnage au combat en cours (MJ). Évite les doublons.
+  el.querySelector('[data-act="tocombat"]')?.addEventListener('click', async () => {
+    if (!store.get().isDM) return;
+    const cur = store.get().characters.find((c) => c.id === id);
+    if (!cur) return;
+    if (store.get().initiative.some((c) => c.char_id === cur.id)) {
+      showToast(`${cur.name} est déjà dans le combat.`, { timeout: 2000 });
+      return;
+    }
+    const dd = cur.data || {};
+    await addCombatant({
+      name: cur.name,
+      initiative: 0,
+      hp: dd.hp ?? null,
+      hpMax: dd.hpMax ?? null,
+      hpTemp: dd.hpTmp ?? 0,
+      charId: cur.id,
+    });
+    showToast(`⚔ ${cur.name} ajouté au combat.`, { timeout: 2200 });
   });
 
   el.querySelector('[data-rest="long"]')?.addEventListener('click', async () => {
