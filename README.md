@@ -36,8 +36,9 @@ proprietary text, rules, art, or adventure data. Bring your own material.
 
 Two options:
 
-- **All-in-one Docker** (front end + full Supabase stack + database on one
-  machine, no cloud account): see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+- **Single binary** (no cloud, no database to install): a self-contained Go
+  server that embeds the UI and stores data in SQLite — one file to run. See
+  [poc/go-backend/README.md](poc/go-backend/README.md).
 - **Hosted Supabase** (front end deployed to any static host, data on a Supabase
   project): follow the steps below.
 
