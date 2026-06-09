@@ -51,6 +51,10 @@ jobs:
               -ldflags "-s -w -X main.version=${ver}" -o "release/${name}" .
           done
 
+      - name: Checksums
+        working-directory: poc/go-backend/release
+        run: sha256sum mistkeep-* > SHA256SUMS
+
       - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:
