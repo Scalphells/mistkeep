@@ -4,6 +4,8 @@ A self-hostable virtual tabletop (VTT) for running D&D 5e (SRD 5.1) games online
 character sheets, initiative tracking, a tactical map with tokens and dynamic
 vision, chat, a card-based combat log, and a compendium.
 
+📖 **Documentation: [mistkeep.mintlify.app](https://mistkeep.mintlify.app)** — install, quick start, DM & player guides.
+
 Static front end (Vite, plain JavaScript, no framework) on top of Supabase
 (auth, PostgreSQL, realtime, file storage). You run your own instance and keep
 your own data.

@@ -8,6 +8,8 @@ binary, no external services, no database to install.
 It implements the same data contract as the hosted (Supabase) edition, so the
 exact same front end runs against it — built with `VITE_BACKEND=go`.
 
+📖 Full user guide: **[mistkeep.mintlify.app](https://mistkeep.mintlify.app)**
+
 ## Run it (no build)
 
 Download the binary for your system and run it:
