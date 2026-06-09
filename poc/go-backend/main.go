@@ -46,13 +46,6 @@ type User struct {
 	Role        string `json:"role"` // "dm" | "player"
 }
 
-type Character struct {
-	ID      string          `json:"id"`
-	OwnerID string          `json:"owner_id"`
-	Name    string          `json:"name"`
-	Data    json.RawMessage `json:"data"`
-}
-
 // ---- Store (SQLite) -----------------------------------------------------
 
 const schema = `
@@ -68,12 +61,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   token      TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS characters (
-  id       TEXT PRIMARY KEY,
-  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name     TEXT NOT NULL,
-  data     TEXT NOT NULL DEFAULT '{}'
 );`
 
 type Store struct{ db *sql.DB }
@@ -141,57 +128,6 @@ func (s *Store) userBySession(tok string) (*User, error) {
 
 func (s *Store) deleteSession(tok string) { _, _ = s.db.Exec(`DELETE FROM sessions WHERE token=?`, tok) }
 
-func (s *Store) listCharacters() ([]*Character, error) {
-	rows, err := s.db.Query(`SELECT id,owner_id,name,data FROM characters ORDER BY name`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []*Character{}
-	for rows.Next() {
-		c := &Character{}
-		var data string
-		if err := rows.Scan(&c.ID, &c.OwnerID, &c.Name, &data); err != nil {
-			return nil, err
-		}
-		c.Data = json.RawMessage(data)
-		out = append(out, c)
-	}
-	return out, rows.Err()
-}
-
-func (s *Store) getCharacter(cid string) (*Character, error) {
-	c := &Character{}
-	var data string
-	err := s.db.QueryRow(`SELECT id,owner_id,name,data FROM characters WHERE id=?`, cid).
-		Scan(&c.ID, &c.OwnerID, &c.Name, &data)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	c.Data = json.RawMessage(data)
-	return c, nil
-}
-
-func (s *Store) createCharacter(owner, name string, data json.RawMessage) (*Character, error) {
-	c := &Character{ID: id("c"), OwnerID: owner, Name: name, Data: data}
-	_, err := s.db.Exec(`INSERT INTO characters(id,owner_id,name,data) VALUES(?,?,?,?)`,
-		c.ID, owner, name, string(data))
-	return c, err
-}
-
-func (s *Store) updateCharacter(c *Character) error {
-	_, err := s.db.Exec(`UPDATE characters SET name=?, data=? WHERE id=?`, c.Name, string(c.Data), c.ID)
-	return err
-}
-
-func (s *Store) deleteCharacter(cid string) error {
-	_, err := s.db.Exec(`DELETE FROM characters WHERE id=?`, cid)
-	return err
-}
-
 // ---- Realtime hub -------------------------------------------------------
 
 type Hub struct {
@@ -236,11 +172,6 @@ type Server struct {
 	hub   *Hub
 }
 
-func (s *Server) emit(kind string, v any) {
-	b, _ := json.Marshal(map[string]any{"kind": kind, "payload": v})
-	s.hub.broadcast("main", string(b))
-}
-
 func (s *Server) userFrom(r *http.Request) *User {
 	c, err := r.Cookie("mk_session")
 	if err != nil {
@@ -248,11 +179,6 @@ func (s *Server) userFrom(r *http.Request) *User {
 	}
 	u, _ := s.store.userBySession(c.Value)
 	return u
-}
-
-// Authorization — the RLS equivalent.
-func canWriteCharacter(u *User, c *Character) bool {
-	return u.Role == "dm" || c.OwnerID == u.ID
 }
 
 // ---- Auth handlers ------------------------------------------------------
@@ -341,116 +267,6 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, publicUser(u))
-}
-
-// ---- Character handlers -------------------------------------------------
-
-func (s *Server) listChars(w http.ResponseWriter, r *http.Request) {
-	if s.userFrom(r) == nil {
-		httpErr(w, 401, "unauthenticated")
-		return
-	}
-	list, err := s.store.listCharacters()
-	if err != nil {
-		httpErr(w, 500, "db error")
-		return
-	}
-	writeJSON(w, 200, list)
-}
-
-func (s *Server) createChar(w http.ResponseWriter, r *http.Request) {
-	u := s.userFrom(r)
-	if u == nil {
-		httpErr(w, 401, "unauthenticated")
-		return
-	}
-	var in struct {
-		Name string          `json:"name"`
-		Data json.RawMessage `json:"data"`
-	}
-	if json.NewDecoder(r.Body).Decode(&in) != nil || in.Name == "" {
-		httpErr(w, 400, "name required")
-		return
-	}
-	if in.Data == nil {
-		in.Data = json.RawMessage("{}")
-	}
-	c, err := s.store.createCharacter(u.ID, in.Name, in.Data)
-	if err != nil {
-		httpErr(w, 500, "db error")
-		return
-	}
-	s.emit("character.created", c)
-	writeJSON(w, 201, c)
-}
-
-func (s *Server) patchChar(w http.ResponseWriter, r *http.Request) {
-	u := s.userFrom(r)
-	if u == nil {
-		httpErr(w, 401, "unauthenticated")
-		return
-	}
-	var in struct {
-		Name *string         `json:"name"`
-		Data json.RawMessage `json:"data"`
-	}
-	if json.NewDecoder(r.Body).Decode(&in) != nil {
-		httpErr(w, 400, "bad request")
-		return
-	}
-	c, err := s.store.getCharacter(r.PathValue("id"))
-	if err != nil {
-		httpErr(w, 500, "db error")
-		return
-	}
-	if c == nil {
-		httpErr(w, 404, "not found")
-		return
-	}
-	if !canWriteCharacter(u, c) {
-		httpErr(w, 403, "forbidden")
-		return
-	}
-	if in.Name != nil {
-		c.Name = *in.Name
-	}
-	if in.Data != nil {
-		c.Data = in.Data
-	}
-	if err := s.store.updateCharacter(c); err != nil {
-		httpErr(w, 500, "db error")
-		return
-	}
-	s.emit("character.updated", c)
-	writeJSON(w, 200, c)
-}
-
-func (s *Server) deleteChar(w http.ResponseWriter, r *http.Request) {
-	u := s.userFrom(r)
-	if u == nil {
-		httpErr(w, 401, "unauthenticated")
-		return
-	}
-	cid := r.PathValue("id")
-	c, err := s.store.getCharacter(cid)
-	if err != nil {
-		httpErr(w, 500, "db error")
-		return
-	}
-	if c == nil {
-		httpErr(w, 404, "not found")
-		return
-	}
-	if !canWriteCharacter(u, c) {
-		httpErr(w, 403, "forbidden")
-		return
-	}
-	if err := s.store.deleteCharacter(cid); err != nil {
-		httpErr(w, 500, "db error")
-		return
-	}
-	s.emit("character.deleted", map[string]string{"id": cid})
-	w.WriteHeader(204)
 }
 
 // ---- Realtime handlers --------------------------------------------------

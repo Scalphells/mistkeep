@@ -108,7 +108,12 @@ function wsSend(obj) {
 }
 
 class Channel {
-  constructor(name) { this.name = name; this._handlers = []; }
+  constructor(name, opts) {
+    this.name = name;
+    this._handlers = [];
+    this._presence = {}; // key -> payload (online members in this room)
+    this._presenceKey = opts?.config?.presence?.key || null;
+  }
   on(type, a, b) {
     if (type === 'postgres_changes') this._handlers.push({ type, filter: a, cb: b });
     else if (type === 'broadcast') this._handlers.push({ type, event: a?.event, cb: b });
@@ -119,7 +124,51 @@ class Channel {
   send(message) { wsSend({ room: this.name, ...message }); return Promise.resolve('ok'); }
   unsubscribe() { _channels.delete(this); return Promise.resolve('ok'); }
 
+  /* presence: gossip over broadcast, no server-side state needed.
+     The hub already relays every client frame, so members announce themselves
+     and re-announce when a newcomer appears; the map converges on all peers. */
+  track(payload) {
+    const key = this._presenceKey || payload?.id || 'anon';
+    this._presence[key] = payload || {};
+    wsSend({ room: this.name, presence: 'track', key, payload: payload || {} });
+    this._fireSync();
+    return Promise.resolve('ok');
+  }
+  untrack() {
+    const key = this._presenceKey;
+    if (key) {
+      delete this._presence[key];
+      wsSend({ room: this.name, presence: 'untrack', key });
+      this._fireSync();
+    }
+    return Promise.resolve('ok');
+  }
+  presenceState() { return this._presence; }
+
+  _fireSync() {
+    for (const h of this._handlers) {
+      if (h.type === 'presence' && (h.event === 'sync' || !h.event)) h.cb();
+    }
+  }
+
   _dispatch(msg) {
+    // Presence frames are routed by room, separate from the data/broadcast feed.
+    if (msg.room === this.name && msg.presence) {
+      if (msg.presence === 'track' && msg.key) {
+        const known = Object.prototype.hasOwnProperty.call(this._presence, msg.key);
+        this._presence[msg.key] = msg.payload || {};
+        this._fireSync();
+        // Re-announce ourselves so a newcomer learns we're here (only for new
+        // peers, so this stays bounded and converges).
+        if (!known && this._presenceKey && this._presence[this._presenceKey] && msg.key !== this._presenceKey) {
+          wsSend({ room: this.name, presence: 'track', key: this._presenceKey, payload: this._presence[this._presenceKey] });
+        }
+      } else if (msg.presence === 'untrack' && msg.key) {
+        delete this._presence[msg.key];
+        this._fireSync();
+      }
+      return;
+    }
     for (const h of this._handlers) {
       if (h.type === 'postgres_changes' && msg.table) {
         if (h.filter?.table && h.filter.table !== msg.table) continue;
@@ -183,7 +232,7 @@ export const goAdapter = {
     from: (table) => new Query(table),
   },
   realtime: {
-    channel: (name) => new Channel(name),
+    channel: (name, opts) => new Channel(name, opts),
     removeChannel: (ch) => ch?.unsubscribe?.(),
   },
   auth: {

@@ -17,45 +17,66 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
+// appSchema mirrors the Postgres migrations (supabase/migrations). JSON columns
+// are TEXT, booleans are INTEGER, timestamps are ISO-8601 TEXT with a default so
+// the front end can omit them (Postgres set them via DEFAULT now()).
+const ts = `(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
+
 const appSchema = `
 CREATE TABLE IF NOT EXISTS profiles (
-  id TEXT PRIMARY KEY, email TEXT, display_name TEXT, role TEXT NOT NULL DEFAULT 'player', color TEXT
+  id TEXT PRIMARY KEY, email TEXT, display_name TEXT,
+  role TEXT NOT NULL DEFAULT 'player', character_id TEXT, color TEXT,
+  created_at TEXT DEFAULT ` + ts + `, updated_at TEXT DEFAULT ` + ts + `
 );
 CREATE TABLE IF NOT EXISTS characters (
-  id TEXT PRIMARY KEY, owner_id TEXT, name TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}'
+  id TEXT PRIMARY KEY, owner_id TEXT, name TEXT NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  updated_at TEXT DEFAULT ` + ts + `, updated_by TEXT
 );
 CREATE TABLE IF NOT EXISTS initiative (
   entity_id TEXT PRIMARY KEY, name TEXT NOT NULL, initiative INTEGER NOT NULL DEFAULT 0,
-  hp INTEGER, hp_max INTEGER, hp_temp INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 0,
+  hp INTEGER, hp_max INTEGER, hp_temp INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0,
   conditions TEXT DEFAULT '[]', effects TEXT DEFAULT '[]', death_saves TEXT, status TEXT,
-  char_id TEXT, updated_at TEXT
+  char_id TEXT, updated_at TEXT DEFAULT ` + ts + `, updated_by TEXT
 );
 CREATE TABLE IF NOT EXISTS scenes (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, state TEXT NOT NULL DEFAULT '{}', sort INTEGER DEFAULT 0, created_by TEXT
+  id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT 'Scene', state TEXT DEFAULT '{}', sort INTEGER DEFAULT 0,
+  created_by TEXT, created_at TEXT DEFAULT ` + ts + `, updated_at TEXT DEFAULT ` + ts + `
 );
 CREATE TABLE IF NOT EXISTS session_state (
-  key TEXT PRIMARY KEY, value TEXT, updated_at TEXT, updated_by TEXT
+  key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT ` + ts + `, updated_by TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
-  id TEXT PRIMARY KEY, channel TEXT, sender_id TEXT, sender_name TEXT, content TEXT, recipient_id TEXT, created_at TEXT
+  id TEXT PRIMARY KEY, channel TEXT NOT NULL DEFAULT 'public', content TEXT NOT NULL,
+  sender_id TEXT, sender_name TEXT NOT NULL, recipient_id TEXT, created_at TEXT DEFAULT ` + ts + `
 );
 CREATE TABLE IF NOT EXISTS dice_rolls (
-  id TEXT PRIMARY KEY, roller_id TEXT, roller_name TEXT, notation TEXT, detail TEXT, total INTEGER, created_at TEXT
+  id TEXT PRIMARY KEY, roll_name TEXT NOT NULL, dice TEXT NOT NULL, result INTEGER NOT NULL,
+  details TEXT, roll_type TEXT NOT NULL DEFAULT 'public', roller_id TEXT, roller_name TEXT NOT NULL,
+  created_at TEXT DEFAULT ` + ts + `
 );
 CREATE TABLE IF NOT EXISTS compendium (
-  id TEXT PRIMARY KEY, kind TEXT, name TEXT, data TEXT DEFAULT '{}', created_by TEXT
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, data TEXT DEFAULT '{}',
+  created_by TEXT, created_at TEXT DEFAULT ` + ts + `, updated_at TEXT DEFAULT ` + ts + `
 );
 CREATE TABLE IF NOT EXISTS handouts (
-  id TEXT PRIMARY KEY, title TEXT, content TEXT, img TEXT, pushed_by TEXT, target TEXT, created_at TEXT
+  id TEXT PRIMARY KEY, title TEXT, description TEXT, content_type TEXT, text_content TEXT,
+  image_url TEXT, target_player TEXT, pushed_by TEXT, pushed_at TEXT DEFAULT ` + ts + `
 );
 CREATE TABLE IF NOT EXISTS session_notes (
-  id TEXT PRIMARY KEY, content TEXT, created_by TEXT, shared INTEGER DEFAULT 0, created_at TEXT
+  id TEXT PRIMARY KEY, content TEXT NOT NULL, created_by TEXT, shared INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT ` + ts + `
+);
+CREATE TABLE IF NOT EXISTS vault_notes (
+  path TEXT PRIMARY KEY, content TEXT NOT NULL DEFAULT '', is_folder INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT DEFAULT ` + ts + `, updated_by TEXT
 );`
 
 type Policy struct {
@@ -85,16 +106,17 @@ func (p Policy) isJSON(c string) bool {
 }
 
 var tables = map[string]Policy{
-	"profiles":      {Columns: []string{"id", "email", "display_name", "role", "color"}, PK: "id", OwnerCol: "id", Write: "owner"},
-	"characters":    {Columns: []string{"id", "owner_id", "name", "data"}, JSONCols: []string{"data"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
-	"initiative":    {Columns: []string{"entity_id", "name", "initiative", "hp", "hp_max", "hp_temp", "sort_order", "conditions", "effects", "death_saves", "status", "char_id", "updated_at"}, JSONCols: []string{"conditions", "effects", "death_saves"}, PK: "entity_id", Write: "dm"},
-	"scenes":        {Columns: []string{"id", "name", "state", "sort", "created_by"}, JSONCols: []string{"state"}, PK: "id", Write: "dm"},
+	"profiles":      {Columns: []string{"id", "email", "display_name", "role", "character_id", "color", "created_at", "updated_at"}, PK: "id", OwnerCol: "id", Write: "owner"},
+	"characters":    {Columns: []string{"id", "owner_id", "name", "data", "updated_at", "updated_by"}, JSONCols: []string{"data"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
+	"initiative":    {Columns: []string{"entity_id", "name", "initiative", "hp", "hp_max", "hp_temp", "sort_order", "conditions", "effects", "death_saves", "status", "char_id", "updated_at", "updated_by"}, JSONCols: []string{"conditions", "effects", "death_saves"}, PK: "entity_id", Write: "dm"},
+	"scenes":        {Columns: []string{"id", "name", "state", "sort", "created_by", "created_at", "updated_at"}, JSONCols: []string{"state"}, PK: "id", Write: "dm"},
 	"session_state": {Columns: []string{"key", "value", "updated_at", "updated_by"}, JSONCols: []string{"value"}, PK: "key", Write: "dm"},
-	"messages":      {Columns: []string{"id", "channel", "sender_id", "sender_name", "content", "recipient_id", "created_at"}, PK: "id", Write: "auth"},
-	"dice_rolls":    {Columns: []string{"id", "roller_id", "roller_name", "notation", "detail", "total", "created_at"}, JSONCols: []string{"detail"}, PK: "id", Write: "auth"},
-	"compendium":    {Columns: []string{"id", "kind", "name", "data", "created_by"}, JSONCols: []string{"data"}, PK: "id", Write: "dm"},
-	"handouts":      {Columns: []string{"id", "title", "content", "img", "pushed_by", "target", "created_at"}, JSONCols: []string{"target"}, PK: "id", Write: "dm"},
-	"session_notes": {Columns: []string{"id", "content", "created_by", "shared", "created_at"}, PK: "id", Write: "auth"},
+	"messages":      {Columns: []string{"id", "channel", "content", "sender_id", "sender_name", "recipient_id", "created_at"}, PK: "id", Write: "auth"},
+	"dice_rolls":    {Columns: []string{"id", "roll_name", "dice", "result", "details", "roll_type", "roller_id", "roller_name", "created_at"}, JSONCols: []string{"details"}, PK: "id", Write: "auth"},
+	"compendium":    {Columns: []string{"id", "kind", "name", "data", "created_by", "created_at", "updated_at"}, JSONCols: []string{"data"}, PK: "id", Write: "dm"},
+	"handouts":      {Columns: []string{"id", "title", "description", "content_type", "text_content", "image_url", "target_player", "pushed_by", "pushed_at"}, PK: "id", Write: "dm"},
+	"session_notes": {Columns: []string{"id", "content", "created_by", "shared", "created_at"}, PK: "id", Write: "dm"},
+	"vault_notes":   {Columns: []string{"path", "content", "is_folder", "updated_at", "updated_by"}, PK: "path", Write: "dm"},
 }
 
 var reserved = map[string]bool{"order": true, "limit": true, "single": true, "on_conflict": true, "select": true}
@@ -311,6 +333,21 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 	if p.Write == "owner" && u.Role != "dm" && p.OwnerCol != "" {
 		body[p.OwnerCol] = u.ID
 	}
+	// profiles: identity and role are authoritative from the session, never the
+	// client. Mirrors the Supabase RLS/trigger — the first account is the DM, and
+	// nobody can self-promote by posting role:"dm".
+	if table == "profiles" {
+		body["id"] = u.ID
+		body["email"] = u.Email
+		body["role"] = u.Role
+	}
+	// Generate the primary key when the client relies on a DB default (the
+	// uuid-default tables: dice_rolls, messages, scenes, handouts…). Tables whose
+	// PK is client-supplied (characters.id, initiative.entity_id, session_state.key,
+	// vault_notes.path) already carry a value, so this is a no-op for them.
+	if v, ok := body[p.PK]; !ok || v == nil || v == "" {
+		body[p.PK] = id(table)
+	}
 	var cols []string
 	var args []any
 	for _, c := range p.Columns {
@@ -337,6 +374,7 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if _, err := s.store.db.Exec(q1, args...); err != nil {
+		log.Printf("insert %s failed: %v", table, err)
 		httpErr(w, 500, err.Error())
 		return
 	}

@@ -7,7 +7,7 @@
  *     (jamais mis en cache — auth, RLS et temps réel doivent rester live).
  */
 
-const CACHE = 'vaultmj-v2';
+const CACHE = 'vaultmj-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -41,7 +41,10 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req.url, { cache: 'no-store' })
         .then((res) => {
-          caches.open(CACHE).then((c) => c.put('/index.html', res.clone()));
+          // Clone synchronously, before the body is consumed by `return res`;
+          // the cache write then runs on the copy.
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put('/index.html', copy));
           return res;
         })
         .catch(() => caches.match('/index.html').then((r) => r || caches.match('/')))

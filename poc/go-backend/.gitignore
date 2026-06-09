@@ -1,0 +1,16 @@
+# Runtime data (SQLite database, uploaded files)
+/data/
+
+# Compiled binaries and logs
+*.exe
+*.log
+
+# Front end built into the embed dir for local testing (see README).
+# A clone ships only the demo static/index.html; build the real app and copy
+# it here to run the full UI on the Go server.
+/static/assets/
+/static/icons/
+/static/_headers
+/static/manifest.webmanifest
+/static/sw.js
+/static/icon.svg
