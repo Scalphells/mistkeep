@@ -25,9 +25,14 @@ chmod +x mistkeep-linux-amd64
 ./mistkeep-linux-amd64
 ```
 
-Open <http://localhost:8787>. **The first account that signs up becomes the
-DM**; everyone after is a player. Other players on the same network reach it at
-`http://<host-lan-ip>:8787`.
+It opens your browser at <http://localhost:8787> automatically (set
+`NO_BROWSER=1` to skip, e.g. on a headless server). **The first account that
+signs up becomes the DM**; everyone after is a player. Other players on the same
+network reach it at `http://<host-lan-ip>:8787`.
+
+> **Tip — install it like an app:** in Chrome/Edge, the address-bar *Install*
+> button turns Mistkeep into a standalone window with its own icon (it's a PWA),
+> no extra download needed.
 
 > The binaries are **unsigned**, so the OS warns on first launch: Windows
 > SmartScreen → *More info → Run anyway*; macOS Gatekeeper → right-click → *Open*
@@ -41,6 +46,7 @@ DM**; everyone after is a player. Other players on the same network reach it at
 | `DISABLE_SIGNUP`  | unset    | `1` closes registration (the existing DM/players keep working). The very first account is always allowed, so you can bootstrap then lock it down. |
 | `ALLOWED_ORIGINS` | unset    | Extra comma-separated host patterns allowed to open a WebSocket. Same-origin is always allowed; set this only if the front is served from a different host. |
 | `SECURE_COOKIES`  | unset    | `1` forces the `Secure` flag on the session cookie. Auto-detected over HTTPS or behind a proxy sending `X-Forwarded-Proto: https`. |
+| `NO_BROWSER`      | unset    | `1` stops the browser from opening on launch (for headless servers). |
 
 ```
 PORT=9000 DATA_DIR=/srv/mistkeep ./mistkeep-linux-amd64

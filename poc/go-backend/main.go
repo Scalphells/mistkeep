@@ -25,9 +25,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -437,8 +440,10 @@ Environment:
   DISABLE_SIGNUP   set to 1 to close registration once players have signed up
   ALLOWED_ORIGINS  extra comma-separated WebSocket origin host patterns
   SECURE_COOKIES   set to 1 to force the Secure flag on the session cookie
+  NO_BROWSER       set to 1 to not open a browser on launch (headless servers)
 
-Open http://localhost:PORT and create the first account — it becomes the DM.`
+On launch it opens your browser at http://localhost:PORT. Create the first
+account — it becomes the DM.`
 
 func main() {
 	if len(os.Args) > 1 {
@@ -491,13 +496,37 @@ func main() {
 	}
 	addr := ":" + port
 	srv := &http.Server{
-		Addr:    addr,
 		Handler: withMiddleware(mux),
 		// ReadHeaderTimeout guards against slowloris without capping long-lived
 		// WebSocket connections or large uploads (so no ReadTimeout/WriteTimeout).
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	log.Printf("Mistkeep %s (SQLite + WebSocket, embedded UI) on http://localhost%s", version, addr)
-	log.Fatal(srv.ListenAndServe())
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	url := "http://localhost:" + port
+	log.Printf("Mistkeep %s (SQLite + WebSocket, embedded UI) on %s", version, url)
+	openBrowser(url) // convenience for desktop use; NO_BROWSER=1 to skip (servers)
+	log.Fatal(srv.Serve(ln))
+}
+
+// openBrowser tries to open the default browser at url. Best-effort: failures
+// (e.g. on a headless server) are ignored. Set NO_BROWSER=1 to disable.
+func openBrowser(url string) {
+	if os.Getenv("NO_BROWSER") == "1" {
+		return
+	}
+	var cmd string
+	var args []string
+	switch runtime.GOOS {
+	case "windows":
+		cmd, args = "rundll32", []string{"url.dll,FileProtocolHandler", url}
+	case "darwin":
+		cmd, args = "open", []string{url}
+	default:
+		cmd, args = "xdg-open", []string{url}
+	}
+	_ = exec.Command(cmd, args...).Start()
 }
