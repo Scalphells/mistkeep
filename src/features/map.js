@@ -131,7 +131,11 @@ export async function createScene(name) {
   if (!store.get().isDM) return;
   const id = await insertScene(name || 'Nouvelle scène', { ...DEFAULT_MAP });
   if (!id) return;
-  store.set({ scenes: [...store.get().scenes, { id, name: name || 'Nouvelle scène', sort: store.get().scenes.length }] });
+  // Ajout idempotent : l'écho temps réel instantané a pu déjà l'ajouter.
+  const cur = store.get().scenes;
+  if (!cur.some((s) => s.id === id)) {
+    store.set({ scenes: [...cur, { id, name: name || 'Nouvelle scène', sort: cur.length }] });
+  }
   await switchScene(id);
 }
 
@@ -188,7 +192,10 @@ export async function importSceneState(name, state) {
   if (!store.get().isDM) return null;
   const id = await insertScene(name || 'Scène importée', normalizeMap(state));
   if (!id) return null;
-  store.set({ scenes: [...store.get().scenes, { id, name: name || 'Scène importée', sort: store.get().scenes.length }] });
+  const cur = store.get().scenes;
+  if (!cur.some((s) => s.id === id)) {
+    store.set({ scenes: [...cur, { id, name: name || 'Scène importée', sort: cur.length }] });
+  }
   await switchScene(id);
   return id;
 }
@@ -246,10 +253,20 @@ export async function refreshBgUrl() {
 
 /* ── Écriture (MJ) ────────────────────────────────────────── */
 
+// Dernière scène sauvegardée par NOUS. Le backend renvoie nos propres écritures
+// en temps réel (écho instantané) ; on s'en sert pour ignorer cet écho et ne pas
+// écraser l'état optimiste local (sinon la carte « clignote »/disparaît pendant
+// une bascule de scène).
+let _selfSceneEcho = { id: null, t: 0 };
+function isSelfSceneEcho(id) {
+  return !!id && id === _selfSceneEcho.id && Date.now() - _selfSceneEcho.t < 4000;
+}
+
 const saveDebounced = debounce(async () => {
   const m = store.get().map;
   const id = store.get().activeSceneId;
   if (!m || !id) return;
+  _selfSceneEcho = { id, t: Date.now() };
   const { error } = await backend.db
     .from('scenes')
     .update({ state: m, updated_at: new Date().toISOString() })
@@ -775,8 +792,9 @@ export function subscribeMap() {
       store.set({
         scenes: cur.some((s) => s.id === row.id) ? cur.map((s) => (s.id === row.id ? meta : s)) : [...cur, meta],
       });
-      // Re-fusionne l'état seulement pour la scène active (et pas nos propres échos en boucle).
-      if (row.id === activeId && row.state) {
+      // Re-fusionne l'état seulement pour la scène active, et JAMAIS pour notre
+      // propre écho (sinon il écrase l'état optimiste local pendant une bascule).
+      if (row.id === activeId && row.state && !isSelfSceneEcho(row.id)) {
         const prevBg = store.get().map?.bg;
         store.set({ map: normalizeMap(row.state) });
         if (row.state.bg !== prevBg) await refreshBgUrl();
