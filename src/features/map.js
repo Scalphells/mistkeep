@@ -260,6 +260,13 @@ const saveDebounced = debounce(async () => {
   else _pingChannel?.send({ type: 'broadcast', event: 'scenedirty', payload: { id, by: store.get().user?.id } });
 }, 350);
 
+/** Force la persistance immédiate d'une sauvegarde de scène encore en debounce.
+ *  À appeler avant de démonter la vue carte (changement d'onglet) pour ne pas
+ *  perdre un changement récent — sinon le remontage rechargerait l'ancien état. */
+export function flushSceneSave() {
+  saveDebounced.flush?.();
+}
+
 /** Applique un patch à l'état de la carte (optimiste + persistance MJ). */
 export function patchMap(patch) {
   if (!store.get().isDM) return;

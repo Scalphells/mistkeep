@@ -384,7 +384,11 @@ func main() {
 	}
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
-	addr := ":8787"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8787"
+	}
+	addr := ":" + port
 	log.Printf("Mistkeep PoC backend (SQLite + WebSocket, embedded UI) on http://localhost%s", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }

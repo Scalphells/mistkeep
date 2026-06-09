@@ -10,7 +10,7 @@ import { escapeHtml } from './utils.js';
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: false };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true };
 
 function load() {
   try {

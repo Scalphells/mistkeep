@@ -12,6 +12,7 @@ import { openActionCard } from '../lib/actioncard.js';
 import {
   DEFAULT_MAP,
   loadMap,
+  flushSceneSave,
   patchMap,
   uploadBackground,
   bgUrl,
@@ -3756,6 +3757,7 @@ export async function mountMap(container) {
   }
 
   return () => {
+    flushSceneSave(); // persiste tout changement encore en debounce avant de quitter
     unsubStore();
     unsubRealtime();
     unsubPings();
