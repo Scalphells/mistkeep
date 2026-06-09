@@ -10,19 +10,29 @@ exact same front end runs against it — built with `VITE_BACKEND=go`.
 
 ## Run it (no build)
 
-Grab the binary for your OS from `release/` and run it:
+Download the binary for your system and run it:
+
+| System                         | File                         | How to run                          |
+|--------------------------------|------------------------------|-------------------------------------|
+| Windows                        | `mistkeep-windows-amd64.exe` | double-click                        |
+| Linux (PC / server)            | `mistkeep-linux-amd64`       | `chmod +x …` then `./…`             |
+| Linux ARM (Raspberry Pi 64-bit)| `mistkeep-linux-arm64`       | `chmod +x …` then `./…`             |
+| macOS (Apple Silicon, M1–M4)   | `mistkeep-darwin-arm64`      | `chmod +x …`, then right-click → Open |
+| macOS (Intel)                  | `mistkeep-darwin-amd64`      | `chmod +x …`, then right-click → Open |
 
 ```
-# Linux / macOS
 chmod +x mistkeep-linux-amd64
 ./mistkeep-linux-amd64
-
-# Windows
-mistkeep-windows-amd64.exe
 ```
 
 Open <http://localhost:8787>. **The first account that signs up becomes the
-DM**; everyone after is a player.
+DM**; everyone after is a player. Other players on the same network reach it at
+`http://<host-lan-ip>:8787`.
+
+> The binaries are **unsigned**, so the OS warns on first launch: Windows
+> SmartScreen → *More info → Run anyway*; macOS Gatekeeper → right-click → *Open*
+> (or `xattr -d com.apple.quarantine mistkeep-darwin-arm64`). Linux has no such
+> prompt.
 
 | Variable          | Default  | Purpose                                                                 |
 |-------------------|----------|-------------------------------------------------------------------------|
