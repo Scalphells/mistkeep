@@ -26,6 +26,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -65,8 +66,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 type Store struct{ db *sql.DB }
 
+// dataDir is where the database and uploaded files live. Configurable via
+// DATA_DIR so the binary and its data can sit anywhere (defaults to ./data).
+func dataDir() string {
+	if d := os.Getenv("DATA_DIR"); d != "" {
+		return d
+	}
+	return "data"
+}
+
 func OpenStore(path string) (*Store, error) {
-	if err := os.MkdirAll("data", 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
 	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")
@@ -357,7 +367,7 @@ func httpErr(w http.ResponseWriter, status int, msg string) {
 // ---- Wiring -------------------------------------------------------------
 
 func main() {
-	store, err := OpenStore("data/mistkeep.db")
+	store, err := OpenStore(filepath.Join(dataDir(), "mistkeep.db"))
 	if err != nil {
 		log.Fatal(err)
 	}

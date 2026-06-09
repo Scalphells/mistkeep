@@ -19,7 +19,8 @@ import (
 	"strings"
 )
 
-const storageRoot = "data/storage"
+// storageRoot is the on-disk root for uploaded files, under the data dir.
+func storageRoot() string { return filepath.Join(dataDir(), "storage") }
 
 // safeStoragePath resolves <root>/<bucket>/<path> and rejects traversal.
 func safeStoragePath(bucket, p string) (string, bool) {
@@ -27,8 +28,8 @@ func safeStoragePath(bucket, p string) (string, bool) {
 		return "", false
 	}
 	clean := filepath.Clean("/" + strings.TrimPrefix(p, "/")) // drop any ".." segments
-	full := filepath.Join(storageRoot, bucket, clean)
-	root, err1 := filepath.Abs(filepath.Join(storageRoot, bucket))
+	full := filepath.Join(storageRoot(), bucket, clean)
+	root, err1 := filepath.Abs(filepath.Join(storageRoot(), bucket))
 	abs, err2 := filepath.Abs(full)
 	if err1 != nil || err2 != nil || !strings.HasPrefix(abs, root) {
 		return "", false

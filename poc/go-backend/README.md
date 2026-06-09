@@ -1,56 +1,86 @@
-# Mistkeep — Go backend PoC
+# Mistkeep — self-hosted backend (single binary)
 
-A proof of concept for the "single Go binary" backend that could replace Supabase
-for self-hosting (see the architecture notes in the project).
+A self-contained server for Mistkeep: it **embeds the web UI**, stores
+everything in **SQLite** (pure Go, no CGO), hashes passwords with **bcrypt**,
+pushes realtime over **WebSocket**, and serves uploaded files from disk. One
+binary, no external services, no database to install.
 
-Persists to **SQLite** (pure Go, no CGO), hashes passwords with **bcrypt**, pushes
-realtime over **WebSocket**, **embeds its UI**, and serves a **generic resource
-API** matching the front-end `goAdapter` contract.
+It implements the same data contract as the hosted (Supabase) edition, so the
+exact same front end runs against it — built with `VITE_BACKEND=go`.
 
-## Run
+## Run it (no build)
 
-Requires Go 1.22+.
-
-```
-cd poc/go-backend
-go mod tidy   # first time: fetches modernc.org/sqlite, x/crypto, coder/websocket
-go run .
-```
-
-Open http://localhost:8787. The **first account becomes the DM**. Data lives in
-`./data/mistkeep.db` (delete it to reset).
-
-### Build a single binary
+Grab the binary for your OS from `release/` and run it:
 
 ```
-go build -o mistkeep-poc .
+# Linux / macOS
+chmod +x mistkeep-linux-amd64
+./mistkeep-linux-amd64
+
+# Windows
+mistkeep-windows-amd64.exe
 ```
 
-The UI is embedded (`go:embed`), so the binary runs on its own.
+Open <http://localhost:8787>. **The first account that signs up becomes the
+DM**; everyone after is a player.
 
-## API
+| Variable   | Default  | Purpose                                             |
+|------------|----------|-----------------------------------------------------|
+| `PORT`     | `8787`   | Port to listen on.                                  |
+| `DATA_DIR` | `./data` | Where the database and uploaded files are written.  |
 
-| Area | Endpoints |
-|---|---|
-| Auth | `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` (cookie session, bcrypt) |
-| Data (generic) | `GET/POST/PATCH/DELETE /api/{table}` — see `api.go` for the table whitelist and per-table rules |
-| Realtime | WebSocket `GET /realtime`: emits `{table,eventType,new}` on writes; relays ephemeral events |
-| Storage | `POST /storage/{bucket}` (upload), `/sign`, `GET /storage/{bucket}/{path...}`, `DELETE` — private, on disk (see `storage.go`) |
+```
+PORT=9000 DATA_DIR=/srv/mistkeep ./mistkeep-linux-amd64
+```
 
-The data layer (`api.go`) is table-driven: a registry lists each table's columns,
-primary key, JSON columns, and authorization rule (`dm` / `owner` / `auth`). Only
-whitelisted tables/columns reach SQL; values use placeholders. This matches the
-`goAdapter` so the real front end can run against it with `VITE_BACKEND=go`.
+Back up the **data directory** (`mistkeep.db` + `storage/`) to back up a
+campaign. Delete it to start fresh.
 
-## Status vs production
+## Build from source
 
-| Done | Still a shortcut / to do |
-|---|---|
-| SQLite persistence, bcrypt, DB sessions | column lists in `api.go` must be reconciled with the real migrations |
-| WebSocket realtime | origin checks skipped (`InsecureSkipVerify`) |
-| UI embedded → single binary | file storage (`/storage`) not implemented yet (G5) |
-| generic `/api/{table}` + per-table authz | needs an end-to-end run against the real front end to shake out bugs |
+Needs [Go](https://go.dev/dl/) 1.22+ and Node (to build the front end once).
 
-> This Go server was written without a local compiler in the loop. Run
-> `go mod tidy && go run .` and report build/run errors — that is the validation
-> step for the generic engine.
+```
+# Windows
+./build.ps1
+
+# Linux / macOS
+./build.sh
+```
+
+This builds the front end (`VITE_BACKEND=go`), embeds it into `static/`, and
+compiles `mistkeep` for the current machine.
+
+### Cross-compile for everyone
+
+```
+./release.ps1        # Windows
+./build.sh release   # Linux / macOS
+```
+
+Builds binaries for windows/linux/macOS (amd64 + arm64) into `release/`. Because
+there's no CGO, cross-compilation needs only the Go toolchain — hand a friend
+the binary for their OS and they just run it.
+
+## How it works
+
+| Area     | Endpoints |
+|----------|-----------|
+| Auth     | `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` (bcrypt, cookie session) |
+| Data     | `GET/POST/PATCH/DELETE /api/{table}` — generic engine, per-table authorization (see `api.go`) |
+| Realtime | WebSocket `GET /realtime` — broadcasts row changes and relays ephemeral events |
+| Storage  | `POST /storage/{bucket}`, `/sign`, `GET /storage/{bucket}/{path...}`, `DELETE` — private, on disk |
+| UI       | everything else is served from the embedded front end |
+
+The data layer (`api.go`) is table-driven: a registry lists each table's
+columns, primary key, JSON columns, and write rule (`dm` / `owner` / `auth`).
+Only whitelisted tables and columns reach SQL; values always go through
+placeholders. The schema mirrors the SQL migrations in `supabase/migrations`.
+
+## Security notes
+
+- Sessions are random tokens in an HTTP-only cookie; passwords are bcrypt-hashed.
+- Storage buckets are private — reads require a session, writes require the DM.
+- Put a TLS-terminating reverse proxy (Caddy, nginx, …) in front for HTTPS, and
+  add a real origin check before exposing it to the internet (the WebSocket
+  currently skips origin validation — fine behind a trusted proxy / on a LAN).

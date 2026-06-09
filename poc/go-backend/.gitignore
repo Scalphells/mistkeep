@@ -4,6 +4,8 @@
 # Compiled binaries and logs
 *.exe
 *.log
+mistkeep
+/release/
 
 # Front end built into the embed dir for local testing (see README).
 # A clone ships only the demo static/index.html; build the real app and copy
