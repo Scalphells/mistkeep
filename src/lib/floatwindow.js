@@ -122,7 +122,11 @@ export function openWindow(id, { title = 'Fenêtre', mount, width, height } = {}
 }
 
 function bringToFront(win) {
-  if (win) win.style.zIndex = String(++_z);
+  if (!win) return;
+  // Stay below the modal/overlay band (100000+, see base.css) so dialogs always
+  // open on top of floating windows.
+  if (_z < 99990) _z += 1;
+  win.style.zIndex = String(_z);
 }
 
 function initDrag(handle, win) {
