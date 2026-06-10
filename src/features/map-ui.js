@@ -3646,9 +3646,16 @@ export async function mountMap(container) {
     'dmPeer', 'vaultFiles', 'fileTree', 'openTabs', 'activeTab', 'edits',
     'sfxboard', 'imagebank', 'campaign', 'sideTab', 'toolTab',
   ];
+  // Coalesce les rafales de changements (événements temps réel groupés, lots de
+  // patchMap) en un seul rendu par frame. Ne concerne que le rendu piloté par le
+  // store ; les appels directs à renderAll() (interactions locales) restent synchrones.
+  let _storeRaf = 0;
   const unsubStore = store.subscribe(() => {
-    if (suppressRender) return;
-    renderAll();
+    if (suppressRender || _storeRaf) return;
+    _storeRaf = requestAnimationFrame(() => {
+      _storeRaf = 0;
+      if (!suppressRender) renderAll();
+    });
   }, { except: MAP_IGNORE });
 
   /* ── Barre PV rapide au survol d'un jeton (MJ, sans ouvrir de panneau) ── */
@@ -3766,6 +3773,7 @@ export async function mountMap(container) {
 
   return () => {
     flushSceneSave(); // persiste tout changement encore en debounce avant de quitter
+    if (_storeRaf) cancelAnimationFrame(_storeRaf);
     unsubStore();
     unsubRealtime();
     unsubPings();

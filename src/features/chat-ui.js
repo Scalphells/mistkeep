@@ -189,9 +189,15 @@ export async function mountChat(container) {
     'edits', 'ambience', 'sfxboard', 'imagebank', 'campaign', 'clock',
     'sideTab', 'toolTab',
   ];
+  // Coalesce les rafales (lots de messages/jets en temps réel) en un rendu par frame.
+  let _feedRaf = 0;
   const unsubStore = store.subscribe(() => {
-    if (isDM && store.get().chatTab === 'dm') renderPeers();
-    renderFeed();
+    if (_feedRaf) return;
+    _feedRaf = requestAnimationFrame(() => {
+      _feedRaf = 0;
+      if (isDM && store.get().chatTab === 'dm') renderPeers();
+      renderFeed();
+    });
   }, { except: CHAT_IGNORE });
 
   // Sélection par défaut d'un joueur côté MJ.
@@ -203,6 +209,7 @@ export async function mountChat(container) {
   syncChannelUI();
 
   return () => {
+    if (_feedRaf) cancelAnimationFrame(_feedRaf);
     unsubStore();
     unsubRealtime();
   };
