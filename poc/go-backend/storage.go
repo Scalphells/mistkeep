@@ -31,7 +31,9 @@ func safeStoragePath(bucket, p string) (string, bool) {
 	full := filepath.Join(storageRoot(), bucket, clean)
 	root, err1 := filepath.Abs(filepath.Join(storageRoot(), bucket))
 	abs, err2 := filepath.Abs(full)
-	if err1 != nil || err2 != nil || !strings.HasPrefix(abs, root) {
+	// Require a path-segment boundary so bucket "avatars" can't be escaped into a
+	// sibling like "avatars-evil" via a prefix match.
+	if err1 != nil || err2 != nil || (abs != root && !strings.HasPrefix(abs, root+string(filepath.Separator))) {
 		return "", false
 	}
 	return full, true

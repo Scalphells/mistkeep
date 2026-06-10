@@ -85,6 +85,8 @@ type Policy struct {
 	PK       string
 	OwnerCol string // "" if none
 	Write    string // "dm" | "owner" | "auth"
+	SelfCol  string // for "auth" tables: column that must equal the user id to
+	// update/delete a row (e.g. messages.sender_id). "" means fully open.
 }
 
 func (p Policy) hasCol(c string) bool {
@@ -111,8 +113,8 @@ var tables = map[string]Policy{
 	"initiative":    {Columns: []string{"entity_id", "name", "initiative", "hp", "hp_max", "hp_temp", "sort_order", "conditions", "effects", "death_saves", "status", "char_id", "updated_at", "updated_by"}, JSONCols: []string{"conditions", "effects", "death_saves"}, PK: "entity_id", Write: "dm"},
 	"scenes":        {Columns: []string{"id", "name", "state", "sort", "created_by", "created_at", "updated_at"}, JSONCols: []string{"state"}, PK: "id", Write: "dm"},
 	"session_state": {Columns: []string{"key", "value", "updated_at", "updated_by"}, JSONCols: []string{"value"}, PK: "key", Write: "dm"},
-	"messages":      {Columns: []string{"id", "channel", "content", "sender_id", "sender_name", "recipient_id", "created_at"}, PK: "id", Write: "auth"},
-	"dice_rolls":    {Columns: []string{"id", "roll_name", "dice", "result", "details", "roll_type", "roller_id", "roller_name", "created_at"}, JSONCols: []string{"details"}, PK: "id", Write: "auth"},
+	"messages":      {Columns: []string{"id", "channel", "content", "sender_id", "sender_name", "recipient_id", "created_at"}, PK: "id", Write: "auth", SelfCol: "sender_id"},
+	"dice_rolls":    {Columns: []string{"id", "roll_name", "dice", "result", "details", "roll_type", "roller_id", "roller_name", "created_at"}, JSONCols: []string{"details"}, PK: "id", Write: "auth", SelfCol: "roller_id"},
 	"compendium":    {Columns: []string{"id", "kind", "name", "data", "created_by", "created_at", "updated_at"}, JSONCols: []string{"data"}, PK: "id", Write: "dm"},
 	"handouts":      {Columns: []string{"id", "title", "description", "content_type", "text_content", "image_url", "target_player", "pushed_by", "pushed_at"}, PK: "id", Write: "dm"},
 	"session_notes": {Columns: []string{"id", "content", "created_by", "shared", "created_at"}, PK: "id", Write: "dm"},
@@ -240,9 +242,109 @@ func (s *Server) fetchOne(table string, p Policy, pk any) map[string]any {
 	return list[0]
 }
 
+// ---- Read authorization (the RLS-equivalent for SELECT) -----------------
+//
+// Reads were previously open to any signed-in user, which leaked the DM's
+// secrets (campaign prep, whispers, hidden GM rolls, private/targeted notes
+// and handouts). readScope adds a per-table WHERE fragment that limits a
+// non-DM to the rows they may see; rowVisible is the same predicate applied to
+// a single row, used to filter realtime broadcasts so the WebSocket cannot
+// bypass the REST filter.
+//
+// NOTE: `scenes.state` is a single blob the player UI needs to render the map
+// (walls/lights drive client-side vision), so it stays readable; stripping the
+// hidden tokens / GM notes it contains requires a filtered projection and is
+// left as a documented residual.
+func readScope(u *User, table string) (string, []any) {
+	if u.Role == "dm" {
+		return "", nil
+	}
+	switch table {
+	case "messages":
+		return " (recipient_id IS NULL OR recipient_id = ? OR sender_id = ?)", []any{u.ID, u.ID}
+	case "dice_rolls":
+		return " (roll_type <> 'dm' OR roller_id = ?)", []any{u.ID}
+	case "session_notes":
+		return " (shared = 1 OR created_by = ?)", []any{u.ID}
+	case "handouts":
+		return " (target_player IS NULL OR target_player = ?)", []any{u.ID}
+	case "compendium":
+		return " kind IN ('spell','item')", nil
+	case "session_state":
+		// GM-only preparation keys stay private; everything else players need.
+		return " key NOT IN ('campaign','imagebank')", nil
+	case "vault_notes":
+		return " 1=0", nil // GM campaign vault: invisible to players (empty list)
+	}
+	return "", nil // profiles, characters, initiative, scenes: shared with the table
+}
+
+// rowVisible reports whether a non-DM user may see this row over realtime.
+func rowVisible(table string, row map[string]any, uid string) bool {
+	switch table {
+	case "messages":
+		r := asStr(row["recipient_id"])
+		return r == "" || r == uid || asStr(row["sender_id"]) == uid
+	case "dice_rolls":
+		return asStr(row["roll_type"]) != "dm" || asStr(row["roller_id"]) == uid
+	case "session_notes":
+		return isTruthy(row["shared"]) || asStr(row["created_by"]) == uid
+	case "handouts":
+		t := asStr(row["target_player"])
+		return t == "" || t == uid
+	case "compendium":
+		k := asStr(row["kind"])
+		return k == "spell" || k == "item"
+	case "session_state":
+		k := asStr(row["key"])
+		return k != "campaign" && k != "imagebank"
+	case "vault_notes":
+		return false
+	}
+	return true
+}
+
+func asStr(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case []byte:
+		return string(t)
+	}
+	return ""
+}
+
+func isTruthy(v any) bool {
+	switch t := v.(type) {
+	case int64:
+		return t != 0
+	case float64:
+		return t != 0
+	case bool:
+		return t
+	case string:
+		return t != "" && t != "0"
+	}
+	return false
+}
+
+// emitChange pushes a row change over realtime, filtered per subscriber so the
+// WebSocket never leaks rows a player may not read (mirrors readScope). DELETE
+// events carry no payload and go to everyone.
 func (s *Server) emitChange(table, eventType string, row map[string]any) {
+	if row == nil {
+		b, _ := json.Marshal(map[string]any{"table": table, "eventType": eventType, "new": nil})
+		s.hub.broadcast("main", string(b))
+		return
+	}
 	b, _ := json.Marshal(map[string]any{"table": table, "eventType": eventType, "new": row})
-	s.hub.broadcast("main", string(b))
+	msg := string(b)
+	s.hub.broadcastFiltered("main", func(sub *subscriber) (string, bool) {
+		if sub.role != "dm" && !rowVisible(table, row, sub.uid) {
+			return "", false
+		}
+		return msg, true
+	})
 }
 
 // ---- Handlers -----------------------------------------------------------
@@ -266,6 +368,15 @@ func (s *Server) apiList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	where, args := whereSQL(fs)
+	// Read authorization: scope a non-DM to the rows they may see.
+	if frag, fargs := readScope(u, table); frag != "" {
+		if where == "" {
+			where = " WHERE" + frag
+		} else {
+			where += " AND" + frag
+		}
+		args = append(args, fargs...)
+	}
 	q1 := "SELECT * FROM " + table + where
 	if o := q.Get("order"); o != "" {
 		col, dir, _ := strings.Cut(o, ".")
@@ -341,12 +452,34 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 		body["email"] = u.Email
 		body["role"] = u.Role
 	}
+	// Chat and dice: a non-DM cannot forge the author. The DM stays free to post
+	// as a narrator / monster card. Mirrors the trust model (DM is trusted).
+	if u.Role != "dm" {
+		switch table {
+		case "messages":
+			body["sender_id"] = u.ID
+			body["sender_name"] = displayName(u)
+		case "dice_rolls":
+			body["roller_id"] = u.ID
+			body["roller_name"] = displayName(u)
+		}
+	}
 	// Generate the primary key when the client relies on a DB default (the
 	// uuid-default tables: dice_rolls, messages, scenes, handouts…). Tables whose
 	// PK is client-supplied (characters.id, initiative.entity_id, session_state.key,
 	// vault_notes.path) already carry a value, so this is a no-op for them.
 	if v, ok := body[p.PK]; !ok || v == nil || v == "" {
 		body[p.PK] = id(table)
+	}
+	// Upsert hijack guard: ON CONFLICT DO UPDATE could otherwise let a non-DM
+	// overwrite (and steal ownership of) a row they don't own by posting its
+	// primary key. If a conflicting row already exists, it must belong to them.
+	oc := r.URL.Query().Get("on_conflict")
+	if oc != "" && u.Role != "dm" && p.Write == "owner" && p.OwnerCol != "" {
+		if existing := s.fetchOne(table, p, body[p.PK]); existing != nil && asStr(existing[p.OwnerCol]) != u.ID {
+			httpErr(w, 403, "forbidden")
+			return
+		}
 	}
 	var cols []string
 	var args []any
@@ -362,7 +495,7 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 	}
 	ph := strings.TrimRight(strings.Repeat("?,", len(cols)), ",")
 	q1 := "INSERT INTO " + table + " (" + strings.Join(cols, ",") + ") VALUES (" + ph + ")"
-	if oc := r.URL.Query().Get("on_conflict"); oc != "" && p.hasCol(oc) {
+	if oc != "" && p.hasCol(oc) {
 		var sets []string
 		for _, c := range cols {
 			if c != oc {
@@ -413,6 +546,15 @@ func (s *Server) apiUpdate(w http.ResponseWriter, r *http.Request) {
 	if json.NewDecoder(r.Body).Decode(&body) != nil {
 		httpErr(w, 400, "bad request")
 		return
+	}
+	// Identity/role are session-authoritative on profiles (as on insert). Without
+	// this, a player could PATCH their own profile to role:"dm" and appear/act as
+	// DM on every client. The server's own authorization reads users.role, but the
+	// front derives isDM from profiles.role, so this must stay locked here too.
+	if table == "profiles" {
+		delete(body, "id")
+		delete(body, "email")
+		delete(body, "role")
 	}
 	var sets []string
 	var args []any
@@ -485,7 +627,16 @@ func (s *Server) apiDelete(w http.ResponseWriter, r *http.Request) {
 func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs []any) bool {
 	switch p.Write {
 	case "auth":
-		return true
+		if u.Role == "dm" {
+			return true
+		}
+		// "auth" tables (messages, dice_rolls) accept inserts from anyone, but a
+		// non-DM may only update/delete their OWN rows — otherwise a player could
+		// edit the DM's messages or wipe the whole chat/roll log.
+		if p.SelfCol == "" {
+			return true
+		}
+		return s.allRowsOwnedBy(table, p.SelfCol, where, wargs, u.ID)
 	case "dm":
 		return u.Role == "dm"
 	case "owner":
@@ -495,21 +646,35 @@ func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs [
 		if p.OwnerCol == "" {
 			return false
 		}
-		// Every targeted row must belong to the user.
-		rows, err := s.store.db.Query("SELECT "+p.OwnerCol+" FROM "+table+where, wargs...)
-		if err != nil {
-			return false
-		}
-		defer rows.Close()
-		any := false
-		for rows.Next() {
-			any = true
-			var owner sql.NullString
-			if rows.Scan(&owner) != nil || owner.String != u.ID {
-				return false
-			}
-		}
-		return any
+		return s.allRowsOwnedBy(table, p.OwnerCol, where, wargs, u.ID)
 	}
 	return false
+}
+
+// allRowsOwnedBy returns true iff at least one row matches the filter and EVERY
+// matching row's `col` equals uid. `table` and `col` are whitelisted (never
+// client input); the filter values are parameterized.
+func (s *Server) allRowsOwnedBy(table, col, where string, wargs []any, uid string) bool {
+	rows, err := s.store.db.Query("SELECT "+col+" FROM "+table+where, wargs...)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	any := false
+	for rows.Next() {
+		any = true
+		var owner sql.NullString
+		if rows.Scan(&owner) != nil || owner.String != uid {
+			return false
+		}
+	}
+	return any
+}
+
+// displayName is the name shown for a user, falling back to the email.
+func displayName(u *User) string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	return u.Email
 }

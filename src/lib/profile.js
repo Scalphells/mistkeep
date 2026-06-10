@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { store } from '../state.js';
+import { safeColor } from './utils.js';
 
 /**
  * Profil joueur : nom + couleur personnelle. La couleur sert d'identité visuelle
@@ -18,7 +19,10 @@ export const PALETTE = [
 /** Couleur d'un profil par id (sinon dérivée du nom, sinon accent). */
 export function colorFor(id, name = '') {
   const p = store.get().players.find((x) => x.id === id);
-  if (p?.color) return p.color;
+  // Une couleur de profil est contrôlée par l'utilisateur ; on la passe par
+  // safeColor() pour qu'une valeur piégée ne puisse pas s'échapper d'un
+  // attribut style="…" (sinon XSS stocké rendu chez les autres, MJ inclus).
+  if (p?.color) return safeColor(p.color, 'var(--accent)');
   if (name) {
     let h = 0;
     for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;

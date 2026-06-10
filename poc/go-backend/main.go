@@ -157,20 +157,28 @@ func (s *Store) deleteSession(tok string) { _, _ = s.db.Exec(`DELETE FROM sessio
 
 // ---- Realtime hub -------------------------------------------------------
 
-type Hub struct {
-	mu    sync.Mutex
-	rooms map[string]map[chan string]bool
+// subscriber carries the identity of a realtime connection so row changes can
+// be filtered per recipient (a player must not receive rows they may not read).
+type subscriber struct {
+	ch   chan string
+	uid  string
+	role string
 }
 
-func NewHub() *Hub { return &Hub{rooms: map[string]map[chan string]bool{}} }
+type Hub struct {
+	mu    sync.Mutex
+	rooms map[string]map[chan string]*subscriber
+}
 
-func (h *Hub) add(room string, ch chan string) {
+func NewHub() *Hub { return &Hub{rooms: map[string]map[chan string]*subscriber{}} }
+
+func (h *Hub) add(room string, sub *subscriber) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.rooms[room] == nil {
-		h.rooms[room] = map[chan string]bool{}
+		h.rooms[room] = map[chan string]*subscriber{}
 	}
-	h.rooms[room][ch] = true
+	h.rooms[room][sub.ch] = sub
 }
 
 func (h *Hub) remove(room string, ch chan string) {
@@ -181,6 +189,7 @@ func (h *Hub) remove(room string, ch chan string) {
 	}
 }
 
+// broadcast sends the same message to every subscriber (ephemeral events).
 func (h *Hub) broadcast(room, msg string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -188,6 +197,21 @@ func (h *Hub) broadcast(room, msg string) {
 		select {
 		case ch <- msg:
 		default:
+		}
+	}
+}
+
+// broadcastFiltered lets the caller decide, per subscriber, whether to send and
+// what to send — used to keep authorized-only rows off unauthorized connections.
+func (h *Hub) broadcastFiltered(room string, build func(sub *subscriber) (string, bool)) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, sub := range h.rooms[room] {
+		if msg, ok := build(sub); ok {
+			select {
+			case sub.ch <- msg:
+			default:
+			}
 		}
 	}
 }
@@ -276,7 +300,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 500, "db error")
 		return
 	}
-	if u == nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(in.Password)) != nil {
+	// Always run a bcrypt comparison — even for an unknown email — so the
+	// response time doesn't reveal whether an account exists (user enumeration).
+	if u == nil {
+		bcrypt.CompareHashAndPassword(dummyHash, []byte(in.Password))
+		httpErr(w, 401, "invalid credentials")
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(in.Password)) != nil {
 		httpErr(w, 401, "invalid credentials")
 		return
 	}
@@ -309,7 +340,8 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 // ---- Realtime handlers --------------------------------------------------
 
 func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
-	if s.userFrom(r) == nil {
+	u := s.userFrom(r)
+	if u == nil {
 		httpErr(w, 401, "unauthenticated")
 		return
 	}
@@ -327,7 +359,7 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 	defer c.CloseNow()
 	ctx := r.Context()
 	ch := make(chan string, 16)
-	s.hub.add("main", ch)
+	s.hub.add("main", &subscriber{ch: ch, uid: u.ID, role: u.Role})
 	defer s.hub.remove("main", ch)
 
 	// Reader: relay incoming client messages as ephemeral broadcasts (ping, cursor…).
@@ -360,15 +392,23 @@ func publicUser(u *User) map[string]any {
 	return map[string]any{"id": u.ID, "email": u.Email, "display_name": u.DisplayName, "role": u.Role}
 }
 
+// dummyHash is compared against when an email is unknown so login timing is the
+// same whether or not the account exists. Computed once at startup.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("mistkeep-login-timing-guard"), bcrypt.DefaultCost)
+
 func id(prefix string) string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(err) // a CSPRNG failure must never yield a low-entropy id
+	}
 	return prefix + "_" + hex.EncodeToString(b)
 }
 
 func token() string {
 	b := make([]byte, 24)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(err) // never emit a guessable session token
+	}
 	return hex.EncodeToString(b)
 }
 
@@ -410,6 +450,20 @@ func withMiddleware(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
+		// Defense-in-depth for XSS. The bundled UI relies on an inline bootstrap
+		// script and dynamic style attributes, so script/style keep 'unsafe-inline';
+		// but pinning connect-src to same-origin blocks the usual exfiltration
+		// channel (fetch/XHR/beacon to an attacker host), and object/base/frame are
+		// locked down. The stored-XSS source itself is fixed in the front end.
+		h.Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self' 'unsafe-inline'; "+
+				"style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data: blob: https:; "+
+				"media-src 'self' data: blob: https:; "+
+				"font-src 'self' data:; "+
+				"connect-src 'self' ws: wss:; "+
+				"object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 
 		if r.Method == http.MethodPost || r.Method == http.MethodPatch || r.Method == http.MethodPut {
 			p := r.URL.Path
