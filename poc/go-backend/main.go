@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"embed"
@@ -29,10 +30,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/coder/websocket"
@@ -84,7 +87,9 @@ func OpenStore(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")
+	// WAL improves crash resilience and commit latency; foreign keys on; a
+	// busy_timeout absorbs brief lock contention.
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, err
 	}
@@ -646,6 +651,12 @@ func main() {
 
 	mux.HandleFunc("GET /realtime", s.ws)
 
+	// Liveness probe for reverse proxies / orchestrators.
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("ok"))
+	})
+
 	// File storage (see storage.go).
 	mux.HandleFunc("POST /storage/{bucket}", s.storageUpload)
 	mux.HandleFunc("POST /storage/{bucket}/sign", s.storageSign)
@@ -678,7 +689,23 @@ func main() {
 	url := "http://localhost:" + port
 	log.Printf("Mistkeep %s (SQLite + WebSocket, embedded UI) on %s", version, url)
 	openBrowser(url) // convenience for desktop use; NO_BROWSER=1 to skip (servers)
-	log.Fatal(srv.Serve(ln))
+
+	// Serve until interrupted, then drain in-flight requests and close the DB
+	// cleanly (checkpoints the WAL) so a Ctrl-C / SIGTERM never truncates a write.
+	go func() {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
+	stop()
+	log.Println("shutting down…")
+	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutCtx)
+	_ = store.db.Close()
 }
 
 // openBrowser tries to open the default browser at url. Best-effort: failures
