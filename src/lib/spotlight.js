@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { cachedSignedUrl } from './signed-urls.js';
+import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 
@@ -53,19 +54,15 @@ async function apply(s) {
 }
 
 export async function initSpotlight() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  apply(data?.value);
+  apply(await loadSessionValue(KEY));
   channel = backend.realtime
     .channel('spotlight_feed')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (p) => apply(p.new?.value))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (p) => sameCampaign(p) && apply(p.new?.value))
     .subscribe();
 }
 
 async function upsert(value) {
-  await backend.db.from('session_state').upsert(
-    { key: KEY, value, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  await saveSessionValue(KEY, value);
 }
 
 /** Montre une image (chemin Storage handouts ou URL) à tous (MJ). */

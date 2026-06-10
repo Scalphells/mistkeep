@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
 import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
+import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { updateLayer } from '../lib/ambience.js';
@@ -54,6 +55,7 @@ async function fetchScenes() {
   const { data, error } = await backend.db
     .from('scenes')
     .select('id, name, sort')
+    .eq('campaign_id', campaignId())
     .order('sort', { ascending: true })
     .order('created_at', { ascending: true });
   if (error) {
@@ -64,12 +66,8 @@ async function fetchScenes() {
 }
 
 async function fetchActiveSceneId() {
-  const { data } = await backend.db
-    .from('session_state')
-    .select('value')
-    .eq('key', ACTIVE_KEY)
-    .maybeSingle();
-  return data?.value?.id ?? null;
+  const v = await loadSessionValue(ACTIVE_KEY);
+  return v?.id ?? null;
 }
 
 /** Charge l'état complet d'une scène dans le store. */
@@ -111,7 +109,7 @@ export async function loadMap() {
 async function insertScene(name, state) {
   const { data, error } = await backend.db
     .from('scenes')
-    .insert({ name, state, sort: store.get().scenes.length, created_by: store.get().user?.id ?? null })
+    .insert({ name, state, sort: store.get().scenes.length, created_by: store.get().user?.id ?? null, campaign_id: campaignId() })
     .select('id, name, sort')
     .single();
   if (error) {
@@ -122,10 +120,7 @@ async function insertScene(name, state) {
 }
 
 async function setActivePointer(id) {
-  await backend.db.from('session_state').upsert(
-    { key: ACTIVE_KEY, value: { id }, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  await saveSessionValue(ACTIVE_KEY, { id });
 }
 
 /** Crée une scène (vierge) et l'active (MJ). */
@@ -834,6 +829,7 @@ export function subscribeMap() {
     .channel('scenes_feed')
     // État des scènes : si la scène active est modifiée, on re-fusionne.
     .on('postgres_changes', { event: '*', schema: 'public', table: 'scenes' }, async (payload) => {
+      if (!sameCampaign(payload)) return;
       const activeId = store.get().activeSceneId;
       if (payload.eventType === 'DELETE') {
         store.set({ scenes: store.get().scenes.filter((s) => s.id !== payload.old.id) });
@@ -861,6 +857,7 @@ export function subscribeMap() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${ACTIVE_KEY}` },
       async (payload) => {
+        if (!sameCampaign(payload)) return;
         const id = payload.new?.value?.id;
         if (id && id !== store.get().activeSceneId) {
           store.set({ activeSceneId: id });
@@ -879,7 +876,7 @@ let _pingChannel = null;
 
 /** Canal de diffusion éphémère de la carte : ping, déplacement de jeton, vue. */
 export function subscribeMapBroadcast({ onPing, onTokenMove, onView, onDraw, onCursor, onSceneDirty, onTemplate } = {}) {
-  _pingChannel = backend.realtime.channel('map_rt', { config: { broadcast: { self: true } } });
+  _pingChannel = backend.realtime.channel(`map_rt:${campaignId()}`, { config: { broadcast: { self: true } } });
   _pingChannel
     .on('broadcast', { event: 'ping' }, ({ payload }) => onPing?.(payload))
     .on('broadcast', { event: 'tokenmove' }, ({ payload }) => onTokenMove?.(payload))

@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 
 /**
@@ -69,10 +70,7 @@ export function toggleClock() {
 async function persist(clock) {
   store.set({ clock });
   if (!store.get().isDM) return;
-  await backend.db.from('session_state').upsert(
-    { key: 'clock', value: clock, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  await saveSessionValue('clock', clock);
 }
 
 /** Fait avancer (ou reculer) le temps de `delta` minutes (MJ). */
@@ -101,8 +99,8 @@ export async function initClock() {
     _el.className = 'clock-panel';
     document.body.appendChild(_el);
   }
-  const { data } = await backend.db.from('session_state').select('value').eq('key', 'clock').maybeSingle();
-  if (data?.value && typeof data.value.min === 'number') store.set({ clock: data.value });
+  const v = await loadSessionValue('clock');
+  if (v && typeof v.min === 'number') store.set({ clock: v });
   render();
   store.subscribe(() => {
     if (_open) render();
@@ -113,6 +111,7 @@ export async function initClock() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: 'key=eq.clock' },
       (p) => {
+        if (!sameCampaign(p)) return;
         if (p.new?.value && typeof p.new.value.min === 'number') store.set({ clock: p.new.value });
       }
     )

@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { addCombatant } from './initiative.js';
 import { showToast } from '../lib/toast.js';
@@ -28,6 +29,7 @@ export async function loadCompendium() {
   const { data, error } = await backend.db
     .from('compendium')
     .select('*')
+    .eq('campaign_id', campaignId())
     .order('name', { ascending: true });
   if (error) {
     console.warn('[compendium] chargement impossible:', error.message);
@@ -43,6 +45,7 @@ export async function createEntry(kind, name) {
     name: String(name).trim() || 'Sans nom',
     data: kind === 'table' ? { desc: '', entries: [] } : { desc: '' },
     created_by: store.get().user?.id ?? null,
+    campaign_id: campaignId(),
   };
   const { data, error } = await backend.db.from('compendium').insert(row).select().single();
   if (error) {
@@ -308,7 +311,7 @@ async function srdMapped(kind, index, opts = {}) {
 export async function srdImport(kind, index, opts = {}) {
   if (!store.get().isDM) return null;
   const { name, data } = await srdMapped(kind, index, opts);
-  const row = { kind, name, data, created_by: store.get().user?.id ?? null };
+  const row = { kind, name, data, created_by: store.get().user?.id ?? null, campaign_id: campaignId() };
   const { data: ins, error } = await backend.db.from('compendium').insert(row).select().single();
   if (error) throw new Error(error.message);
   store.set({ compendium: [...store.get().compendium, ins] });
@@ -359,6 +362,7 @@ export function subscribeCompendium() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'compendium' },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         const cur = store.get().compendium;
         if (payload.eventType === 'DELETE') {
           store.set({ compendium: cur.filter((e) => e.id !== payload.old.id) });

@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { campaignId, scopedUpsert } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { showToast } from '../lib/toast.js';
@@ -53,7 +54,8 @@ export async function loadVault() {
 
   const { data, error } = await backend.db
     .from('vault_notes')
-    .select('path, content');
+    .select('path, content')
+    .eq('campaign_id', campaignId());
 
   if (error) {
     // eslint-disable-next-line no-console
@@ -81,15 +83,12 @@ export function saveNote(path, content) {
     pendingSaves.set(
       path,
       debounce(async (p, c) => {
-        const { error } = await backend.db.from('vault_notes').upsert(
-          {
-            path: p,
-            content: c,
-            updated_at: new Date().toISOString(),
-            updated_by: store.get().user?.id ?? null,
-          },
-          { onConflict: 'path' }
-        );
+        const { error } = await scopedUpsert('vault_notes', 'path', {
+          path: p,
+          content: c,
+          updated_at: new Date().toISOString(),
+          updated_by: store.get().user?.id ?? null,
+        });
         if (error) {
           console.error('[vault] save échouée:', error.message);
           showToast('Échec de l’enregistrement de la note — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
@@ -119,11 +118,12 @@ export async function renameNote(oldPath, newPath) {
 
   if (!store.get().isDM) return;
   // Insère la nouvelle, supprime l'ancienne.
-  await backend.db.from('vault_notes').upsert(
-    { path: newPath, content: files[newPath], updated_by: store.get().user?.id ?? null },
-    { onConflict: 'path' }
-  );
-  await backend.db.from('vault_notes').delete().eq('path', oldPath);
+  await scopedUpsert('vault_notes', 'path', {
+    path: newPath,
+    content: files[newPath],
+    updated_by: store.get().user?.id ?? null,
+  });
+  await backend.db.from('vault_notes').delete().eq('campaign_id', campaignId()).eq('path', oldPath);
 }
 
 /** Supprime une note. */
@@ -134,7 +134,7 @@ export async function deleteNote(path) {
   store.set({ vaultFiles: files, fileTree: buildTree(files) });
 
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('vault_notes').delete().eq('path', path);
+  const { error } = await backend.db.from('vault_notes').delete().eq('campaign_id', campaignId()).eq('path', path);
   if (error) {
     console.error('[vault] suppression échouée:', error.message);
     showToast('Échec de la suppression de la note.', { type: 'warn', icon: '⚠️' });

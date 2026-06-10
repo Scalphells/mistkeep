@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { campaignId } from './campaigns.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { showToast } from './toast.js';
@@ -19,7 +20,7 @@ let _modal = null;
 
 export function initRollRequests() {
   if (_ch) return;
-  _ch = backend.realtime.channel('roll_req', { config: { broadcast: { self: false } } });
+  _ch = backend.realtime.channel(`roll_req:${campaignId()}`, { config: { broadcast: { self: false } } });
   _ch.on('broadcast', { event: 'req' }, ({ payload }) => promptRoll(payload)).subscribe();
 }
 

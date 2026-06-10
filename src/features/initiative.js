@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { loadCharacters, abilityMod, updateCharacter, saveBonus, ABILITIES } from './characters.js';
 import { addPin, updatePin, updateToken, toggleDoor } from './map.js';
@@ -25,8 +26,8 @@ const MAX_LOG = 200;
 
 /** Charge le journal de combat partagé. */
 export async function loadCombatLog() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', LOG_KEY).maybeSingle();
-  store.set({ combatLog: Array.isArray(data?.value) ? data.value : [] });
+  const v = await loadSessionValue(LOG_KEY);
+  store.set({ combatLog: Array.isArray(v) ? v : [] });
 }
 
 /** Ajoute une entrée au journal de combat (MJ, persisté + diffusé). */
@@ -34,12 +35,9 @@ export function logCombat(text, dm = false) {
   if (!store.get().isDM) return;
   const log = [...store.get().combatLog, { t: Date.now(), text, dm }].slice(-MAX_LOG);
   store.set({ combatLog: log });
-  backend.db
-    .from('session_state')
-    .upsert({ key: LOG_KEY, value: log, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null }, { onConflict: 'key' })
-    .then(({ error }) => {
-      if (error) console.warn('[combat log]', error.message);
-    });
+  saveSessionValue(LOG_KEY, log).then(({ error }) => {
+    if (error) console.warn('[combat log]', error.message);
+  });
 }
 
 /**
@@ -60,9 +58,7 @@ export function logAction(text, dm = false) {
 export async function clearCombatLog() {
   if (!store.get().isDM) return;
   store.set({ combatLog: [] });
-  await backend.db
-    .from('session_state')
-    .upsert({ key: LOG_KEY, value: [], updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  await saveSessionValue(LOG_KEY, []);
 }
 
 /** Normalise `conditions` en tableau (jsonb peut revenir en chaîne via Realtime). */
@@ -100,8 +96,9 @@ export async function loadInitiative() {
     backend.db
       .from('initiative')
       .select('*')
+      .eq('campaign_id', campaignId())
       .order('sort_order', { ascending: true }),
-    backend.db.from('session_state').select('value').eq('key', META_KEY).maybeSingle(),
+    loadSessionValue(META_KEY),
   ]);
 
   if (list.error) {
@@ -109,7 +106,7 @@ export async function loadInitiative() {
   } else {
     store.set({ initiative: (list.data || []).map(normRow) });
   }
-  const m = meta.data?.value || {};
+  const m = meta || {};
   store.set({ initTurn: m.turn ?? 0, initRound: m.round ?? 1 });
 }
 
@@ -132,6 +129,7 @@ export async function addCombatant({ name, initiative, hp, hpMax, hpTemp, charId
     sort_order,
     conditions: [],
     char_id: charId ?? null,
+    campaign_id: campaignId(),
     updated_by: store.get().user?.id ?? null,
   };
   // Affichage optimiste immédiat (sans attendre l'écho realtime).
@@ -179,6 +177,7 @@ export async function updateCombatant(entityId, patch) {
   const { error } = await backend.db
     .from('initiative')
     .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('campaign_id', campaignId())
     .eq('entity_id', entityId);
   if (error) {
     console.error('[init] maj échouée:', error.message);
@@ -419,7 +418,7 @@ export function removeEffect(entityId, index) {
 /** Supprime un combattant (MJ). */
 export async function removeCombatant(entityId) {
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('initiative').delete().eq('entity_id', entityId);
+  const { error } = await backend.db.from('initiative').delete().eq('campaign_id', campaignId()).eq('entity_id', entityId);
   if (error) {
     console.error('[init] suppression échouée:', error.message);
     showToast('Échec de la suppression du combattant.', { type: 'warn', icon: '⚠️' });
@@ -464,6 +463,7 @@ export async function rollAllInitiative() {
     await backend.db
       .from('initiative')
       .update({ initiative: c.initiative, updated_at: new Date().toISOString() })
+      .eq('campaign_id', campaignId())
       .eq('entity_id', c.entity_id);
   }
   await reorderByInitiative();
@@ -473,7 +473,7 @@ export async function rollAllInitiative() {
 /** Vide le combat (MJ). */
 export async function clearCombat() {
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('initiative').delete().neq('entity_id', '');
+  const { error } = await backend.db.from('initiative').delete().eq('campaign_id', campaignId());
   if (error) {
     console.error('[init] reset échoué:', error.message);
     showToast('Échec de la réinitialisation du combat.', { type: 'warn', icon: '⚠️' });
@@ -533,15 +533,7 @@ export async function prevTurn() {
 
 async function setMeta(turn, round) {
   store.set({ initTurn: turn, initRound: round });
-  const { error } = await backend.db.from('session_state').upsert(
-    {
-      key: META_KEY,
-      value: { turn, round },
-      updated_at: new Date().toISOString(),
-      updated_by: store.get().user?.id ?? null,
-    },
-    { onConflict: 'key' }
-  );
+  const { error } = await saveSessionValue(META_KEY, { turn, round });
   if (error) {
     console.error('[init] meta échouée:', error.message);
     showToast('Échec de la mise à jour du combat.', { type: 'warn', icon: '⚠️' });
@@ -570,7 +562,7 @@ async function resequence() {
   });
   store.set({ initiative: sorted.map((c, i) => ({ ...c, sort_order: i })) });
   for (const u of updates) {
-    await backend.db.from('initiative').update({ sort_order: u.sort_order }).eq('entity_id', u.entity_id);
+    await backend.db.from('initiative').update({ sort_order: u.sort_order }).eq('campaign_id', campaignId()).eq('entity_id', u.entity_id);
   }
 }
 
@@ -588,7 +580,7 @@ export async function setManualOrder(orderedIds) {
   if (reordered.length !== byId.size) return; // garde-fou : liste incohérente
   store.set({ initiative: reordered.map((c, i) => ({ ...c, sort_order: i })) });
   for (let i = 0; i < reordered.length; i++) {
-    await backend.db.from('initiative').update({ sort_order: i }).eq('entity_id', reordered[i].entity_id);
+    await backend.db.from('initiative').update({ sort_order: i }).eq('campaign_id', campaignId()).eq('entity_id', reordered[i].entity_id);
   }
 }
 
@@ -614,7 +606,7 @@ export function subscribeInitiative() {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'initiative' },
-      () => refreshList()
+      (p) => sameCampaign(p) && refreshList()
     )
     .subscribe();
 
@@ -624,6 +616,7 @@ export function subscribeInitiative() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${META_KEY}` },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         const v = payload.new?.value || {};
         store.set({ initTurn: v.turn ?? 0, initRound: v.round ?? 1 });
         // Notifie le joueur dont c'est le tour (jeton/combattant lié à sa fiche).
@@ -640,6 +633,7 @@ export function subscribeInitiative() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${LOG_KEY}` },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         store.set({ combatLog: Array.isArray(payload.new?.value) ? payload.new.value : [] });
       }
     )
@@ -652,6 +646,7 @@ async function refreshList() {
   const { data, error } = await backend.db
     .from('initiative')
     .select('*')
+    .eq('campaign_id', campaignId())
     .order('sort_order', { ascending: true });
   if (!error) store.set({ initiative: (data || []).map(normRow) });
 }
@@ -660,7 +655,7 @@ async function refreshList() {
 let _combatRt = null;
 export function initCombatChannel() {
   if (_combatRt) return;
-  _combatRt = backend.realtime.channel('combat_rt', { config: { broadcast: { self: false } } });
+  _combatRt = backend.realtime.channel(`combat_rt:${campaignId()}`, { config: { broadcast: { self: false } } });
   _combatRt
     .on('broadcast', { event: 'action' }, ({ payload }) => {
       if (store.get().isDM && payload?.text) logCombat(payload.text);

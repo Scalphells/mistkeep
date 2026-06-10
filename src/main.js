@@ -9,6 +9,7 @@ import {
   onAuthChange,
 } from './lib/auth.js';
 import { mountNav, navigateTo } from './features/nav.js';
+import { initCampaigns } from './lib/campaigns.js';
 import { initPWA } from './lib/pwa.js';
 import { initNotify, setNotifyNavigate } from './lib/notify.js';
 import { initSearch, openSearch } from './lib/search.js';
@@ -65,6 +66,8 @@ async function boot() {
 async function enterApp(user) {
   const { profile, role, isDM } = await loadProfile(user.id);
   store.set({ user, profile, role, isDM });
+  // Résout la campagne active AVANT les features : toutes les requêtes sont scopées.
+  await initCampaigns();
   renderShell();
   setNotifyNavigate(navigateTo);
   initNotify();
@@ -96,6 +99,7 @@ function renderShell() {
         <h1 class="app-title" style="font-size:15px;flex:1">
           ⚔ Mistkeep <span style="font-size:10px">v5</span>
         </h1>
+        <button class="hbtn" id="campaigns-btn" title="Campagnes (basculer / créer)">🏰</button>
         <button class="hbtn" id="search-btn" title="Rechercher (Ctrl+K)">🔍</button>
         <button class="hbtn" id="party-btn" title="Aperçu du groupe (PV/CA/états)">👥</button>
         <button class="hbtn" id="clock-btn" title="Temps in-game (jour/nuit)">🕐</button>
@@ -123,6 +127,10 @@ function renderShell() {
     openProfileEditor(updateHeaderProfile)
   );
   document.getElementById('search-btn').addEventListener('click', () => openSearch());
+  document.getElementById('campaigns-btn').addEventListener('click', async () => {
+    const { openCampaignManager } = await import('./features/campaigns-ui.js');
+    openCampaignManager();
+  });
   document.getElementById('prefs-btn').addEventListener('click', () => openPrefs());
   document.getElementById('party-btn').addEventListener('click', () => toggleParty());
   document.getElementById('clock-btn').addEventListener('click', () => toggleClock());

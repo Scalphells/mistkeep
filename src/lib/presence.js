@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { campaignId } from './campaigns.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { colorFor, initials } from './profile.js';
@@ -63,7 +64,7 @@ function render() {
 export function initPresence() {
   const { user, profile, role } = store.get();
   if (!user?.id) return;
-  _ch = backend.realtime.channel('presence_room', { config: { presence: { key: user.id } } });
+  _ch = backend.realtime.channel(`presence_room:${campaignId()}`, { config: { presence: { key: user.id } } });
   _ch
     .on('presence', { event: 'sync' }, () => {
       store.set({ online: Object.keys(_ch.presenceState()) });

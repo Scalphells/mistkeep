@@ -1,3 +1,4 @@
+import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { backend } from './backend.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
@@ -29,8 +30,7 @@ export function getPartyLoot() {
 }
 
 export async function loadPartyLoot() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  store.set({ partyLoot: normalize(data?.value) });
+  store.set({ partyLoot: normalize(await loadSessionValue(KEY)) });
 }
 
 let _subbed = false;
@@ -42,7 +42,7 @@ export function subscribePartyLoot() {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` },
-      (payload) => store.set({ partyLoot: normalize(payload.new?.value) })
+      (payload) => sameCampaign(payload) && store.set({ partyLoot: normalize(payload.new?.value) })
     )
     .subscribe();
   return () => {};
@@ -51,12 +51,7 @@ export function subscribePartyLoot() {
 async function persist(next) {
   if (!store.get().isDM) return;
   store.set({ partyLoot: next }); // affichage optimiste
-  const { error } = await backend.db
-    .from('session_state')
-    .upsert(
-      { key: KEY, value: next, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-      { onConflict: 'key' }
-    );
+  const { error } = await saveSessionValue(KEY, next);
   if (error) {
     console.error('[party loot]', error.message);
     showToast('Échec de la mise à jour du trésor — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });

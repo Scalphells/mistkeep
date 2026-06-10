@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { cachedSignedUrl, IMMUTABLE_CACHE } from './signed-urls.js';
+import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
 
@@ -42,10 +43,7 @@ export function playSfx(url, name) {
 async function persistBoard(board) {
   store.set({ sfxboard: board });
   if (!store.get().isDM) return;
-  await backend.db.from('session_state').upsert(
-    { key: KEY, value: board, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  await saveSessionValue(KEY, board);
 }
 
 function board() {
@@ -139,10 +137,10 @@ export async function initSfx() {
     _el.className = 'sfx-panel';
     document.body.appendChild(_el);
   }
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  if (Array.isArray(data?.value)) store.set({ sfxboard: data.value });
+  const v = await loadSessionValue(KEY);
+  if (Array.isArray(v)) store.set({ sfxboard: v });
   // Canal éphémère : les autres entendent le son (l'émetteur l'a déjà joué).
-  _ch = backend.realtime.channel('sfx_rt', { config: { broadcast: { self: false } } });
+  _ch = backend.realtime.channel(`sfx_rt:${campaignId()}`, { config: { broadcast: { self: false } } });
   _ch.on('broadcast', { event: 'play' }, ({ payload }) => payload?.url && playLocal(payload.url)).subscribe();
   render();
   store.subscribe(() => {
@@ -151,6 +149,7 @@ export async function initSfx() {
   backend.realtime
     .channel('sfxboard_feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (p) => {
+      if (!sameCampaign(p)) return;
       if (Array.isArray(p.new?.value)) store.set({ sfxboard: p.new.value });
     })
     .subscribe();

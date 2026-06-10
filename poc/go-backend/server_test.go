@@ -427,6 +427,17 @@ func TestMigrations(t *testing.T) {
 		t.Fatalf("untagged row campaign_id=%q err=%v, want default campaign", cid, err)
 	}
 
+	// v4: composite keys — the same semantic key may exist once PER campaign.
+	if _, err := store.db.Exec(`INSERT INTO campaigns (id, name) VALUES ('c_second','Two')`); err != nil {
+		t.Fatalf("second campaign: %v", err)
+	}
+	if _, err := store.db.Exec(`INSERT INTO session_state(campaign_id, key, value) VALUES('c_second','mig_probe','{}')`); err != nil {
+		t.Fatalf("same key in a second campaign must be allowed (composite PK): %v", err)
+	}
+	if _, err := store.db.Exec(`INSERT INTO session_state(key, value) VALUES('mig_probe','{}')`); err == nil {
+		t.Fatal("duplicate key within the SAME campaign must still conflict")
+	}
+
 	// Simulate a real pre-versioning database: baseline tables present but
 	// user_version 0 (deployments older than the migration system). Replaying
 	// from zero must converge — v1/v2 are idempotent, v3 adds columns that a

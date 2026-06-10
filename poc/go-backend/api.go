@@ -109,18 +109,23 @@ func (p Policy) isJSON(c string) bool {
 
 var tables = map[string]Policy{
 	"profiles":      {Columns: []string{"id", "email", "display_name", "role", "character_id", "color", "active_campaign_id", "created_at", "updated_at"}, PK: "id", OwnerCol: "id", Write: "owner"},
-	"characters":    {Columns: []string{"id", "owner_id", "name", "data", "updated_at", "updated_by"}, JSONCols: []string{"data"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
-	"initiative":    {Columns: []string{"entity_id", "name", "initiative", "hp", "hp_max", "hp_temp", "sort_order", "conditions", "effects", "death_saves", "status", "char_id", "updated_at", "updated_by"}, JSONCols: []string{"conditions", "effects", "death_saves"}, PK: "entity_id", Write: "dm"},
-	"scenes":        {Columns: []string{"id", "name", "state", "sort", "created_by", "created_at", "updated_at"}, JSONCols: []string{"state"}, PK: "id", Write: "dm"},
-	"session_state": {Columns: []string{"key", "value", "updated_at", "updated_by"}, JSONCols: []string{"value"}, PK: "key", Write: "dm"},
-	"messages":      {Columns: []string{"id", "channel", "content", "sender_id", "sender_name", "recipient_id", "created_at"}, PK: "id", Write: "auth", SelfCol: "sender_id"},
-	"dice_rolls":    {Columns: []string{"id", "roll_name", "dice", "result", "details", "roll_type", "roller_id", "roller_name", "created_at"}, JSONCols: []string{"details"}, PK: "id", Write: "auth", SelfCol: "roller_id"},
-	"compendium":    {Columns: []string{"id", "kind", "name", "data", "created_by", "created_at", "updated_at"}, JSONCols: []string{"data"}, PK: "id", Write: "dm"},
-	"handouts":      {Columns: []string{"id", "title", "description", "content_type", "text_content", "image_url", "target_player", "pushed_by", "pushed_at"}, PK: "id", Write: "dm"},
-	"session_notes": {Columns: []string{"id", "content", "created_by", "shared", "created_at"}, PK: "id", Write: "dm"},
-	"vault_notes":   {Columns: []string{"path", "content", "is_folder", "updated_at", "updated_by"}, PK: "path", Write: "dm"},
+	"characters":    {Columns: []string{"id", "owner_id", "name", "data", "campaign_id", "updated_at", "updated_by"}, JSONCols: []string{"data"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
+	"initiative":    {Columns: []string{"entity_id", "name", "initiative", "hp", "hp_max", "hp_temp", "sort_order", "conditions", "effects", "death_saves", "status", "char_id", "campaign_id", "updated_at", "updated_by"}, JSONCols: []string{"conditions", "effects", "death_saves"}, PK: "entity_id", Write: "dm"},
+	"scenes":        {Columns: []string{"id", "name", "state", "sort", "created_by", "campaign_id", "created_at", "updated_at"}, JSONCols: []string{"state"}, PK: "id", Write: "dm"},
+	"session_state": {Columns: []string{"key", "value", "campaign_id", "updated_at", "updated_by"}, JSONCols: []string{"value"}, PK: "key", Write: "dm"},
+	"messages":      {Columns: []string{"id", "channel", "content", "sender_id", "sender_name", "recipient_id", "campaign_id", "created_at"}, PK: "id", Write: "auth", SelfCol: "sender_id"},
+	"dice_rolls":    {Columns: []string{"id", "roll_name", "dice", "result", "details", "roll_type", "roller_id", "roller_name", "campaign_id", "created_at"}, JSONCols: []string{"details"}, PK: "id", Write: "auth", SelfCol: "roller_id"},
+	"compendium":    {Columns: []string{"id", "kind", "name", "data", "created_by", "campaign_id", "created_at", "updated_at"}, JSONCols: []string{"data"}, PK: "id", Write: "dm"},
+	"handouts":      {Columns: []string{"id", "title", "description", "content_type", "text_content", "image_url", "target_player", "pushed_by", "campaign_id", "pushed_at"}, PK: "id", Write: "dm"},
+	"session_notes": {Columns: []string{"id", "content", "created_by", "shared", "campaign_id", "created_at"}, PK: "id", Write: "dm"},
+	"vault_notes":   {Columns: []string{"path", "content", "is_folder", "campaign_id", "updated_at", "updated_by"}, PK: "path", Write: "dm"},
 	// Private story: owned indirectly via char_id -> characters.owner_id (see readScope / char_owner).
 	"character_private": {Columns: []string{"char_id", "notes", "updated_at", "updated_by"}, PK: "char_id", Write: "char_owner"},
+	// Multi-campaign (transitional model: only the DM creates/manages campaigns;
+	// members read their own campaigns. Per-campaign roles drive authz once the
+	// scoped-authz step ships — until then users.role stays authoritative).
+	"campaigns":        {Columns: []string{"id", "name", "system", "owner_id", "created_at", "updated_at"}, PK: "id", Write: "dm"},
+	"campaign_members": {Columns: []string{"campaign_id", "user_id", "role", "character_id", "created_at"}, PK: "campaign_id", Write: "dm"},
 }
 
 var reserved = map[string]bool{"order": true, "limit": true, "single": true, "on_conflict": true, "select": true}
@@ -231,8 +236,19 @@ func scanRows(rows *sql.Rows, p Policy) ([]map[string]any, error) {
 	return out, rows.Err()
 }
 
-func (s *Server) fetchOne(table string, p Policy, pk any) map[string]any {
-	rows, err := s.store.db.Query("SELECT * FROM "+table+" WHERE "+p.PK+" = ?", pk)
+// fetchOne returns the row matching the primary key. When the table is
+// campaign-scoped and a campaign is supplied, the lookup is narrowed to that
+// campaign: with composite keys (session_state, initiative, vault_notes) the
+// same PK value may exist once PER campaign, and returning the wrong row would
+// leak another campaign's value into the response / realtime echo.
+func (s *Server) fetchOne(table string, p Policy, pk any, campaign any) map[string]any {
+	q := "SELECT * FROM " + table + " WHERE " + p.PK + " = ?"
+	args := []any{pk}
+	if c := asStr(campaign); c != "" && p.hasCol("campaign_id") {
+		q += " AND campaign_id = ?"
+		args = append(args, c)
+	}
+	rows, err := s.store.db.Query(q, args...)
 	if err != nil {
 		return nil
 	}
@@ -280,6 +296,12 @@ func readScope(u *User, table string) (string, []any) {
 	case "character_private":
 		// Private story: only rows for characters the player owns.
 		return " char_id IN (SELECT id FROM characters WHERE owner_id = ?)", []any{u.ID}
+	case "campaigns":
+		// A player sees only the campaigns they belong to.
+		return " id IN (SELECT campaign_id FROM campaign_members WHERE user_id = ?)", []any{u.ID}
+	case "campaign_members":
+		// A player sees the member list of their own campaigns.
+		return " campaign_id IN (SELECT campaign_id FROM campaign_members WHERE user_id = ?)", []any{u.ID}
 	}
 	return "", nil // profiles, characters, initiative, scenes: shared with the table
 }
@@ -304,6 +326,10 @@ func rowVisible(table string, row map[string]any, uid string) bool {
 		k := asStr(row["key"])
 		return k != "campaign" && k != "imagebank"
 	case "vault_notes":
+		return false
+	case "campaigns", "campaign_members":
+		// Membership checks need a DB query; the front fetches these over REST
+		// only, so realtime frames stay DM-only rather than leak campaign names.
 		return false
 	}
 	return true
@@ -628,7 +654,7 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 	// primary key. If a conflicting row already exists, it must belong to them.
 	oc := r.URL.Query().Get("on_conflict")
 	if oc != "" && u.Role != "dm" && p.Write == "owner" && p.OwnerCol != "" {
-		if existing := s.fetchOne(table, p, body[p.PK]); existing != nil && asStr(existing[p.OwnerCol]) != u.ID {
+		if existing := s.fetchOne(table, p, body[p.PK], body["campaign_id"]); existing != nil && asStr(existing[p.OwnerCol]) != u.ID {
 			httpErr(w, 403, "forbidden")
 			return
 		}
@@ -663,7 +689,7 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 500, err.Error())
 		return
 	}
-	row := s.fetchOne(table, p, body[p.PK])
+	row := s.fetchOne(table, p, body[p.PK], body["campaign_id"])
 	s.emitChange(table, "INSERT", row)
 	writeJSON(w, 201, row)
 }

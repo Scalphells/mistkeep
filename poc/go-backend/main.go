@@ -186,6 +186,60 @@ var migrations = []string{
 	CREATE INDEX IF NOT EXISTS idx_characters_campaign    ON characters(campaign_id);
 	CREATE INDEX IF NOT EXISTS idx_compendium_campaign    ON compendium(campaign_id);
 	CREATE INDEX IF NOT EXISTS idx_scenes_campaign        ON scenes(campaign_id);`,
+	// v4 — multi-campaign part B-1: composite keys for the semantic-PK tables,
+	// so each campaign owns its own session_state keys / combatants / vault
+	// paths. SQLite cannot alter a PK in place: rebuild + copy + rename. The
+	// front (>= multi-campaign commit) writes via UPDATE-then-INSERT and works
+	// with both the old and the new shape — no coordinated deploy needed.
+	`CREATE TABLE session_state_v4 (
+	  campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `',
+	  key         TEXT NOT NULL,
+	  value       TEXT,
+	  updated_at  TEXT DEFAULT ` + ts + `,
+	  updated_by  TEXT,
+	  PRIMARY KEY (campaign_id, key)
+	);
+	INSERT INTO session_state_v4 (campaign_id, key, value, updated_at, updated_by)
+	  SELECT campaign_id, key, value, updated_at, updated_by FROM session_state;
+	DROP TABLE session_state;
+	ALTER TABLE session_state_v4 RENAME TO session_state;
+	CREATE INDEX IF NOT EXISTS idx_session_state_campaign ON session_state(campaign_id);
+	CREATE TABLE initiative_v4 (
+	  campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `',
+	  entity_id   TEXT NOT NULL,
+	  name        TEXT NOT NULL,
+	  initiative  INTEGER NOT NULL DEFAULT 0,
+	  hp INTEGER, hp_max INTEGER, hp_temp INTEGER NOT NULL DEFAULT 0,
+	  sort_order  INTEGER NOT NULL DEFAULT 0,
+	  conditions  TEXT DEFAULT '[]', effects TEXT DEFAULT '[]',
+	  death_saves TEXT, status TEXT, char_id TEXT,
+	  updated_at  TEXT DEFAULT ` + ts + `,
+	  updated_by  TEXT,
+	  PRIMARY KEY (campaign_id, entity_id)
+	);
+	INSERT INTO initiative_v4 (campaign_id, entity_id, name, initiative, hp, hp_max, hp_temp,
+	                           sort_order, conditions, effects, death_saves, status, char_id,
+	                           updated_at, updated_by)
+	  SELECT campaign_id, entity_id, name, initiative, hp, hp_max, hp_temp,
+	         sort_order, conditions, effects, death_saves, status, char_id,
+	         updated_at, updated_by FROM initiative;
+	DROP TABLE initiative;
+	ALTER TABLE initiative_v4 RENAME TO initiative;
+	CREATE INDEX IF NOT EXISTS idx_initiative_campaign ON initiative(campaign_id);
+	CREATE TABLE vault_notes_v4 (
+	  campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `',
+	  path        TEXT NOT NULL,
+	  content     TEXT NOT NULL DEFAULT '',
+	  is_folder   INTEGER NOT NULL DEFAULT 0,
+	  updated_at  TEXT DEFAULT ` + ts + `,
+	  updated_by  TEXT,
+	  PRIMARY KEY (campaign_id, path)
+	);
+	INSERT INTO vault_notes_v4 (campaign_id, path, content, is_folder, updated_at, updated_by)
+	  SELECT campaign_id, path, content, is_folder, updated_at, updated_by FROM vault_notes;
+	DROP TABLE vault_notes;
+	ALTER TABLE vault_notes_v4 RENAME TO vault_notes;
+	CREATE INDEX IF NOT EXISTS idx_vault_notes_campaign ON vault_notes(campaign_id);`,
 }
 
 // migrate applies every pending migration in its own transaction, then stamps

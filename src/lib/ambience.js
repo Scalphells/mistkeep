@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { cachedSignedUrl, IMMUTABLE_CACHE } from './signed-urls.js';
+import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { debounce } from './utils.js';
 
@@ -227,8 +228,7 @@ function applyState(s) {
 }
 
 async function fetchState() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  return data?.value || null;
+  return (await loadSessionValue(KEY)) || null;
 }
 
 export async function initAmbience() {
@@ -238,11 +238,12 @@ export async function initAmbience() {
   channel = backend.realtime
     .channel('ambience_feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` }, (payload) => {
+      if (!sameCampaign(payload)) return;
       applyState(payload.new?.value || null);
     })
     .subscribe();
   // Filet temps réel : applique aussi l'état diffusé par le MJ (ajout/retrait).
-  bcast = backend.realtime.channel('amb_rt', { config: { broadcast: { self: false } } });
+  bcast = backend.realtime.channel(`amb_rt:${campaignId()}`, { config: { broadcast: { self: false } } });
   bcast.on('broadcast', { event: 'state' }, ({ payload }) => applyState(payload?.value || { layers: [] })).subscribe();
 }
 
@@ -258,10 +259,7 @@ export function stopAmbience() {
 /* ── Contrôles MJ (pistes partagées) ── */
 const persist = debounce(async () => {
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('session_state').upsert(
-    { key: KEY, value: { layers: layers() }, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  const { error } = await saveSessionValue(KEY, { layers: layers() });
   if (error) console.error('[ambience]', error.message);
 }, 250);
 

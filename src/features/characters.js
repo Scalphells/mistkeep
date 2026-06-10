@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
 import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
+import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
@@ -33,6 +34,7 @@ export async function loadCharacters() {
   const { data, error } = await backend.db
     .from('characters')
     .select('id, owner_id, name, data')
+    .eq('campaign_id', campaignId())
     .order('name', { ascending: true });
 
   if (error) {
@@ -179,6 +181,7 @@ function syncHpToInitiative(charId, patch) {
   backend.db
     .from('initiative')
     .update({ ...cp, updated_at: new Date().toISOString() })
+    .eq('campaign_id', campaignId())
     .eq('char_id', charId)
     .then(({ error }) => {
       if (error) console.warn('[sync] combat:', error.message);
@@ -190,7 +193,7 @@ export async function createCharacter(name) {
   if (!store.get().isDM) return null;
   const id = `c_${crypto.randomUUID().slice(0, 8)}`;
   const data = createDefaults(); // blob initial fourni par le système (5e-2014)
-  const { error } = await backend.db.from('characters').insert({ id, name, data });
+  const { error } = await backend.db.from('characters').insert({ id, name, data, campaign_id: campaignId() });
   if (error) {
     console.error('[characters] création échouée:', error.message);
     return null;
@@ -280,6 +283,7 @@ export function subscribeCharacters() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'characters' },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         const cur = store.get().characters;
         if (payload.eventType === 'DELETE') {
           store.set({ characters: cur.filter((c) => c.id !== payload.old.id) });

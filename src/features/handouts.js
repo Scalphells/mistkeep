@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
 import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
+import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { showToast } from '../lib/toast.js';
 
@@ -28,6 +29,7 @@ export async function loadHandouts() {
   const { data, error } = await backend.db
     .from('handouts')
     .select('*')
+    .eq('campaign_id', campaignId())
     .order('pushed_at', { ascending: false });
 
   if (error) {
@@ -66,6 +68,7 @@ export async function createHandout({ title, description, content_type, text_con
     text_content: text_content ?? null,
     target_player: target_player || null,
     pushed_by: store.get().user?.id ?? null,
+    campaign_id: campaignId(),
   };
   const { error } = await backend.db.from('handouts').insert(row);
   if (error) throw new Error(error.message);
@@ -90,6 +93,7 @@ export async function uploadHandout(file, { title, description, target_player })
     image_url: `${HBUCKET}/${key}`,
     target_player: target_player || null,
     pushed_by: store.get().user?.id ?? null,
+    campaign_id: campaignId(),
   };
   const { error } = await backend.db.from('handouts').insert(row);
   if (error) throw new Error(error.message);
@@ -126,6 +130,7 @@ export function subscribeHandouts() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'handouts' },
       async (payload) => {
+        if (!sameCampaign(payload)) return;
         const cur = store.get().handouts;
         if (payload.eventType === 'DELETE') {
           store.set({ handouts: cur.filter((h) => h.id !== payload.old.id) });

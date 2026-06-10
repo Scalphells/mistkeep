@@ -1,4 +1,4 @@
-import { backend } from '../lib/backend.js';
+import { loadSessionValue, saveSessionValue } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 
@@ -56,16 +56,12 @@ function normalize(v) {
 }
 
 export async function loadCampaign() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  store.set({ campaign: normalize(data?.value) });
+  store.set({ campaign: normalize(await loadSessionValue(KEY)) });
 }
 
 const _persist = debounce(async () => {
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('session_state').upsert(
-    { key: KEY, value: store.get().campaign, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  const { error } = await saveSessionValue(KEY, store.get().campaign);
   if (error) console.warn('[campaign]', error.message);
 }, 600);
 

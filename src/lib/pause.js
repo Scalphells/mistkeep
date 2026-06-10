@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 
 /**
@@ -21,8 +22,8 @@ function render() {
 }
 
 export async function initPause() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', 'paused').maybeSingle();
-  store.set({ paused: !!data?.value?.on });
+  const v = await loadSessionValue('paused');
+  store.set({ paused: !!v?.on });
   render();
   store.subscribe(render);
   backend.realtime
@@ -30,7 +31,7 @@ export async function initPause() {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: 'key=eq.paused' },
-      (p) => store.set({ paused: !!p.new?.value?.on })
+      (p) => sameCampaign(p) && store.set({ paused: !!p.new?.value?.on })
     )
     .subscribe();
 }
@@ -40,8 +41,5 @@ export async function togglePause() {
   if (!store.get().isDM) return;
   const on = !store.get().paused;
   store.set({ paused: on });
-  await backend.db.from('session_state').upsert(
-    { key: 'paused', value: { on }, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  await saveSessionValue('paused', { on });
 }

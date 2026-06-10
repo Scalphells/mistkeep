@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 
@@ -98,6 +99,7 @@ export async function sendRoll(notation, rollType = 'public', label = '', vis = 
     roll_type: rollType,
     roller_id: user?.id ?? null,
     roller_name: profile?.display_name || 'Anonyme',
+    campaign_id: campaignId(),
   };
 
   const res = await insertWithOutbox('dice_rolls', row);
@@ -142,6 +144,7 @@ export async function sendD20Check(modifier = 0, label = '', opts = {}) {
     roll_type: rollType,
     roller_id: user?.id ?? null,
     roller_name: profile?.display_name || 'Anonyme',
+    campaign_id: campaignId(),
   };
   const res = await insertWithOutbox('dice_rolls', row);
   if (!res.ok) throw new Error(res.error?.message || 'Échec du jet.');
@@ -157,6 +160,7 @@ export async function loadRecentRolls() {
   const { data, error } = await backend.db
     .from('dice_rolls')
     .select('*')
+    .eq('campaign_id', campaignId())
     .order('created_at', { ascending: false })
     .limit(MAX_HISTORY);
 
@@ -180,6 +184,7 @@ export function subscribeRolls() {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'dice_rolls' },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         const hist = [...store.get().diceHist, payload.new].slice(-MAX_HISTORY);
         store.set({ diceHist: hist });
       }

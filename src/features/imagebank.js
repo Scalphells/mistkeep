@@ -1,4 +1,4 @@
-import { backend } from '../lib/backend.js';
+import { loadSessionValue, saveSessionValue } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 
@@ -12,16 +12,13 @@ import { debounce } from '../lib/utils.js';
 const KEY = 'imagebank';
 
 export async function loadImageBank() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  store.set({ imagebank: Array.isArray(data?.value) ? data.value : [] });
+  const v = await loadSessionValue(KEY);
+  store.set({ imagebank: Array.isArray(v) ? v : [] });
 }
 
 const persist = debounce(async () => {
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('session_state').upsert(
-    { key: KEY, value: store.get().imagebank, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-    { onConflict: 'key' }
-  );
+  const { error } = await saveSessionValue(KEY, store.get().imagebank);
   if (error) console.error('[imagebank]', error.message);
 }, 300);
 

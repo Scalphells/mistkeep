@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 
@@ -22,6 +23,7 @@ export async function loadMessages() {
   const { data, error } = await backend.db
     .from('messages')
     .select('*')
+    .eq('campaign_id', campaignId())
     .order('created_at', { ascending: false })
     .limit(MAX_HISTORY);
 
@@ -50,6 +52,7 @@ export async function sendMessage(content, channel = 'public', recipientId = nul
     content: text,
     sender_id: user?.id ?? null,
     sender_name: profile?.display_name || 'Anonyme',
+    campaign_id: campaignId(),
   };
   // recipient_id n'existe que pour le canal privé (migration 0011). On l'omet
   // pour 'public' afin de rester compatible si la migration n'est pas appliquée.
@@ -72,7 +75,7 @@ export async function sendMessage(content, channel = 'public', recipientId = nul
  */
 export async function clearChannel(channel = 'public') {
   if (!store.get().isDM) return;
-  const { error } = await backend.db.from('messages').delete().eq('channel', channel);
+  const { error } = await backend.db.from('messages').delete().eq('campaign_id', campaignId()).eq('channel', channel);
   if (error) {
     console.error('[chat] effacement échoué:', error.message);
     return;
@@ -95,6 +98,7 @@ export function subscribeMessages() {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages' },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         const m = payload.new;
         // Évite les doublons (l'INSERT local peut aussi revenir par realtime).
         const cur = store.get().messages;

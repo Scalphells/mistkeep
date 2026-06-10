@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
 
@@ -21,8 +22,7 @@ export function getQuests() {
 }
 
 export async function loadQuests() {
-  const { data } = await backend.db.from('session_state').select('value').eq('key', KEY).maybeSingle();
-  store.set({ questLog: normalize(data?.value) });
+  store.set({ questLog: normalize(await loadSessionValue(KEY)) });
 }
 
 let _subbed = false;
@@ -34,7 +34,7 @@ export function subscribeQuests() {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_state', filter: `key=eq.${KEY}` },
-      (payload) => store.set({ questLog: normalize(payload.new?.value) })
+      (payload) => sameCampaign(payload) && store.set({ questLog: normalize(payload.new?.value) })
     )
     .subscribe();
   return () => {};
@@ -43,12 +43,7 @@ export function subscribeQuests() {
 async function persist(next) {
   if (!store.get().isDM) return;
   store.set({ questLog: next });
-  const { error } = await backend.db
-    .from('session_state')
-    .upsert(
-      { key: KEY, value: next, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
-      { onConflict: 'key' }
-    );
+  const { error } = await saveSessionValue(KEY, next);
   if (error) {
     console.error('[quests]', error.message);
     showToast('Échec de la mise à jour des quêtes — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });

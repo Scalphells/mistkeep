@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 import { showToast } from '../lib/toast.js';
@@ -19,6 +20,7 @@ export async function loadNotes() {
   const { data, error } = await backend.db
     .from('session_notes')
     .select('*')
+    .eq('campaign_id', campaignId())
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -35,6 +37,7 @@ export async function addNote(content, shared = false) {
     content: text,
     shared: !!shared,
     created_by: store.get().user?.id ?? null,
+    campaign_id: campaignId(),
   });
   if (!res.ok) throw new Error(res.error?.message || "Échec de l'ajout.");
   // Hors-ligne : affichage optimiste (resynchronisé au retour réseau).
@@ -86,6 +89,7 @@ export function subscribeNotes() {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'session_notes' },
       (payload) => {
+        if (!sameCampaign(payload)) return;
         const cur = store.get().sessionNotes;
         if (payload.eventType === 'DELETE') {
           store.set({ sessionNotes: cur.filter((n) => n.id !== payload.old.id) });
