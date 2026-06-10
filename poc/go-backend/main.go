@@ -219,8 +219,91 @@ func (h *Hub) broadcastFiltered(room string, build func(sub *subscriber) (string
 // ---- Server -------------------------------------------------------------
 
 type Server struct {
-	store *Store
-	hub   *Hub
+	store    *Store
+	hub      *Hub
+	throttle *loginThrottle
+}
+
+// ---- Login throttle -----------------------------------------------------
+//
+// In-memory brute-force guard: too many failed logins from one client IP within
+// a window are blocked for a cool-down. A single self-hosted binary has low IP
+// cardinality, so an in-process map is enough (no external store needed).
+
+const (
+	loginMaxFails = 10              // failures within the window before a block
+	loginWindow   = 5 * time.Minute // counting window
+	loginBlock    = 5 * time.Minute // cool-down once tripped
+)
+
+type loginAttempts struct {
+	fails       int
+	windowStart time.Time
+	blockedTill time.Time
+}
+
+type loginThrottle struct {
+	mu   sync.Mutex
+	seen map[string]*loginAttempts
+}
+
+func newLoginThrottle() *loginThrottle {
+	return &loginThrottle{seen: map[string]*loginAttempts{}}
+}
+
+// allowed reports whether a login from key may proceed right now.
+func (t *loginThrottle) allowed(key string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	a := t.seen[key]
+	return a == nil || !time.Now().Before(a.blockedTill)
+}
+
+// fail records a failed attempt and trips a block once the threshold is reached.
+func (t *loginThrottle) fail(key string) {
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.seen) > 4096 { // opportunistic prune of stale entries
+		for k, v := range t.seen {
+			if now.After(v.blockedTill) && now.Sub(v.windowStart) > loginWindow {
+				delete(t.seen, k)
+			}
+		}
+	}
+	a := t.seen[key]
+	if a == nil || now.Sub(a.windowStart) > loginWindow {
+		a = &loginAttempts{windowStart: now}
+		t.seen[key] = a
+	}
+	a.fails++
+	if a.fails >= loginMaxFails {
+		a.blockedTill = now.Add(loginBlock)
+		a.fails = 0
+		a.windowStart = now
+	}
+}
+
+// success clears a client's failure record on a good login.
+func (t *loginThrottle) success(key string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.seen, key)
+}
+
+// clientIP is the best-effort source address used as the throttle key. Honors a
+// single X-Forwarded-For hop (the app already trusts a TLS-terminating proxy).
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.IndexByte(xff, ','); i >= 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 func (s *Server) userFrom(r *http.Request) *User {
@@ -295,6 +378,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "bad request")
 		return
 	}
+	key := clientIP(r)
+	if !s.throttle.allowed(key) {
+		httpErr(w, 429, "too many attempts, try again later")
+		return
+	}
 	u, hash, err := s.store.userByEmail(in.Email)
 	if err != nil {
 		httpErr(w, 500, "db error")
@@ -304,13 +392,16 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	// response time doesn't reveal whether an account exists (user enumeration).
 	if u == nil {
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(in.Password))
+		s.throttle.fail(key)
 		httpErr(w, 401, "invalid credentials")
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(in.Password)) != nil {
+		s.throttle.fail(key)
 		httpErr(w, 401, "invalid credentials")
 		return
 	}
+	s.throttle.success(key)
 	tok, err := s.store.createSession(u.ID)
 	if err != nil {
 		httpErr(w, 500, "session error")
@@ -515,7 +606,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := &Server{store: store, hub: NewHub()}
+	s := &Server{store: store, hub: NewHub(), throttle: newLoginThrottle()}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /auth/signup", s.signup)
