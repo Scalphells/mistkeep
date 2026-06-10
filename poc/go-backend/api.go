@@ -328,22 +328,117 @@ func isTruthy(v any) bool {
 	return false
 }
 
+// filterSceneState redacts a scene's `state` blob for a non-DM: hidden tokens and
+// their GM notes, unrevealed pins and labels are removed. Walls/lights/fog stay
+// because the player UI needs them for client-side vision. Mirrors the front-end
+// visibility rules. On any parse error it returns the value unchanged (the state
+// is DM-authored valid JSON in practice).
+func filterSceneState(v any) any {
+	raw, ok := rawBytes(v)
+	if !ok {
+		return v
+	}
+	var st map[string]any
+	if json.Unmarshal(raw, &st) != nil {
+		return v
+	}
+	if arr, ok := st["tokens"].([]any); ok {
+		kept := make([]any, 0, len(arr))
+		for _, t := range arr {
+			tm, ok := t.(map[string]any)
+			if !ok {
+				kept = append(kept, t)
+				continue
+			}
+			if b, _ := tm["hidden"].(bool); b {
+				continue // hidden enemy/object: invisible to players
+			}
+			delete(tm, "note") // GM note on the token
+			kept = append(kept, tm)
+		}
+		st["tokens"] = kept
+	}
+	if _, ok := st["pins"]; ok {
+		st["pins"] = keepRevealed(st["pins"])
+	}
+	if _, ok := st["labels"]; ok {
+		st["labels"] = keepRevealed(st["labels"])
+	}
+	b, err := json.Marshal(st)
+	if err != nil {
+		return v
+	}
+	return json.RawMessage(b)
+}
+
+func keepRevealed(v any) any {
+	arr, ok := v.([]any)
+	if !ok {
+		return v
+	}
+	kept := make([]any, 0, len(arr))
+	for _, e := range arr {
+		m, ok := e.(map[string]any)
+		if !ok {
+			kept = append(kept, e)
+			continue
+		}
+		if b, _ := m["revealed"].(bool); b {
+			kept = append(kept, m)
+		}
+	}
+	return kept
+}
+
+func rawBytes(v any) ([]byte, bool) {
+	switch t := v.(type) {
+	case json.RawMessage:
+		return []byte(t), true
+	case []byte:
+		return t, true
+	case string:
+		return []byte(t), true
+	}
+	return nil, false
+}
+
+func redactSceneRow(row map[string]any) map[string]any {
+	out := make(map[string]any, len(row))
+	for k, v := range row {
+		out[k] = v
+	}
+	out["state"] = filterSceneState(row["state"])
+	return out
+}
+
+func changeMsg(table, eventType string, row map[string]any) string {
+	b, _ := json.Marshal(map[string]any{"table": table, "eventType": eventType, "new": row})
+	return string(b)
+}
+
 // emitChange pushes a row change over realtime, filtered per subscriber so the
 // WebSocket never leaks rows a player may not read (mirrors readScope). DELETE
 // events carry no payload and go to everyone.
 func (s *Server) emitChange(table, eventType string, row map[string]any) {
 	if row == nil {
-		b, _ := json.Marshal(map[string]any{"table": table, "eventType": eventType, "new": nil})
-		s.hub.broadcast("main", string(b))
+		s.hub.broadcast("main", changeMsg(table, eventType, nil))
 		return
 	}
-	b, _ := json.Marshal(map[string]any{"table": table, "eventType": eventType, "new": row})
-	msg := string(b)
+	dmMsg := changeMsg(table, eventType, row)
+	// scenes.state carries GM secrets (hidden tokens, GM notes, unrevealed
+	// pins/labels); non-DM subscribers get a redacted variant, like the REST read.
+	playerMsg := dmMsg
+	if table == "scenes" {
+		playerMsg = changeMsg(table, eventType, redactSceneRow(row))
+	}
 	s.hub.broadcastFiltered("main", func(sub *subscriber) (string, bool) {
-		if sub.role != "dm" && !rowVisible(table, row, sub.uid) {
+		if sub.role == "dm" {
+			return dmMsg, true
+		}
+		if !rowVisible(table, row, sub.uid) {
 			return "", false
 		}
-		return msg, true
+		return playerMsg, true
 	})
 }
 
@@ -403,6 +498,13 @@ func (s *Server) apiList(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpErr(w, 500, err.Error())
 		return
+	}
+	// Redact GM secrets from scene state for non-DM readers (the row itself stays
+	// readable because the player UI needs the map).
+	if table == "scenes" && u.Role != "dm" {
+		for _, row := range list {
+			row["state"] = filterSceneState(row["state"])
+		}
 	}
 	if single := q.Get("single"); single == "1" || single == "2" {
 		if len(list) == 0 {
