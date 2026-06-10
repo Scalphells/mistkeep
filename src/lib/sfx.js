@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { cachedSignedUrl, IMMUTABLE_CACHE } from './signed-urls.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
 
@@ -19,9 +20,7 @@ let _open = false;
 async function resolveUrl(u) {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
-  const key = u.startsWith(`${BUCKET}/`) ? u.slice(BUCKET.length + 1) : u;
-  const { data } = await backend.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 6);
-  return data?.signedUrl || null;
+  return cachedSignedUrl(BUCKET, u);
 }
 
 /** Joue un son ponctuel localement (non bouclé). */
@@ -109,7 +108,7 @@ async function onUpload(e) {
   try {
     const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
     const key = `audio/sfx_${Date.now()}.${ext}`;
-    const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg' });
+    const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg', cacheControl: IMMUTABLE_CACHE });
     if (error) throw new Error(error.message);
     const name = file.name.replace(/\.[^.]+$/, '');
     persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name, url: `${BUCKET}/${key}` }]);

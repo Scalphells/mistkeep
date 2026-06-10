@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { updateLayer } from '../lib/ambience.js';
@@ -238,15 +239,12 @@ export async function refreshBgUrl() {
     return;
   }
   if (path === _bgUrlForPath && _bgUrl) return;
-  const key = path.startsWith(`${BG_BUCKET}/`) ? path.slice(BG_BUCKET.length + 1) : path;
-  const { data, error } = await backend.storage
-    .from(BG_BUCKET)
-    .createSignedUrl(key, 60 * 60 * 6); // 6 h
-  if (error) {
-    console.warn('[map] URL signée impossible:', error.message);
+  const url = await cachedSignedUrl(BG_BUCKET, path);
+  if (!url) {
+    console.warn('[map] URL signée impossible pour', path);
     _bgUrl = null;
   } else {
-    _bgUrl = data.signedUrl;
+    _bgUrl = url;
     _bgUrlForPath = path;
   }
   store.set({ map: { ...store.get().map } });
@@ -279,7 +277,7 @@ const saveDebounced = debounce(async () => {
   // Filet de sécurité temps réel : signale aux autres clients de recharger la
   // scène (au cas où les postgres_changes sur `scenes` ne leur parviendraient pas).
   else _pingChannel?.send({ type: 'broadcast', event: 'scenedirty', payload: { id, by: store.get().user?.id } });
-}, 350);
+}, 800); // 800 ms : coalesce les rafales d'édition — chaque sauvegarde réplique l'état complet vers chaque joueur
 
 /** Force la persistance immédiate d'une sauvegarde de scène encore en debounce.
  *  À appeler avant de démonter la vue carte (changement d'onglet) pour ne pas
@@ -307,6 +305,7 @@ export async function uploadBackground(file) {
   const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/jpeg',
+    cacheControl: IMMUTABLE_CACHE,
   });
   if (error) {
     console.error('[map] upload échoué:', error.message);
@@ -744,10 +743,9 @@ export async function resolveTokenUrls() {
   const paths = [...m.tokens.map((t) => t.img), ...(m.tiles || []).map((t) => t.img), ...(m.tokenLib || [])].filter(Boolean);
   for (const path of paths) {
     if (_tokenUrlCache.has(path)) continue;
-    const key = path.startsWith(`${BG_BUCKET}/`) ? path.slice(BG_BUCKET.length + 1) : path;
-    const { data, error } = await backend.storage.from(BG_BUCKET).createSignedUrl(key, 60 * 60 * 6);
-    if (!error && data) {
-      _tokenUrlCache.set(path, data.signedUrl);
+    const url = await cachedSignedUrl(BG_BUCKET, path);
+    if (url) {
+      _tokenUrlCache.set(path, url);
       changed = true;
     }
   }
@@ -759,11 +757,10 @@ export async function resolveTokenUrls() {
 export async function signedTokenUrl(path) {
   if (!path) return null;
   if (_tokenUrlCache.has(path)) return _tokenUrlCache.get(path);
-  const key = path.startsWith(`${BG_BUCKET}/`) ? path.slice(BG_BUCKET.length + 1) : path;
-  const { data, error } = await backend.storage.from(BG_BUCKET).createSignedUrl(key, 60 * 60 * 6);
-  if (error || !data) return null;
-  _tokenUrlCache.set(path, data.signedUrl);
-  return data.signedUrl;
+  const url = await cachedSignedUrl(BG_BUCKET, path);
+  if (!url) return null;
+  _tokenUrlCache.set(path, url);
+  return url;
 }
 
 /** Téléverse une image dans le bucket des jetons et renvoie son chemin Storage
@@ -775,6 +772,7 @@ export async function uploadTokenAsset(file) {
   const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
+    cacheControl: IMMUTABLE_CACHE,
   });
   if (error) throw new Error(error.message);
   return `${BG_BUCKET}/${key}`;
@@ -788,6 +786,7 @@ export async function uploadLibraryImage(file) {
   const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
+    cacheControl: IMMUTABLE_CACHE,
   });
   if (error) throw new Error(error.message);
   const path = `${BG_BUCKET}/${key}`;
@@ -813,6 +812,7 @@ export async function uploadTokenImage(file, tokenId) {
   const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
+    cacheControl: IMMUTABLE_CACHE,
   });
   if (error) throw new Error(error.message);
   const path = `${BG_BUCKET}/${key}`;
@@ -842,6 +842,7 @@ export function subscribeMap() {
       // Re-fusionne l'état seulement pour la scène active, et JAMAIS pour notre
       // propre écho (sinon il écrase l'état optimiste local pendant une bascule).
       if (row.id === activeId && row.state && !isSelfSceneEcho(row.id)) {
+        _sceneRowAt = Date.now(); // l'update realtime est bien arrivée (cf. reloadActiveSceneIfStale)
         const prevBg = store.get().map?.bg;
         store.set({ map: normalizeMap(row.state) });
         if (row.state.bg !== prevBg) await refreshBgUrl();
@@ -902,6 +903,25 @@ export function sendPing(x, y) {
 /** Recharge l'état de la scène active depuis la base (filet temps réel). */
 export async function reloadActiveScene() {
   await loadSceneState(store.get().activeSceneId);
+}
+
+/* Horodatage du dernier état de scène reçu via postgres_changes. */
+let _sceneRowAt = 0;
+let _dirtyTimer = null;
+
+/**
+ * Filet de sécurité économe : ne recharge la scène active que si l'update
+ * postgres_changes correspondant au ping `scenedirty` n'est PAS arrivée.
+ * Avant, chaque sauvegarde MJ coûtait l'état complet DEUX fois par joueur
+ * (réplication realtime + re-téléchargement systématique) — gros poste egress.
+ */
+export function reloadActiveSceneIfStale() {
+  const pingAt = Date.now();
+  clearTimeout(_dirtyTimer);
+  _dirtyTimer = setTimeout(() => {
+    if (_sceneRowAt >= pingAt - 1500) return; // la réplication realtime a fait le travail
+    reloadActiveScene();
+  }, 2000);
 }
 
 /** Diffuse un gabarit de sort éphémère (affiché chez tous, coloré par joueur). */

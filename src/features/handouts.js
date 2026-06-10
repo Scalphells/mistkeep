@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
 import { store } from '../state.js';
 import { showToast } from '../lib/toast.js';
 
@@ -43,14 +44,9 @@ async function resolveUrls() {
   let changed = false;
   for (const h of list) {
     if (h.content_type === 'image' && h.image_url && !_urlCache.has(h.image_url)) {
-      const key = h.image_url.startsWith(`${HBUCKET}/`)
-        ? h.image_url.slice(HBUCKET.length + 1)
-        : h.image_url;
-      const { data, error } = await backend.storage
-        .from(HBUCKET)
-        .createSignedUrl(key, 60 * 60 * 6); // 6 h
-      if (!error && data) {
-        _urlCache.set(h.image_url, data.signedUrl);
+      const url = await cachedSignedUrl(HBUCKET, h.image_url);
+      if (url) {
+        _urlCache.set(h.image_url, url);
         changed = true;
       }
     }
@@ -83,6 +79,7 @@ export async function uploadHandout(file, { title, description, target_player })
   const { error: upErr } = await backend.storage.from(HBUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/jpeg',
+    cacheControl: IMMUTABLE_CACHE,
   });
   if (upErr) throw new Error(upErr.message);
 

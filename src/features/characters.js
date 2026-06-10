@@ -1,4 +1,5 @@
 import { backend } from '../lib/backend.js';
+import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
@@ -80,10 +81,9 @@ export async function resolvePortraitUrls() {
   for (const c of store.get().characters) {
     const p = c.data?.portrait;
     if (p && !_portraitCache.has(p)) {
-      const key = p.startsWith(`${PORTRAIT_BUCKET}/`) ? p.slice(PORTRAIT_BUCKET.length + 1) : p;
-      const { data, error } = await backend.storage.from(PORTRAIT_BUCKET).createSignedUrl(key, 60 * 60 * 6);
-      if (!error && data) {
-        _portraitCache.set(p, data.signedUrl);
+      const url = await cachedSignedUrl(PORTRAIT_BUCKET, p);
+      if (url) {
+        _portraitCache.set(p, url);
         changed = true;
       }
     }
@@ -99,6 +99,7 @@ export async function uploadPortrait(id, file) {
   const { error } = await backend.storage.from(PORTRAIT_BUCKET).upload(key, file, {
     upsert: true,
     contentType: file.type || 'image/png',
+    cacheControl: IMMUTABLE_CACHE,
   });
   if (error) throw new Error(error.message);
   const path = `${PORTRAIT_BUCKET}/${key}`;

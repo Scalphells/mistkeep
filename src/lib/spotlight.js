@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { cachedSignedUrl } from './signed-urls.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 
@@ -18,9 +19,7 @@ let channel = null;
 async function resolve(path) {
   if (!path) return null;
   if (/^https?:\/\//i.test(path)) return path;
-  const key = path.startsWith(`${BUCKET}/`) ? path.slice(BUCKET.length + 1) : path;
-  const { data } = await backend.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 3);
-  return data?.signedUrl || null;
+  return cachedSignedUrl(BUCKET, path);
 }
 
 function hide() {

@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { cachedSignedUrl, IMMUTABLE_CACHE } from './signed-urls.js';
 import { store } from '../state.js';
 import { debounce } from './utils.js';
 
@@ -91,9 +92,7 @@ function normalize(v) {
 async function resolveUrl(u) {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
-  const key = u.startsWith(`${BUCKET}/`) ? u.slice(BUCKET.length + 1) : u;
-  const { data } = await backend.storage.from(BUCKET).createSignedUrl(key, 60 * 60 * 6);
-  return data?.signedUrl || null;
+  return cachedSignedUrl(BUCKET, u);
 }
 
 /* ── YouTube (lecteur IFrame caché) ── */
@@ -297,7 +296,7 @@ export async function uploadAmbience(file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
   const key = `audio/${Date.now()}.${ext}`;
-  const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg' });
+  const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg', cacheControl: IMMUTABLE_CACHE });
   if (error) throw new Error(error.message);
   addLayer({ url: `${BUCKET}/${key}`, name: file.name.replace(/\.[^.]+$/, '') });
 }

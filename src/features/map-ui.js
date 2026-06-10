@@ -72,7 +72,7 @@ import {
   sendDraw,
   sendCursor,
   sendTemplate,
-  reloadActiveScene,
+  reloadActiveSceneIfStale,
   applyTokenMoveLocal,
   metersToCells,
   syncTokenVisionFromSheets,
@@ -3647,7 +3647,7 @@ export async function mountMap(container) {
     onSceneDirty: (p) => {
       if (!p || p.by === store.get().user?.id) return;
       if (p.id && p.id !== store.get().activeSceneId) return;
-      reloadActiveScene(); // recharge la scène (nouveaux jetons visibles sans refresh)
+      reloadActiveSceneIfStale(); // ne re-télécharge que si la réplication realtime a manqué
     },
     onTemplate: (p) => {
       if (!p || p.by === store.get().user?.id) return;
