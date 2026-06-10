@@ -99,13 +99,53 @@ func OpenStore(path string) (*Store, error) {
 	// commits — which corrupted scene state. Serialize all access on one
 	// connection: every query runs in order, so a read always sees prior writes.
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(schema); err != nil {
+	s := &Store{db: db}
+	if err := s.migrate(); err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(appSchema); err != nil {
-		return nil, err
+	return s, nil
+}
+
+// migrations move the schema forward one step at a time, tracked by SQLite's
+// PRAGMA user_version. Append a new entry for each schema change; NEVER edit or
+// reorder existing entries — a deployed database replays only the tail past its
+// current version. Entry i takes the schema from version i to version i+1.
+//
+// migrations[0] is the full baseline (idempotent CREATE TABLE IF NOT EXISTS), so
+// a fresh database and a pre-migration one (user_version 0, tables already
+// present) both converge here without harm. Example future entry:
+//
+//	`ALTER TABLE characters ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;`
+var migrations = []string{
+	schema + "\n" + appSchema, // v1 — baseline
+}
+
+// migrate applies every pending migration in its own transaction, then stamps
+// user_version, so an interrupted run never leaves the schema half-applied.
+func (s *Store) migrate() error {
+	var v int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
+		return err
 	}
-	return &Store{db: db}, nil
+	for i := v; i < len(migrations); i++ {
+		tx, err := s.db.Begin()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(migrations[i]); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("migration v%d: %w", i+1, err)
+		}
+		// user_version takes no placeholder; i+1 is an integer we fully control.
+		if _, err := tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", i+1)); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) countUsers() (int, error) {

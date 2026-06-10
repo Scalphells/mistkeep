@@ -355,6 +355,39 @@ func TestSafeStoragePath(t *testing.T) {
 	}
 }
 
+func TestMigrations(t *testing.T) {
+	store, err := OpenStore(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatalf("OpenStore: %v", err)
+	}
+	t.Cleanup(func() { store.db.Close() })
+
+	version := func() int {
+		var v int
+		if err := store.db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
+			t.Fatalf("read user_version: %v", err)
+		}
+		return v
+	}
+
+	// A fresh database is stamped at the latest version.
+	if got := version(); got != len(migrations) {
+		t.Fatalf("fresh DB user_version=%d, want %d", got, len(migrations))
+	}
+
+	// Simulate a pre-migration database (version 0, tables already present):
+	// the idempotent baseline must re-converge without error.
+	if _, err := store.db.Exec(`PRAGMA user_version = 0`); err != nil {
+		t.Fatalf("reset version: %v", err)
+	}
+	if err := store.migrate(); err != nil {
+		t.Fatalf("re-migrate: %v", err)
+	}
+	if got := version(); got != len(migrations) {
+		t.Fatalf("after re-migrate user_version=%d, want %d", got, len(migrations))
+	}
+}
+
 func TestLoginThrottle(t *testing.T) {
 	th := newLoginThrottle()
 	const ip = "10.0.0.1"
