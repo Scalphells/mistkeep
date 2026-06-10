@@ -121,11 +121,10 @@ var tables = map[string]Policy{
 	"vault_notes":   {Columns: []string{"path", "content", "is_folder", "campaign_id", "updated_at", "updated_by"}, PK: "path", Write: "dm"},
 	// Private story: owned indirectly via char_id -> characters.owner_id (see readScope / char_owner).
 	"character_private": {Columns: []string{"char_id", "notes", "updated_at", "updated_by"}, PK: "char_id", Write: "char_owner"},
-	// Multi-campaign (transitional model: only the DM creates/manages campaigns;
-	// members read their own campaigns. Per-campaign roles drive authz once the
-	// scoped-authz step ships — until then users.role stays authoritative).
-	"campaigns":        {Columns: []string{"id", "name", "system", "owner_id", "created_at", "updated_at"}, PK: "id", Write: "dm"},
-	"campaign_members": {Columns: []string{"campaign_id", "user_id", "role", "character_id", "created_at"}, PK: "campaign_id", Write: "dm"},
+	// Multi-campaign: anyone may create their own campaign (they become its
+	// owner + GM); the member list is managed by that campaign's GM/owner.
+	"campaigns":        {Columns: []string{"id", "name", "system", "owner_id", "created_at", "updated_at"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
+	"campaign_members": {Columns: []string{"campaign_id", "user_id", "role", "character_id", "created_at"}, PK: "campaign_id", Write: "campaign_dm"},
 }
 
 var reserved = map[string]bool{"order": true, "limit": true, "single": true, "on_conflict": true, "select": true}
@@ -260,6 +259,71 @@ func (s *Server) fetchOne(table string, p Policy, pk any, campaign any) map[stri
 	return list[0]
 }
 
+// ---- Campaign authorization (per-campaign GM, mirrors Supabase 0026) ----
+//
+// Authority over game tables belongs to the GM OF THE ROW'S CAMPAIGN
+// (campaign_members.role = 'dm'), not only the site admin (users.role): the
+// same account can run one campaign and play in another. The global "dm"
+// remains a server-owner bypass — on a self-hosted single binary the admin
+// owns the SQLite file anyway.
+
+// Subquery fragments (each consumes one `?` = user id).
+const dmCampaignsSub = "(SELECT campaign_id FROM campaign_members WHERE user_id = ? AND role = 'dm')"
+const memberCampaignsSub = "(SELECT campaign_id FROM campaign_members WHERE user_id = ?)"
+
+func (s *Server) isMember(uid, campaign string) bool {
+	if uid == "" || campaign == "" {
+		return false
+	}
+	var n int
+	_ = s.store.db.QueryRow(`SELECT COUNT(*) FROM campaign_members WHERE campaign_id=? AND user_id=?`, campaign, uid).Scan(&n)
+	return n > 0
+}
+
+func (s *Server) isCampaignDM(uid, campaign string) bool {
+	if uid == "" || campaign == "" {
+		return false
+	}
+	var n int
+	_ = s.store.db.QueryRow(`SELECT COUNT(*) FROM campaign_members WHERE campaign_id=? AND user_id=? AND role='dm'`, campaign, uid).Scan(&n)
+	return n > 0
+}
+
+func (s *Server) ownsCampaign(uid, campaign string) bool {
+	if uid == "" || campaign == "" {
+		return false
+	}
+	var n int
+	_ = s.store.db.QueryRow(`SELECT COUNT(*) FROM campaigns WHERE id=? AND owner_id=?`, campaign, uid).Scan(&n)
+	return n > 0
+}
+
+// charCampaign returns the campaign of a character ("" if unknown).
+func (s *Server) charCampaign(charID string) string {
+	if charID == "" {
+		return ""
+	}
+	var c sql.NullString
+	if s.store.db.QueryRow(`SELECT campaign_id FROM characters WHERE id=?`, charID).Scan(&c) != nil {
+		return ""
+	}
+	return c.String
+}
+
+// allRowsInDMCampaigns reports whether EVERY row matched by the filter lives
+// in a campaign the user runs. Zero matching rows is allowed: a write that
+// touches nothing is a harmless no-op, and the front's UPDATE-then-INSERT
+// pattern relies on the empty UPDATE succeeding.
+func (s *Server) allRowsInDMCampaigns(table, where string, wargs []any, uid string) bool {
+	q := "SELECT COUNT(*) FROM " + table + where + " AND campaign_id NOT IN " + dmCampaignsSub
+	args := append(append([]any{}, wargs...), uid)
+	var bad int
+	if err := s.store.db.QueryRow(q, args...).Scan(&bad); err != nil {
+		return false
+	}
+	return bad == 0
+}
+
 // ---- Read authorization (the RLS-equivalent for SELECT) -----------------
 //
 // Reads were previously open to any signed-in user, which leaked the DM's
@@ -273,37 +337,53 @@ func (s *Server) fetchOne(table string, p Policy, pk any, campaign any) map[stri
 // (walls/lights drive client-side vision), so it stays readable; stripping the
 // hidden tokens / GM notes it contains requires a filtered projection and is
 // left as a documented residual.
+// Every game table is scoped to the campaigns the user is a MEMBER of, and
+// each per-table secrecy rule opens up for the GM of that campaign.
 func readScope(u *User, table string) (string, []any) {
 	if u.Role == "dm" {
 		return "", nil
 	}
 	switch table {
 	case "messages":
-		return " (recipient_id IS NULL OR recipient_id = ? OR sender_id = ?)", []any{u.ID, u.ID}
+		return " campaign_id IN " + memberCampaignsSub +
+				" AND (recipient_id IS NULL OR recipient_id = ? OR sender_id = ? OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID, u.ID, u.ID}
 	case "dice_rolls":
-		return " (roll_type <> 'dm' OR roller_id = ?)", []any{u.ID}
+		return " campaign_id IN " + memberCampaignsSub +
+				" AND (roll_type <> 'dm' OR roller_id = ? OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID, u.ID}
 	case "session_notes":
-		return " (shared = 1 OR created_by = ?)", []any{u.ID}
+		return " campaign_id IN " + memberCampaignsSub +
+				" AND (shared = 1 OR created_by = ? OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID, u.ID}
 	case "handouts":
-		return " (target_player IS NULL OR target_player = ?)", []any{u.ID}
+		return " campaign_id IN " + memberCampaignsSub +
+				" AND (target_player IS NULL OR target_player = ? OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID, u.ID}
 	case "compendium":
-		return " kind IN ('spell','item')", nil
+		return " campaign_id IN " + memberCampaignsSub +
+				" AND (kind IN ('spell','item') OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID}
 	case "session_state":
-		// GM-only preparation keys stay private; everything else players need.
-		return " key NOT IN ('campaign','imagebank')", nil
+		// GM-only preparation keys stay private to that campaign's GM.
+		return " campaign_id IN " + memberCampaignsSub +
+				" AND (key NOT IN ('campaign','imagebank') OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID}
 	case "vault_notes":
-		return " 1=0", nil // GM campaign vault: invisible to players (empty list)
+		// GM campaign vault: visible only to the GM of the campaign.
+		return " campaign_id IN " + dmCampaignsSub, []any{u.ID}
 	case "character_private":
-		// Private story: only rows for characters the player owns.
-		return " char_id IN (SELECT id FROM characters WHERE owner_id = ?)", []any{u.ID}
+		// Private story: the character's owner, or the GM of its campaign.
+		return " char_id IN (SELECT id FROM characters WHERE owner_id = ? OR campaign_id IN " + dmCampaignsSub + ")",
+			[]any{u.ID, u.ID}
 	case "campaigns":
-		// A player sees only the campaigns they belong to.
-		return " id IN (SELECT campaign_id FROM campaign_members WHERE user_id = ?)", []any{u.ID}
+		return " (id IN " + memberCampaignsSub + " OR owner_id = ?)", []any{u.ID, u.ID}
 	case "campaign_members":
-		// A player sees the member list of their own campaigns.
-		return " campaign_id IN (SELECT campaign_id FROM campaign_members WHERE user_id = ?)", []any{u.ID}
+		return " campaign_id IN " + memberCampaignsSub, []any{u.ID}
+	case "characters", "initiative", "scenes":
+		return " campaign_id IN " + memberCampaignsSub, []any{u.ID}
 	}
-	return "", nil // profiles, characters, initiative, scenes: shared with the table
+	return "", nil // profiles: global identity, shared with the table
 }
 
 // rowVisible reports whether a non-DM user may see this row over realtime.
@@ -477,21 +557,34 @@ func (s *Server) emitChange(table, eventType string, row map[string]any) {
 	case "profiles":
 		playerMsg = changeMsg(table, eventType, redactProfileRow(row))
 	}
-	// Private story: notes must reach only the owning player (+ DM). Resolve the
-	// character's owner once (indirect ownership via char_id).
-	privOwner := ""
+	// Private story: notes must reach only the owning player, the campaign's GM
+	// and the admin. Resolve the character's owner/campaign once.
+	privOwner, privCampaign := "", ""
 	if table == "character_private" {
-		privOwner = s.charOwner(asStr(row["char_id"]))
+		cid := asStr(row["char_id"])
+		privOwner = s.charOwner(cid)
+		privCampaign = s.charCampaign(cid)
 	}
+	rowCampaign := asStr(row["campaign_id"])
 	s.hub.broadcastFiltered("main", func(sub *subscriber) (string, bool) {
 		if sub.role == "dm" {
 			return dmMsg, true
 		}
 		if table == "character_private" {
-			if privOwner != "" && sub.uid == privOwner {
+			if (privOwner != "" && sub.uid == privOwner) || s.isCampaignDM(sub.uid, privCampaign) {
 				return dmMsg, true
 			}
 			return "", false
+		}
+		// Campaign layer (mirrors readScope): rows reach only the members of
+		// their campaign, and that campaign's GM gets the unredacted variant.
+		if rowCampaign != "" {
+			if !s.isMember(sub.uid, rowCampaign) {
+				return "", false
+			}
+			if s.isCampaignDM(sub.uid, rowCampaign) {
+				return dmMsg, true
+			}
 		}
 		if !rowVisible(table, row, sub.uid) {
 			return "", false
@@ -603,7 +696,9 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 404, "unknown table")
 		return
 	}
-	if p.Write == "dm" && u.Role != "dm" {
+	// GM-only tables without campaign scoping stay admin-only; campaign-scoped
+	// ones accept the campaign's own GM (checked below, once the body is read).
+	if p.Write == "dm" && u.Role != "dm" && !p.hasCol("campaign_id") {
 		httpErr(w, 403, "forbidden")
 		return
 	}
@@ -612,15 +707,48 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "bad request")
 		return
 	}
+	// Campaign scoping (mirrors the Supabase membership RLS):
+	//   - writing into a campaign requires being one of its members;
+	//   - GM-only tables accept the campaign's own GM, not just the site admin.
+	// campaign_members itself is exempt: joining is what CREATES membership
+	// (its own GM/owner rule follows below).
+	if u.Role != "dm" && p.Write != "campaign_dm" && p.hasCol("campaign_id") {
+		cid := asStr(body["campaign_id"])
+		if cid == "" {
+			cid = defaultCampaignID // what the column DEFAULT would assign
+			body["campaign_id"] = cid
+		}
+		if !s.isMember(u.ID, cid) {
+			httpErr(w, 403, "forbidden")
+			return
+		}
+		if p.Write == "dm" && !s.isCampaignDM(u.ID, cid) {
+			httpErr(w, 403, "forbidden")
+			return
+		}
+	}
+	// Member list: managed by the campaign's GM, or its owner (so the creator
+	// can register their own GM membership right after creating the campaign).
+	if p.Write == "campaign_dm" && u.Role != "dm" {
+		cid := asStr(body["campaign_id"])
+		if !s.isCampaignDM(u.ID, cid) && !s.ownsCampaign(u.ID, cid) {
+			httpErr(w, 403, "forbidden")
+			return
+		}
+	}
 	// Owner rule: a non-DM may only write rows they own.
 	if p.Write == "owner" && u.Role != "dm" && p.OwnerCol != "" {
 		body[p.OwnerCol] = u.ID
 	}
-	// Private story: a non-DM may only write the private notes of a character they
-	// own (ownership is indirect, via char_id -> characters.owner_id). Covers upsert.
-	if p.Write == "char_owner" && u.Role != "dm" && !s.userOwnsChar(asStr(body["char_id"]), u.ID) {
-		httpErr(w, 403, "forbidden")
-		return
+	// Private story: a non-DM may only write the private notes of a character
+	// they own (indirectly, via char_id -> characters.owner_id) — or of a
+	// character in a campaign they run. Covers upsert.
+	if p.Write == "char_owner" && u.Role != "dm" {
+		cid := asStr(body["char_id"])
+		if !s.userOwnsChar(cid, u.ID) && !s.isCampaignDM(u.ID, s.charCampaign(cid)) {
+			httpErr(w, 403, "forbidden")
+			return
+		}
 	}
 	// profiles: identity and role are authoritative from the session, never the
 	// client. Mirrors the Supabase RLS/trigger — the first account is the DM, and
@@ -734,6 +862,11 @@ func (s *Server) apiUpdate(w http.ResponseWriter, r *http.Request) {
 		delete(body, "email")
 		delete(body, "role")
 	}
+	// A row's campaign is immutable for non-admins: letting an UPDATE rewrite
+	// campaign_id would move rows between campaigns (vandalism or smuggling).
+	if u.Role != "dm" {
+		delete(body, "campaign_id")
+	}
 	var sets []string
 	var args []any
 	for _, c := range p.Columns {
@@ -801,7 +934,9 @@ func (s *Server) apiDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
-// mayWrite enforces the table's authorization rule for update/delete.
+// mayWrite enforces the table's authorization rule for update/delete. The GM
+// of a campaign has full write authority over that campaign's rows (mirrors
+// the Supabase is_dm_of policies).
 func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs []any) bool {
 	switch p.Write {
 	case "auth":
@@ -810,26 +945,57 @@ func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs [
 		}
 		// "auth" tables (messages, dice_rolls) accept inserts from anyone, but a
 		// non-DM may only update/delete their OWN rows — otherwise a player could
-		// edit the DM's messages or wipe the whole chat/roll log.
+		// edit the DM's messages or wipe the whole chat/roll log. The campaign's
+		// GM may, though (e.g. clearing their campaign's chat).
 		if p.SelfCol == "" {
 			return true
 		}
-		return s.allRowsOwnedBy(table, p.SelfCol, where, wargs, u.ID)
+		if s.allRowsOwnedBy(table, p.SelfCol, where, wargs, u.ID) {
+			return true
+		}
+		return p.hasCol("campaign_id") && s.allRowsInDMCampaigns(table, where, wargs, u.ID)
 	case "dm":
-		return u.Role == "dm"
+		if u.Role == "dm" {
+			return true
+		}
+		return p.hasCol("campaign_id") && s.allRowsInDMCampaigns(table, where, wargs, u.ID)
 	case "owner":
 		if u.Role == "dm" {
 			return true
 		}
-		if p.OwnerCol == "" {
+		if p.OwnerCol != "" && s.allRowsOwnedBy(table, p.OwnerCol, where, wargs, u.ID) {
+			return true
+		}
+		// The campaign's GM manages every row of the campaigns they run
+		// (e.g. syncing a player's sheet HP from the combat tracker).
+		return p.hasCol("campaign_id") && s.allRowsInDMCampaigns(table, where, wargs, u.ID)
+	case "campaign_dm":
+		if u.Role == "dm" {
+			return true
+		}
+		// Every targeted membership row must belong to a campaign the user
+		// runs or owns.
+		rows, err := s.store.db.Query("SELECT DISTINCT campaign_id FROM "+table+where, wargs...)
+		if err != nil {
 			return false
 		}
-		return s.allRowsOwnedBy(table, p.OwnerCol, where, wargs, u.ID)
+		defer rows.Close()
+		for rows.Next() {
+			var cid sql.NullString
+			if rows.Scan(&cid) != nil {
+				return false
+			}
+			if !s.isCampaignDM(u.ID, cid.String) && !s.ownsCampaign(u.ID, cid.String) {
+				return false
+			}
+		}
+		return true
 	case "char_owner":
 		if u.Role == "dm" {
 			return true
 		}
-		// Each targeted private row must belong to a character the user owns.
+		// Each targeted private row must belong to a character the user owns,
+		// or to a character in a campaign they run.
 		rows, err := s.store.db.Query("SELECT char_id FROM "+table+where, wargs...)
 		if err != nil {
 			return false
@@ -839,7 +1005,10 @@ func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs [
 		for rows.Next() {
 			matched = true
 			var cid sql.NullString
-			if rows.Scan(&cid) != nil || !s.userOwnsChar(cid.String, u.ID) {
+			if rows.Scan(&cid) != nil {
+				return false
+			}
+			if !s.userOwnsChar(cid.String, u.ID) && !s.isCampaignDM(u.ID, s.charCampaign(cid.String)) {
 				return false
 			}
 		}

@@ -281,7 +281,18 @@ func (s *Store) createUser(email, name, role, passHash string) (*User, error) {
 	_, err := s.db.Exec(
 		`INSERT INTO users(id,email,display_name,role,pass_hash,created_at) VALUES(?,?,?,?,?,?)`,
 		u.ID, email, name, role, passHash, now())
-	return u, err
+	if err != nil {
+		return nil, err
+	}
+	// Every account joins the default campaign with its global role, mirroring
+	// the Supabase seed — campaign-scoped authorization needs a membership row.
+	if _, err := s.db.Exec(
+		`INSERT INTO campaign_members(campaign_id,user_id,role) VALUES(?,?,?)
+		 ON CONFLICT(campaign_id,user_id) DO NOTHING`,
+		defaultCampaignID, u.ID, role); err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 // userByEmail returns the user and its password hash (empty user if not found).

@@ -8,12 +8,11 @@
  *
  * `isDM` dérive du rôle DANS la campagne active (campaign_members.role),
  * avec repli sur le rôle de profil historique tant qu'aucune adhésion
- * n'existe. Côté Supabase, les RLS scopées (migration 0026) appliquent ce
- * rôle par campagne côté serveur ; côté Go, l'authz serveur reste sur le
- * rôle global en attendant le chantier d'authz scopée — ne pas y attribuer
- * de rôle « MJ de campagne » à un joueur d'ici là.
+ * n'existe. Ce rôle par campagne est appliqué côté serveur : RLS scopées
+ * (migration Supabase 0026) ou authz par campagne du backend Go — un même
+ * compte peut être MJ d'une campagne et joueur d'une autre.
  * Ne crée une DEUXIÈME campagne qu'après la migration des clés composites
- * (Supabase 0025 / SQLite v4).
+ * (Supabase 0025 / SQLite v4 — automatique sur le binaire Go).
  */
 import { backend } from './backend.js';
 import { store } from '../state.js';

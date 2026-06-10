@@ -389,6 +389,58 @@ func TestCharacterPrivate_OwnerOnly(t *testing.T) {
 	}
 }
 
+// ---- Per-campaign GM authorization ---------------------------------------
+
+func TestCampaignGM_Scoped(t *testing.T) {
+	h := newHarness(t)
+	// p1 runs a second campaign; p2 is not a member of it.
+	h.exec(`INSERT INTO campaigns(id, name) VALUES ('c2','Second')`)
+	h.exec(`INSERT INTO campaign_members(campaign_id, user_id, role) VALUES ('c2', ?, 'dm')`, h.p1ID)
+
+	// GM of c2 writes GM-only tables there…
+	if w := h.call(http.MethodPost, "session_state", "", h.p1Tok, map[string]any{"campaign_id": "c2", "key": "clock", "value": map[string]any{"min": 1}}); w.Code != 201 {
+		t.Fatalf("campaign GM insert in own campaign: got %d (%s)", w.Code, w.Body.String())
+	}
+	// …but not in the default campaign (member there, not GM).
+	if w := h.call(http.MethodPost, "session_state", "", h.p1Tok, map[string]any{"key": "hacked", "value": 1}); w.Code != 403 {
+		t.Fatalf("player must not write GM tables of the default campaign: got %d", w.Code)
+	}
+	// Updates targeting another campaign's rows are rejected…
+	h.exec(`INSERT INTO session_state(key, value) VALUES ('clock','{"min":0}')`) // default campaign
+	if w := h.call(http.MethodPatch, "session_state", "campaign_id=eq."+defaultCampaignID+"&key=eq.clock", h.p1Tok, map[string]any{"value": 2}); w.Code != 403 {
+		t.Fatalf("cross-campaign update must be rejected: got %d", w.Code)
+	}
+	// …while updates within the GM's campaign pass.
+	if w := h.call(http.MethodPatch, "session_state", "campaign_id=eq.c2&key=eq.clock", h.p1Tok, map[string]any{"value": 2}); w.Code != 200 {
+		t.Fatalf("update in own campaign: got %d (%s)", w.Code, w.Body.String())
+	}
+	// The GM vault is scoped: p1 sees their campaign's notes, not the admin's.
+	h.exec(`INSERT INTO vault_notes(path, content) VALUES ('secret.md','admin prep')`)
+	if w := h.call(http.MethodPost, "vault_notes", "", h.p1Tok, map[string]any{"campaign_id": "c2", "path": "c2.md", "content": "x"}); w.Code != 201 {
+		t.Fatalf("campaign GM vault insert: got %d (%s)", w.Code, w.Body.String())
+	}
+	list := decodeList(t, h.call(http.MethodGet, "vault_notes", "", h.p1Tok, nil))
+	if len(list) != 1 || list[0]["path"] != "c2.md" {
+		t.Fatalf("campaign GM must see only their campaign's vault, got %v", list)
+	}
+	// Membership gate: p2 cannot post into a campaign they don't belong to.
+	if w := h.call(http.MethodPost, "messages", "", h.p2Tok, map[string]any{"campaign_id": "c2", "channel": "public", "content": "hi", "sender_name": "x"}); w.Code != 403 {
+		t.Fatalf("non-member write must be rejected: got %d", w.Code)
+	}
+	// A non-admin cannot relocate rows: campaign_id in an update body is ignored.
+	if w := h.call(http.MethodPatch, "session_state", "campaign_id=eq.c2&key=eq.clock", h.p1Tok, map[string]any{"campaign_id": defaultCampaignID, "value": 3}); w.Code != 200 {
+		t.Fatalf("update with campaign_id in body: got %d (%s)", w.Code, w.Body.String())
+	}
+	var n int
+	if err := h.srv.store.db.QueryRow(`SELECT COUNT(*) FROM session_state WHERE campaign_id='c2' AND key='clock'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("row must stay in its campaign (n=%d, err=%v)", n, err)
+	}
+	// Anyone can create their own campaign (becoming its owner).
+	if w := h.call(http.MethodPost, "campaigns", "", h.p2Tok, map[string]any{"name": "Mine"}); w.Code != 201 {
+		t.Fatalf("player campaign creation: got %d (%s)", w.Code, w.Body.String())
+	}
+}
+
 func TestMigrations(t *testing.T) {
 	store, err := OpenStore(filepath.Join(t.TempDir(), "m.db"))
 	if err != nil {

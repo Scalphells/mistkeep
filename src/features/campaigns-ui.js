@@ -10,11 +10,10 @@ import { showToast } from '../lib/toast.js';
  * Gestionnaire de campagnes : lister/basculer ses campagnes, en créer une
  * (nom + système de jeu), gérer les membres de celles qu'on dirige.
  *
- * Sur le backend Supabase, chacun peut créer SA campagne (il en devient
- * propriétaire + MJ — les RLS scopées 0026 appliquent ce rôle par campagne).
- * Sur le backend Go, l'authz par campagne arrive dans un chantier dédié : la
- * création reste réservée au MJ global en attendant. La bascule recharge
- * l'app (toutes les souscriptions realtime repartent scopées proprement).
+ * Chacun peut créer SA campagne (il en devient propriétaire + MJ) — appliqué
+ * côté serveur par les RLS scopées (Supabase 0026) comme par l'authz par
+ * campagne du backend Go. La bascule recharge l'app (toutes les souscriptions
+ * realtime repartent scopées proprement).
  */
 export function openCampaignManager() {
   const ov = document.createElement('div');
@@ -43,8 +42,7 @@ export function openCampaignManager() {
 
   function render() {
     const { campaigns = [] } = store.get();
-    const goBackend = import.meta.env && import.meta.env.VITE_BACKEND === 'go';
-    const canCreate = !goBackend || store.get().isDM; // cf. en-tête du fichier
+    const canCreate = true; // chacun peut créer sa propre campagne (cf. en-tête)
     const active = campaignId();
     ov.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:520px">
