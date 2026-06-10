@@ -1,6 +1,7 @@
 import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
+import { showToast } from '../lib/toast.js';
 
 /**
  * Vault privé du MJ.
@@ -89,7 +90,10 @@ export function saveNote(path, content) {
           },
           { onConflict: 'path' }
         );
-        if (error) console.error('[vault] save échouée:', error.message);
+        if (error) {
+          console.error('[vault] save échouée:', error.message);
+          showToast('Échec de l’enregistrement de la note — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+        }
       }, 1200)
     );
   }
@@ -131,7 +135,10 @@ export async function deleteNote(path) {
 
   if (!store.get().isDM) return;
   const { error } = await backend.db.from('vault_notes').delete().eq('path', path);
-  if (error) console.error('[vault] suppression échouée:', error.message);
+  if (error) {
+    console.error('[vault] suppression échouée:', error.message);
+    showToast('Échec de la suppression de la note.', { type: 'warn', icon: '⚠️' });
+  }
 }
 
 /* ── Arborescence ─────────────────────────────────────────── */

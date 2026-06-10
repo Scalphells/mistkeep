@@ -1,6 +1,7 @@
 import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
+import { showToast } from '../lib/toast.js';
 
 /**
  * Notes de session : journal de partie. Chacun peut écrire ses notes ; une note
@@ -60,7 +61,10 @@ export async function updateNote(id, patch) {
     sessionNotes: store.get().sessionNotes.map((n) => (n.id === id ? { ...n, ...clean } : n)),
   });
   const { error } = await backend.db.from('session_notes').update(clean).eq('id', id);
-  if (error) console.error('[notes] mise à jour échouée:', error.message);
+  if (error) {
+    console.error('[notes] mise à jour échouée:', error.message);
+    showToast('Échec de l’enregistrement de la note — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
 }
 
 export async function deleteNote(id) {
@@ -69,6 +73,7 @@ export async function deleteNote(id) {
   const { error } = await backend.db.from('session_notes').delete().eq('id', id);
   if (error) {
     console.error('[notes] suppression échouée:', error.message);
+    showToast('Échec de la suppression de la note.', { type: 'warn', icon: '⚠️' });
     return;
   }
   store.set({ sessionNotes: store.get().sessionNotes.filter((n) => n.id !== id) });

@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
+import { showToast } from '../lib/toast.js';
 
 /**
  * Handouts : documents partagés par le MJ aux joueurs.
@@ -104,6 +105,7 @@ export async function deleteHandout(id) {
   const { error } = await backend.db.from('handouts').delete().eq('id', id);
   if (error) {
     console.error('[handouts] suppression échouée:', error.message);
+    showToast('Échec de la suppression du document.', { type: 'warn', icon: '⚠️' });
     return;
   }
   if (h?.image_url) {

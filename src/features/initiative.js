@@ -137,7 +137,10 @@ export async function addCombatant({ name, initiative, hp, hpMax, hpTemp, charId
   // Affichage optimiste immédiat (sans attendre l'écho realtime).
   store.set({ initiative: [...list, normRow(row)] });
   const { error } = await backend.db.from('initiative').insert(row);
-  if (error) console.error('[init] ajout échoué:', error.message);
+  if (error) {
+    console.error('[init] ajout échoué:', error.message);
+    showToast('Échec de l’ajout au combat — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
   await resequence();
   return entity_id;
 }
@@ -177,7 +180,10 @@ export async function updateCombatant(entityId, patch) {
     .from('initiative')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('entity_id', entityId);
-  if (error) console.error('[init] maj échouée:', error.message);
+  if (error) {
+    console.error('[init] maj échouée:', error.message);
+    showToast('Échec de la mise à jour du combat — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
 
   // Synchronise les PV vers la fiche liée.
   if ('hp' in patch || 'hp_max' in patch || 'hp_temp' in patch) {
@@ -416,6 +422,7 @@ export async function removeCombatant(entityId) {
   const { error } = await backend.db.from('initiative').delete().eq('entity_id', entityId);
   if (error) {
     console.error('[init] suppression échouée:', error.message);
+    showToast('Échec de la suppression du combattant.', { type: 'warn', icon: '⚠️' });
     return;
   }
   store.set({
@@ -467,7 +474,10 @@ export async function rollAllInitiative() {
 export async function clearCombat() {
   if (!store.get().isDM) return;
   const { error } = await backend.db.from('initiative').delete().neq('entity_id', '');
-  if (error) console.error('[init] reset échoué:', error.message);
+  if (error) {
+    console.error('[init] reset échoué:', error.message);
+    showToast('Échec de la réinitialisation du combat.', { type: 'warn', icon: '⚠️' });
+  }
   store.set({ initiative: [] });
   await setMeta(0, 1);
 }
@@ -532,7 +542,10 @@ async function setMeta(turn, round) {
     },
     { onConflict: 'key' }
   );
-  if (error) console.error('[init] meta échouée:', error.message);
+  if (error) {
+    console.error('[init] meta échouée:', error.message);
+    showToast('Échec de la mise à jour du combat.', { type: 'warn', icon: '⚠️' });
+  }
 }
 
 /* ── Tri / ordre ──────────────────────────────────────────── */

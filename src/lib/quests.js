@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { store } from '../state.js';
+import { showToast } from './toast.js';
 
 /**
  * Journal de quêtes partagé : objectifs visibles de toute la table (actifs /
@@ -48,7 +49,10 @@ async function persist(next) {
       { key: KEY, value: next, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
       { onConflict: 'key' }
     );
-  if (error) console.error('[quests]', error.message);
+  if (error) {
+    console.error('[quests]', error.message);
+    showToast('Échec de la mise à jour des quêtes — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
 }
 
 function uid() {

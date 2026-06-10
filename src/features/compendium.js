@@ -1,6 +1,7 @@
 import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { addCombatant } from './initiative.js';
+import { showToast } from '../lib/toast.js';
 
 /**
  * Compendium : bibliothèque de contenu réutilisable du MJ (façon Foundry).
@@ -46,6 +47,7 @@ export async function createEntry(kind, name) {
   const { data, error } = await backend.db.from('compendium').insert(row).select().single();
   if (error) {
     console.error('[compendium] création échouée:', error.message);
+    showToast('Échec de la création de l’entrée — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
     return null;
   }
   store.set({ compendium: [...store.get().compendium, data] });
@@ -62,7 +64,10 @@ export async function updateEntry(id, patch) {
     .from('compendium')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id);
-  if (error) console.error('[compendium] mise à jour échouée:', error.message);
+  if (error) {
+    console.error('[compendium] mise à jour échouée:', error.message);
+    showToast('Échec de l’enregistrement de l’entrée — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
 }
 
 export async function deleteEntry(id) {
@@ -70,6 +75,7 @@ export async function deleteEntry(id) {
   const { error } = await backend.db.from('compendium').delete().eq('id', id);
   if (error) {
     console.error('[compendium] suppression échouée:', error.message);
+    showToast('Échec de la suppression de l’entrée.', { type: 'warn', icon: '⚠️' });
     return;
   }
   store.set({ compendium: store.get().compendium.filter((e) => e.id !== id) });

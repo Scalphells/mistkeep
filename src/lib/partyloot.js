@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { store } from '../state.js';
+import { showToast } from './toast.js';
 
 /**
  * Trésor de groupe partagé : un « pot commun » de pièces et d'objets que le MJ
@@ -56,7 +57,10 @@ async function persist(next) {
       { key: KEY, value: next, updated_at: new Date().toISOString(), updated_by: store.get().user?.id ?? null },
       { onConflict: 'key' }
     );
-  if (error) console.error('[party loot]', error.message);
+  if (error) {
+    console.error('[party loot]', error.message);
+    showToast('Échec de la mise à jour du trésor — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
 }
 
 function uid() {
