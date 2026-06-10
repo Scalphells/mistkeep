@@ -1,4 +1,4 @@
-import { store } from '../state.js';
+﻿import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
 import { backend } from '../lib/backend.js';
 import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAMPAIGN_ID } from '../lib/campaigns.js';
@@ -7,13 +7,14 @@ import { modalConfirm } from '../lib/modal.js';
 import { showToast } from '../lib/toast.js';
 
 /**
- * Gestionnaire de campagnes : lister/basculer ses campagnes, en crÃ©er une
- * (nom + systÃ¨me de jeu), gÃ©rer les membres de celles qu'on dirige.
+ * Gestionnaire de campagnes : lister/basculer ses campagnes, en créer une
+ * (nom + système de jeu), gérer les membres de celles qu'on dirige.
  *
- * TRANSITION : tant que les RLS ne sont pas scopÃ©es par appartenance, la
- * crÃ©ation est rÃ©servÃ©e au MJ Â« global Â» (profiles.role) â€” un joueur qui
- * crÃ©erait sa campagne ne pourrait pas y Ã©crire. La bascule recharge l'app
- * (toutes les souscriptions realtime repartent scopÃ©es proprement).
+ * Sur le backend Supabase, chacun peut créer SA campagne (il en devient
+ * propriétaire + MJ — les RLS scopées 0026 appliquent ce rôle par campagne).
+ * Sur le backend Go, l'authz par campagne arrive dans un chantier dédié : la
+ * création reste réservée au MJ global en attendant. La bascule recharge
+ * l'app (toutes les souscriptions realtime repartent scopées proprement).
  */
 export function openCampaignManager() {
   const ov = document.createElement('div');
@@ -31,7 +32,7 @@ export function openCampaignManager() {
 
   const sysLabel = (id) => listSystems().find((s) => s.id === id)?.label || id || '?';
 
-  /** L'utilisateur dirige-t-il cette campagne ? (propriÃ©taire ou membre 'dm') */
+  /** L'utilisateur dirige-t-il cette campagne ? (propriétaire ou membre 'dm') */
   function managesCampaign(c) {
     const uid = store.get().user?.id;
     if (c.owner_id === uid) return true;
@@ -41,30 +42,32 @@ export function openCampaignManager() {
   }
 
   function render() {
-    const { campaigns = [], isDM } = store.get();
+    const { campaigns = [] } = store.get();
+    const goBackend = import.meta.env && import.meta.env.VITE_BACKEND === 'go';
+    const canCreate = !goBackend || store.get().isDM; // cf. en-tête du fichier
     const active = campaignId();
     ov.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:520px">
-        <h3 class="modal-title">ðŸ° Campagnes</h3>
+        <h3 class="modal-title">🏰 Campagnes</h3>
         <div id="camp-list">
           ${campaigns
             .map(
               (c) => `
             <div class="camp-row" data-id="${c.id}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border,#333)">
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600">${escapeHtml(c.name)} ${c.id === active ? '<span style="font-size:11px;color:var(--accent,#7c6af7)">â— active</span>' : ''}</div>
+                <div style="font-weight:600">${escapeHtml(c.name)} ${c.id === active ? '<span style="font-size:11px;color:var(--accent,#7c6af7)">● active</span>' : ''}</div>
                 <div style="font-size:11px;opacity:.7">${escapeHtml(sysLabel(c.system))}</div>
               </div>
               ${c.id !== active ? `<button class="modal-btn" data-switch="${c.id}">Activer</button>` : ''}
-              ${managesCampaign(c) ? `<button class="modal-btn" data-members="${c.id}" title="GÃ©rer les membres">ðŸ‘¥</button>` : ''}
-              ${c.owner_id === store.get().user?.id && c.id !== active && c.id !== DEFAULT_CAMPAIGN_ID ? `<button class="modal-btn" data-del="${c.id}" title="Supprimer la campagne (dÃ©finitif)">ðŸ—‘</button>` : ''}
+              ${managesCampaign(c) ? `<button class="modal-btn" data-members="${c.id}" title="Gérer les membres">👥</button>` : ''}
+              ${c.owner_id === store.get().user?.id && c.id !== active && c.id !== DEFAULT_CAMPAIGN_ID ? `<button class="modal-btn" data-del="${c.id}" title="Supprimer la campagne (définitif)">🗑</button>` : ''}
             </div>
             <div class="camp-members" data-members-panel="${c.id}" style="display:none;padding:6px 6px 10px;font-size:12px"></div>`
             )
             .join('') || '<p style="opacity:.7">Aucune campagne visible.</p>'}
         </div>
         ${
-          isDM
+          canCreate
             ? `<div style="margin-top:14px;border-top:1px solid var(--border,#333);padding-top:10px">
                  <label class="prof-label">Nouvelle campagne</label>
                  <div style="display:flex;gap:8px">
@@ -72,9 +75,9 @@ export function openCampaignManager() {
                    <select class="modal-input" id="camp-system" style="width:auto">
                      ${listSystems().map((s) => `<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('')}
                    </select>
-                   <button class="modal-btn modal-ok" id="camp-create">CrÃ©er</button>
+                   <button class="modal-btn modal-ok" id="camp-create">Créer</button>
                  </div>
-                 <div style="font-size:11px;opacity:.7;margin-top:6px">âš  Avant de jouer sur une 2áµ‰ campagne, applique la migration 0024 (clÃ©s composites).</div>
+                 <div style="font-size:11px;opacity:.7;margin-top:6px">⚠ Avant de jouer sur une 2ᵉ campagne, applique la migration des clés composites (Supabase 0025 / SQLite v4).</div>
                </div>`
             : ''
         }
@@ -89,14 +92,14 @@ export function openCampaignManager() {
       b.addEventListener('click', async () => {
         const c = campaigns.find((x) => x.id === b.dataset.switch);
         const ok = await modalConfirm(
-          `Basculer sur Â« ${c?.name || '?'} Â» ? L'application va se recharger.`,
+          `Basculer sur « ${c?.name || '?'} » ? L'application va se recharger.`,
           { title: 'Changer de campagne', okLabel: 'Basculer' }
         );
         if (!ok) return;
         try {
           await switchCampaign(b.dataset.switch);
         } catch (e) {
-          showToast('Ã‰chec de la bascule : ' + e.message, { type: 'warn', icon: 'âš ï¸' });
+          showToast('Échec de la bascule : ' + e.message, { type: 'warn', icon: '⚠️' });
         }
       })
     );
@@ -109,16 +112,16 @@ export function openCampaignManager() {
       b.addEventListener('click', async () => {
         const c = campaigns.find((x) => x.id === b.dataset.del);
         const ok = await modalConfirm(
-          `Supprimer dÃ©finitivement Â« ${c?.name || '?'} Â» ?\nToutes ses donnÃ©es (fiches, scÃ¨nes, chat, notes, combatâ€¦) seront effacÃ©es. Cette action est irrÃ©versible.`,
+          `Supprimer définitivement « ${c?.name || '?'} » ?\nToutes ses données (fiches, scènes, chat, notes, combat…) seront effacées. Cette action est irréversible.`,
           { title: 'Supprimer la campagne', okLabel: 'Supprimer', danger: true }
         );
         if (!ok) return;
         try {
           await deleteCampaign(b.dataset.del);
-          showToast('Campagne supprimÃ©e.', { type: 'info', icon: 'ðŸ—‘' });
+          showToast('Campagne supprimée.', { type: 'info', icon: '🗑' });
           render();
         } catch (e) {
-          showToast('Suppression impossible : ' + e.message, { type: 'warn', icon: 'âš ï¸' });
+          showToast('Suppression impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
         }
       })
     );
@@ -130,15 +133,15 @@ export function openCampaignManager() {
       const btn = ov.querySelector('#camp-create');
       btn.disabled = true;
       try {
-        await createCampaign(name, system); // bascule + reload en cas de succÃ¨s
+        await createCampaign(name, system); // bascule + reload en cas de succès
       } catch (e) {
         btn.disabled = false;
-        showToast('CrÃ©ation impossible : ' + e.message, { type: 'warn', icon: 'âš ï¸' });
+        showToast('Création impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
       }
     });
   }
 
-  /** Affiche/recharge le panneau membres d'une campagne dirigÃ©e. */
+  /** Affiche/recharge le panneau membres d'une campagne dirigée. */
   async function toggleMembers(cid) {
     const panel = ov.querySelector(`[data-members-panel="${cid}"]`);
     if (!panel) return;
@@ -147,7 +150,7 @@ export function openCampaignManager() {
       return;
     }
     panel.style.display = 'block';
-    panel.innerHTML = 'Chargementâ€¦';
+    panel.innerHTML = 'Chargement…';
 
     const [mRes, pRes] = await Promise.all([
       backend.db.from('campaign_members').select('*').eq('campaign_id', cid),
@@ -168,8 +171,8 @@ export function openCampaignManager() {
           (m) => `
         <div style="display:flex;align-items:center;gap:8px;padding:2px 0">
           <span style="flex:1">${escapeHtml(nameOf(m.user_id))}</span>
-          <span style="opacity:.7">${m.role === 'dm' ? 'ðŸŽ­ MJ' : 'ðŸŽ² Joueur'}</span>
-          ${m.user_id !== myId ? `<button class="modal-btn" data-rm="${m.user_id}" style="padding:1px 8px">âœ•</button>` : ''}
+          <span style="opacity:.7">${m.role === 'dm' ? '🎭 MJ' : '🎲 Joueur'}</span>
+          ${m.user_id !== myId ? `<button class="modal-btn" data-rm="${m.user_id}" style="padding:1px 8px">✕</button>` : ''}
         </div>`
         )
         .join('')}
@@ -195,7 +198,7 @@ export function openCampaignManager() {
       const { error } = await backend.db
         .from('campaign_members')
         .insert({ campaign_id: cid, user_id: userId, role });
-      if (error) showToast('Ajout impossible : ' + error.message, { type: 'warn', icon: 'âš ï¸' });
+      if (error) showToast('Ajout impossible : ' + error.message, { type: 'warn', icon: '⚠️' });
       panel.style.display = 'none';
       toggleMembers(cid);
     });
@@ -207,7 +210,7 @@ export function openCampaignManager() {
           .delete()
           .eq('campaign_id', cid)
           .eq('user_id', b.dataset.rm);
-        if (error) showToast('Retrait impossible : ' + error.message, { type: 'warn', icon: 'âš ï¸' });
+        if (error) showToast('Retrait impossible : ' + error.message, { type: 'warn', icon: '⚠️' });
         panel.style.display = 'none';
         toggleMembers(cid);
       })

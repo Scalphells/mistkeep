@@ -1,21 +1,21 @@
--- ============================================================
+﻿-- ============================================================
 -- 0025_campaign_keys.sql
--- Multi-campagne â€” PARTIE B-1 : clÃ©s composites.
+-- Multi-campagne — PARTIE B-1 : clés composites.
 --
--- Les tables Ã  clÃ© Â« sÃ©mantique Â» (session_state.key, initiative.entity_id,
--- vault_notes.path) avaient une PK globale : la mÃªme clÃ© ne pouvait exister
+-- Les tables à clé « sémantique » (session_state.key, initiative.entity_id,
+-- vault_notes.path) avaient une PK globale : la même clé ne pouvait exister
 -- qu'une seule fois, toutes campagnes confondues. On passe la PK en
--- (campaign_id, clÃ©) pour que chaque campagne ait ses propres entrÃ©es.
+-- (campaign_id, clé) pour que chaque campagne ait ses propres entrées.
 --
--- âš  ORDRE DE DÃ‰PLOIEMENT : appliquer cette migration APRÃˆS avoir dÃ©ployÃ© le
--- front multi-campagne (commit Â« Multi-campagne : scoping frontâ€¦ Â»). L'ancien
+-- ⚠ ORDRE DE DÉPLOIEMENT : appliquer cette migration APRÈS avoir déployé le
+-- front multi-campagne (commit « Multi-campagne : scoping front… »). L'ancien
 -- front upsertait avec onConflict:'key' (exige une contrainte UNIQUE(key),
--- supprimÃ©e ici) ; le nouveau front Ã©crit en UPDATE-puis-INSERT et fonctionne
--- avec les DEUX schÃ©mas â€” aucune coupure dans ce sens-lÃ .
+-- supprimée ici) ; le nouveau front écrit en UPDATE-puis-INSERT et fonctionne
+-- avec les DEUX schémas — aucune coupure dans ce sens-là.
 --
--- Sans cette migration, ne PAS crÃ©er de deuxiÃ¨me campagne (collision de clÃ©s).
+-- Sans cette migration, ne PAS créer de deuxième campagne (collision de clés).
 --
--- Idempotent. ExÃ©cuter dans Supabase > SQL Editor.
+-- Idempotent. Exécuter dans Supabase > SQL Editor.
 -- ============================================================
 
 do $$

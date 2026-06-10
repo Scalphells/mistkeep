@@ -6,14 +6,14 @@
  * `campaign_id` ; avec une seule campagne (la campagne par défaut), le
  * comportement est identique à l'app mono-campagne historique.
  *
- * TRANSITION (jusqu'à l'authz scopée par appartenance — « partie B-2 ») :
- *   - `isDM` reste dérivé du rôle global : c'est ce que les backends
- *     appliquent réellement aujourd'hui. Le rôle PAR campagne
- *     (campaign_members.role) est exposé via campaignRole pour l'UI.
- *   - Ne crée une DEUXIÈME campagne qu'après la migration des clés
- *     composites (Supabase 0025 / SQLite v4) : sans elle, les clés
- *     sémantiques (session_state, initiative, vault_notes) sont encore
- *     uniques GLOBALEMENT.
+ * `isDM` dérive du rôle DANS la campagne active (campaign_members.role),
+ * avec repli sur le rôle de profil historique tant qu'aucune adhésion
+ * n'existe. Côté Supabase, les RLS scopées (migration 0026) appliquent ce
+ * rôle par campagne côté serveur ; côté Go, l'authz serveur reste sur le
+ * rôle global en attendant le chantier d'authz scopée — ne pas y attribuer
+ * de rôle « MJ de campagne » à un joueur d'ici là.
+ * Ne crée une DEUXIÈME campagne qu'après la migration des clés composites
+ * (Supabase 0025 / SQLite v4).
  */
 import { backend } from './backend.js';
 import { store } from '../state.js';
@@ -58,7 +58,9 @@ export async function initCampaigns() {
   if (!campaigns.some((c) => c.id === cid)) {
     cid = memberships.find((m) => campaigns.some((c) => c.id === m.campaign_id))?.campaign_id || DEFAULT_CAMPAIGN_ID;
   }
-  store.set({ campaignId: cid, campaigns, campaignMemberships: memberships });
+  // Rôle effectif = rôle dans la campagne active (cf. en-tête du fichier).
+  const role = memberships.find((m) => m.campaign_id === cid)?.role || store.get().role;
+  store.set({ campaignId: cid, campaigns, campaignMemberships: memberships, role, isDM: role === 'dm' });
 }
 
 /** Crée une campagne (l'appelant devient propriétaire + MJ) et l'active. */
