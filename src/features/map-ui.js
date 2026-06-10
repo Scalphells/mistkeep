@@ -3638,10 +3638,18 @@ export async function mountMap(container) {
   }, 3000);
   const unsubInit = subscribeInitiative();
   const unsubRealtime = subscribeMap();
+  // La carte ne dépend pas du chat/dés/notes/compendium/vault/badges : inutile de
+  // tout redessiner quand seules ces clés changent (gros gain en session live).
+  const MAP_IGNORE = [
+    'messages', 'diceHist', 'combatLog', 'unreadMessages', 'unreadHandouts',
+    'handouts', 'sessionNotes', 'compendium', 'compendiumOpenId', 'chatTab',
+    'dmPeer', 'vaultFiles', 'fileTree', 'openTabs', 'activeTab', 'edits',
+    'sfxboard', 'imagebank', 'campaign', 'sideTab', 'toolTab',
+  ];
   const unsubStore = store.subscribe(() => {
     if (suppressRender) return;
     renderAll();
-  });
+  }, { except: MAP_IGNORE });
 
   /* ── Barre PV rapide au survol d'un jeton (MJ, sans ouvrir de panneau) ── */
   let hoverBar = null;

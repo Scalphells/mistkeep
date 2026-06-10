@@ -71,11 +71,25 @@ function createStore(initial) {
     get: () => state,
     set(patch) {
       state = { ...state, ...patch };
-      listeners.forEach((fn) => fn(state));
+      const keys = Object.keys(patch);
+      listeners.forEach((l) => {
+        // Un abonné peut ignorer les changements qui ne touchent QUE des clés
+        // dont son rendu ne dépend pas, pour éviter des re-rendus inutiles
+        // (ex. la carte ne se redessine pas à chaque message de chat). Sans
+        // `except`, l'abonné est notifié à chaque changement, comme avant.
+        if (l.except && keys.length && keys.every((k) => l.except.has(k))) return;
+        l.fn(state);
+      });
     },
-    subscribe(fn) {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
+    /**
+     * @param {(state:object)=>void} fn
+     * @param {{except?: string[]}} [opts] `except` = clés d'état dont ce rendu ne
+     *        dépend pas ; un changement ne touchant QUE ces clés ne le réveille pas.
+     */
+    subscribe(fn, opts) {
+      const l = { fn, except: opts && opts.except ? new Set(opts.except) : null };
+      listeners.add(l);
+      return () => listeners.delete(l);
     },
   };
 }

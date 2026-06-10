@@ -178,10 +178,21 @@ export async function mountChat(container) {
   const unsubRealtime = subscribeMessages();
   subscribeRolls();
   subscribeInitiative();
+  // Le chat ne dépend pas de la carte/combat/fiches/notes… : ne pas reconstruire
+  // le fil quand seules ces clés changent (sinon chaque déplacement de jeton ou
+  // changement de PV reconstruit tout le chat).
+  const CHAT_IGNORE = [
+    'map', 'scenes', 'activeSceneId', 'targets', 'paused', 'initiative',
+    'initTurn', 'initRound', 'characters', 'activeChar', 'handouts',
+    'sessionNotes', 'compendium', 'compendiumOpenId', 'unreadMessages',
+    'unreadHandouts', 'vaultFiles', 'fileTree', 'openTabs', 'activeTab',
+    'edits', 'ambience', 'sfxboard', 'imagebank', 'campaign', 'clock',
+    'sideTab', 'toolTab',
+  ];
   const unsubStore = store.subscribe(() => {
     if (isDM && store.get().chatTab === 'dm') renderPeers();
     renderFeed();
-  });
+  }, { except: CHAT_IGNORE });
 
   // Sélection par défaut d'un joueur côté MJ.
   if (isDM && !store.get().dmPeer) {
