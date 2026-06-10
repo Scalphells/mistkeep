@@ -76,6 +76,7 @@ export function createDefaults() {
     saves: [], profs: [], exp: [], atks: [], sc: null, slots: {}, spells: [],
     feats: '', equip: '', notes: '', story: '', ds: { s: 0, f: 0 }, xp: 0,
     darkvision: 0, size: 'M', hdSize: 8,
+    system: 'dnd5e-2014', // système de jeu de la fiche (cf. systems/index.js)
   };
 }
 

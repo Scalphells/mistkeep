@@ -72,6 +72,7 @@ import {
   hitDiceSummary,
   deriveProficiencies,
 } from '../lib/srd5e.js';
+import { getSystem } from '../lib/systems/index.js';
 
 /**
  * UI des fiches de personnage : liste à gauche, fiche détaillée à droite.
@@ -971,6 +972,7 @@ function renderSheet(scrollTop = false) {
   }
 
   const d = c.data || {};
+  const sys = getSystem(d.system); // descripteur du système de jeu (5e-2014 par défaut)
   const ed = canEdit(c);
   const ro = ed ? '' : 'readonly disabled';
 
@@ -1086,7 +1088,7 @@ function renderSheet(scrollTop = false) {
 
         <section class="sheet-block rail-block">
           <h3>Jets de sauvegarde</h3>
-          ${ABILITIES.map((a) => saveRow(a, d, ed)).join('')}
+          ${sys.abilities.map((a) => saveRow(a, d, ed)).join('')}
         </section>
         ${ownerRow}
       </aside>
@@ -1110,11 +1112,11 @@ function renderSheet(scrollTop = false) {
             </div>
             ${multiclassSection(d, ed)}
             <section class="sheet-abilities">
-              ${ABILITIES.map((a) => abilityBox(a, d, ro)).join('')}
+              ${sys.abilities.map((a) => abilityBox(a, d, ro)).join('')}
             </section>
             <section class="sheet-block">
               <h3>Compétences</h3>
-              ${Object.keys(SKILLS).map((k) => skillRow(k, d, ed)).join('')}
+              ${Object.keys(sys.skills).map((k) => skillRow(k, d, ed)).join('')}
             </section>
             ${profileSummarySection(d)}
           </section>
@@ -1269,10 +1271,12 @@ function saveRow(a, d, ed) {
 }
 
 function skillRow(k, d, ed) {
-  const sk = SKILLS[k];
+  const sys = getSystem(d.system);
+  const sk = sys.skills[k];
+  if (!sk) return '';
   const prof = (d.profs || []).includes(k);
   const exp = (d.exp || []).includes(k);
-  const ab = ABILITIES.find((a) => a.key === sk.ability)?.label || '';
+  const ab = sys.abilities.find((a) => a.key === sk.ability)?.label || '';
   return `
     <label class="prof-row">
       <input type="checkbox" data-skill="${k}" ${prof ? 'checked' : ''} ${ed ? '' : 'disabled'}/>
