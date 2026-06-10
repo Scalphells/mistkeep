@@ -306,6 +306,26 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
+// isEphemeralFrame reports whether a client-sent WebSocket frame is a genuine
+// ephemeral broadcast ({room, event/presence, payload}) and not a forged
+// data-change frame ({table, eventType, new}). Relaying the latter would let a
+// client inject fake row changes (spoofed chat, scene or initiative updates)
+// into every other client, which applies them as if they came from the server.
+func isEphemeralFrame(data []byte) bool {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(data, &m) != nil {
+		return false
+	}
+	if _, reserved := m["table"]; reserved {
+		return false
+	}
+	if _, reserved := m["eventType"]; reserved {
+		return false
+	}
+	_, ok := m["room"] // every legitimate ephemeral frame is scoped to a room
+	return ok
+}
+
 func (s *Server) userFrom(r *http.Request) *User {
 	c, err := r.Cookie("mk_session")
 	if err != nil {
@@ -454,13 +474,17 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 	defer s.hub.remove("main", ch)
 
 	// Reader: relay incoming client messages as ephemeral broadcasts (ping, cursor…).
+	// Only genuine ephemeral frames are relayed — a client must not be able to inject
+	// a server-shaped data-change event that other clients would apply as a real row.
 	go func() {
 		for {
 			_, data, err := c.Read(ctx)
 			if err != nil {
 				return
 			}
-			s.hub.broadcast("main", string(data))
+			if isEphemeralFrame(data) {
+				s.hub.broadcast("main", string(data))
+			}
 		}
 	}()
 
