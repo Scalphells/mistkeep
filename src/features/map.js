@@ -370,7 +370,7 @@ export function addToken(opts = {}) {
     img,
   };
   // Champs optionnels (jeton autonome : PV/CA/vision/note propres ; lien combat).
-  for (const k of ['hp', 'hpMax', 'hpTemp', 'ac', 'vision', 'darkvision', 'note', 'entityId', 'aura', 'rot', 'elev']) {
+  for (const k of ['hp', 'hpMax', 'hpTemp', 'ac', 'vision', 'darkvision', 'dvManual', 'note', 'entityId', 'aura', 'rot', 'elev']) {
     if (opts[k] !== undefined && opts[k] !== '' && opts[k] !== null) tk[k] = opts[k];
   }
   patchMap({ tokens: [...m.tokens, tk] });
@@ -388,6 +388,7 @@ export function addTokensFromParty() {
   const tokens = [...m.tokens];
   for (const c of chars) {
     if (existing.has(c.id)) continue;
+    const dv = metersToCells(m, c.data?.darkvision); // vision dans le noir de la fiche
     tokens.push({
       id: `t_${crypto.randomUUID().slice(0, 8)}`,
       x: grid * (1.5 + (i % 6)),
@@ -397,11 +398,53 @@ export function addTokensFromParty() {
       label: initials(c.name),
       charId: c.id,
       img: c.data?.portrait || null, // portrait de fiche = image de jeton
-      vision: 6, // ≈ 30 ft, réglable par jeton
+      vision: 6, // ≈ 30 ft de vision normale, réglable par jeton
+      ...(dv > 0 ? { darkvision: dv } : {}),
     });
     i++;
   }
   patchMap({ tokens });
+}
+
+/**
+ * Convertit une distance en MÈTRES (valeur des fiches, ex. `data.darkvision`)
+ * en nombre de CASES de la carte. `feetPerCell` porte la distance d'une case
+ * dans l'unité de la scène (`unit` = 'ft' | 'm'). 0 si distance nulle/invalide.
+ */
+export function metersToCells(m, meters) {
+  const v = Number(meters) || 0;
+  if (v <= 0) return 0;
+  const map = m || store.get().map || DEFAULT_MAP;
+  const per = Number(map.feetPerCell) || 5;
+  const metersPerCell = map.unit === 'm' ? per : per * 0.3048; // 1 pied = 0,3048 m
+  return Math.max(0, Math.round(v / metersPerCell));
+}
+
+/**
+ * Recopie la vision dans le noir des fiches sur les jetons liés (MJ). Ignore les
+ * jetons dont la vision a été réglée à la main (`dvManual`). Ne patche que si une
+ * valeur change réellement → sûr à appeler à chaque changement du store.
+ */
+export function syncTokenVisionFromSheets() {
+  if (!store.get().isDM) return;
+  const m = store.get().map;
+  if (!m || !m.tokens?.length) return;
+  const chars = store.get().characters;
+  let changed = false;
+  const tokens = m.tokens.map((t) => {
+    if (!t.charId || t.dvManual) return t;
+    const ch = chars.find((c) => c.id === t.charId);
+    if (!ch) return t;
+    const want = metersToCells(m, ch.data?.darkvision);
+    const cur = Number(t.darkvision) || 0;
+    if (want === cur) return t;
+    changed = true;
+    const nt = { ...t };
+    if (want > 0) nt.darkvision = want;
+    else delete nt.darkvision;
+    return nt;
+  });
+  if (changed) patchMap({ tokens });
 }
 
 function initials(name) {

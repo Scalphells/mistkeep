@@ -74,6 +74,8 @@ import {
   sendTemplate,
   reloadActiveScene,
   applyTokenMoveLocal,
+  metersToCells,
+  syncTokenVisionFromSheets,
 } from './map.js';
 import { colorFor } from '../lib/profile.js';
 
@@ -3033,7 +3035,12 @@ export async function mountMap(container) {
               ${[1, 2, 3, 4].map((s) => `<option value="${s}" ${s === f.size ? 'selected' : ''}>${s}×${s}${s === 1 ? ' (Moyen)' : ''}</option>`).join('')}
             </select></div>
           <div><label>Vision (cases, 0 = aucune)</label><input class="atk-in" id="te-vision" type="number" min="0" value="${escapeHtml(String(f.vision))}"></div>
-          <div><label>Vision dans le noir (cases, vide = comme vision)</label><input class="atk-in" id="te-dvision" type="number" min="0" value="${escapeHtml(String(f.darkvision))}"></div>
+          <div><label>Vision dans le noir (cases, vide = comme vision)</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input class="atk-in" id="te-dvision" type="number" min="0" value="${escapeHtml(String(f.darkvision))}" style="flex:1">
+              <button class="modal-btn" id="te-dv-sync" type="button" title="Reprendre la vision dans le noir de la fiche liée (auto par défaut)" style="white-space:nowrap">↺ Fiche</button>
+            </div>
+          </div>
         </div>
         <div class="atk-row atk-grid2">
           <div><label>Aura / portée (cases)</label><input class="atk-in" id="te-aura" type="number" min="0" value="${escapeHtml(String(f.auraR))}"></div>
@@ -3113,6 +3120,30 @@ export async function mountMap(container) {
     });
 
     // Lien turn order / fiche : pilote l'activation des champs PV.
+    // Vision dans le noir : auto depuis la fiche, sauf si réglée à la main.
+    // `dvManual` gèle l'auto-synchro ; le bouton « ↺ Fiche » la réactive.
+    let dvManual = !!existing?.dvManual;
+    const dvInput = overlay.querySelector('#te-dvision');
+    dvInput.addEventListener('input', () => {
+      dvManual = true;
+    });
+    overlay.querySelector('#te-dv-sync').addEventListener('click', () => {
+      const lv = overlay.querySelector('#te-link').value;
+      const cid = lv.startsWith('c:')
+        ? lv.slice(2)
+        : lv.startsWith('e:')
+          ? store.get().initiative.find((c) => c.entity_id === lv.slice(2))?.char_id
+          : null;
+      const ch = cid ? store.get().characters.find((c) => c.id === cid) : null;
+      if (!ch) {
+        modalAlert('Lie d’abord ce jeton à une fiche pour reprendre sa vision dans le noir.', { title: 'Vision dans le noir' });
+        return;
+      }
+      const cells = metersToCells(store.get().map, ch.data?.darkvision);
+      dvInput.value = cells > 0 ? String(cells) : '';
+      dvManual = false; // ré-active l'auto-synchro depuis la fiche
+    });
+
     const linkSel = overlay.querySelector('#te-link');
     const linkMsg = overlay.querySelector('#te-linkmsg');
     const updateLinkUI = () => {
@@ -3141,6 +3172,7 @@ export async function mountMap(container) {
         size: Number(overlay.querySelector('#te-size').value) || 1,
         vision: num('#te-vision'),
         darkvision: num('#te-dvision'),
+        dvManual, // true = vision dans le noir figée à la main (pas d'auto-synchro)
         color: overlay.querySelector('#te-color').value,
         disp: overlay.querySelector('#te-disp').value,
         note: overlay.querySelector('#te-note').value.trim(),
@@ -3654,7 +3686,11 @@ export async function mountMap(container) {
     if (suppressRender || _storeRaf) return;
     _storeRaf = requestAnimationFrame(() => {
       _storeRaf = 0;
-      if (!suppressRender) renderAll();
+      if (suppressRender) return;
+      // Propage la vision dans le noir des fiches vers les jetons liés (MJ).
+      // No-op si rien ne change ; ignore les jetons réglés à la main.
+      if (isDM) syncTokenVisionFromSheets();
+      renderAll();
     });
   }, { except: MAP_IGNORE });
 
