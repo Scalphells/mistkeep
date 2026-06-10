@@ -84,7 +84,7 @@ type Policy struct {
 	JSONCols []string
 	PK       string
 	OwnerCol string // "" if none
-	Write    string // "dm" | "owner" | "auth"
+	Write    string // "dm" | "owner" | "auth" | "char_owner"
 	SelfCol  string // for "auth" tables: column that must equal the user id to
 	// update/delete a row (e.g. messages.sender_id). "" means fully open.
 }
@@ -119,6 +119,8 @@ var tables = map[string]Policy{
 	"handouts":      {Columns: []string{"id", "title", "description", "content_type", "text_content", "image_url", "target_player", "pushed_by", "pushed_at"}, PK: "id", Write: "dm"},
 	"session_notes": {Columns: []string{"id", "content", "created_by", "shared", "created_at"}, PK: "id", Write: "dm"},
 	"vault_notes":   {Columns: []string{"path", "content", "is_folder", "updated_at", "updated_by"}, PK: "path", Write: "dm"},
+	// Private story: owned indirectly via char_id -> characters.owner_id (see readScope / char_owner).
+	"character_private": {Columns: []string{"char_id", "notes", "updated_at", "updated_by"}, PK: "char_id", Write: "char_owner"},
 }
 
 var reserved = map[string]bool{"order": true, "limit": true, "single": true, "on_conflict": true, "select": true}
@@ -275,6 +277,9 @@ func readScope(u *User, table string) (string, []any) {
 		return " key NOT IN ('campaign','imagebank')", nil
 	case "vault_notes":
 		return " 1=0", nil // GM campaign vault: invisible to players (empty list)
+	case "character_private":
+		// Private story: only rows for characters the player owns.
+		return " char_id IN (SELECT id FROM characters WHERE owner_id = ?)", []any{u.ID}
 	}
 	return "", nil // profiles, characters, initiative, scenes: shared with the table
 }
@@ -446,9 +451,21 @@ func (s *Server) emitChange(table, eventType string, row map[string]any) {
 	case "profiles":
 		playerMsg = changeMsg(table, eventType, redactProfileRow(row))
 	}
+	// Private story: notes must reach only the owning player (+ DM). Resolve the
+	// character's owner once (indirect ownership via char_id).
+	privOwner := ""
+	if table == "character_private" {
+		privOwner = s.charOwner(asStr(row["char_id"]))
+	}
 	s.hub.broadcastFiltered("main", func(sub *subscriber) (string, bool) {
 		if sub.role == "dm" {
 			return dmMsg, true
+		}
+		if table == "character_private" {
+			if privOwner != "" && sub.uid == privOwner {
+				return dmMsg, true
+			}
+			return "", false
 		}
 		if !rowVisible(table, row, sub.uid) {
 			return "", false
@@ -572,6 +589,12 @@ func (s *Server) apiInsert(w http.ResponseWriter, r *http.Request) {
 	// Owner rule: a non-DM may only write rows they own.
 	if p.Write == "owner" && u.Role != "dm" && p.OwnerCol != "" {
 		body[p.OwnerCol] = u.ID
+	}
+	// Private story: a non-DM may only write the private notes of a character they
+	// own (ownership is indirect, via char_id -> characters.owner_id). Covers upsert.
+	if p.Write == "char_owner" && u.Role != "dm" && !s.userOwnsChar(asStr(body["char_id"]), u.ID) {
+		httpErr(w, 403, "forbidden")
+		return
 	}
 	// profiles: identity and role are authoritative from the session, never the
 	// client. Mirrors the Supabase RLS/trigger — the first account is the DM, and
@@ -776,8 +799,48 @@ func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs [
 			return false
 		}
 		return s.allRowsOwnedBy(table, p.OwnerCol, where, wargs, u.ID)
+	case "char_owner":
+		if u.Role == "dm" {
+			return true
+		}
+		// Each targeted private row must belong to a character the user owns.
+		rows, err := s.store.db.Query("SELECT char_id FROM "+table+where, wargs...)
+		if err != nil {
+			return false
+		}
+		defer rows.Close()
+		matched := false
+		for rows.Next() {
+			matched = true
+			var cid sql.NullString
+			if rows.Scan(&cid) != nil || !s.userOwnsChar(cid.String, u.ID) {
+				return false
+			}
+		}
+		return matched
 	}
 	return false
+}
+
+// charOwner returns the owner_id of a character, or "" if unknown/unowned.
+func (s *Server) charOwner(charID string) string {
+	if charID == "" {
+		return ""
+	}
+	var owner sql.NullString
+	if s.store.db.QueryRow("SELECT owner_id FROM characters WHERE id = ?", charID).Scan(&owner) != nil {
+		return ""
+	}
+	if owner.Valid {
+		return owner.String
+	}
+	return ""
+}
+
+// userOwnsChar reports whether uid owns the character charID (for the
+// indirectly-owned character_private table).
+func (s *Server) userOwnsChar(charID, uid string) bool {
+	return uid != "" && s.charOwner(charID) == uid
 }
 
 // allRowsOwnedBy returns true iff at least one row matches the filter and EVERY

@@ -355,6 +355,39 @@ func TestSafeStoragePath(t *testing.T) {
 	}
 }
 
+func TestCharacterPrivate_OwnerOnly(t *testing.T) {
+	h := newHarness(t)
+	h.exec(`INSERT INTO characters(id,owner_id,name,data) VALUES ('c1',?, 'P1 char','{}'),('c2',?, 'P2 char','{}')`, h.p1ID, h.p2ID)
+
+	// The owner writes the private story of their own character.
+	w := h.call(http.MethodPost, "character_private", "on_conflict=char_id", h.p1Tok, map[string]any{"char_id": "c1", "notes": "secret"})
+	if w.Code != http.StatusCreated && w.Code != http.StatusOK {
+		t.Fatalf("owner should write private story, got %d (%s)", w.Code, w.Body.String())
+	}
+	// A non-owner cannot write another character's private story.
+	if w := h.call(http.MethodPost, "character_private", "on_conflict=char_id", h.p2Tok, map[string]any{"char_id": "c1", "notes": "hack"}); w.Code != http.StatusForbidden {
+		t.Fatalf("non-owner write must be 403, got %d (%s)", w.Code, w.Body.String())
+	}
+
+	seesC1 := func(tok string) bool {
+		for _, row := range decodeList(t, h.call(http.MethodGet, "character_private", "", tok, nil)) {
+			if row["char_id"] == "c1" {
+				return true
+			}
+		}
+		return false
+	}
+	if seesC1(h.p2Tok) {
+		t.Fatal("a non-owner must not read another character's private story")
+	}
+	if !seesC1(h.p1Tok) {
+		t.Fatal("the owner must read their own private story")
+	}
+	if !seesC1(h.dmTok) {
+		t.Fatal("the DM must read every private story")
+	}
+}
+
 func TestMigrations(t *testing.T) {
 	store, err := OpenStore(filepath.Join(t.TempDir(), "m.db"))
 	if err != nil {

@@ -35,6 +35,7 @@ const initialState = {
   characters: [],
   activeChar: null,
   players: [],
+  charPrivate: {}, // histoire privée par fiche { char_id: notes } — visible joueur+MJ (table `character_private`)
 
   // Carte de combat (scènes : table `scenes`, pointeur session_state `active_scene`)
   map: null,  // état de la scène active (Multijoueur)

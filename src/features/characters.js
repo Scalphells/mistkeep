@@ -243,7 +243,8 @@ export async function createCharacter(name) {
     hp: 10, hpMax: 10, hpTmp: 0, ac: 10, spd: 9, initB: 0, prof: 2, insp: false,
     str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
     saves: [], profs: [], exp: [], atks: [], sc: null, slots: {}, spells: [],
-    feats: '', equip: '', notes: '', ds: { s: 0, f: 0 }, xp: 0,
+    feats: '', equip: '', notes: '', story: '', ds: { s: 0, f: 0 }, xp: 0,
+    darkvision: 0, size: 'M', hdSize: 8,
   };
   const { error } = await backend.db.from('characters').insert({ id, name, data });
   if (error) {
@@ -351,4 +352,85 @@ export function subscribeCharacters() {
     .subscribe();
 
   return () => {}; // canal conservé pour la session (dock + onglet partagés)
+}
+
+/* ── Histoire privée (table character_private, RLS propriétaire+MJ) ─────────── */
+
+const pendingPrivSaves = new Map(); // char_id -> debounced fn
+
+/**
+ * Charge les histoires privées visibles par l'utilisateur courant.
+ * La RLS ne renvoie que les lignes autorisées (sa propre fiche, ou toutes
+ * pour le MJ), donc un simple SELECT suffit.
+ */
+export async function loadCharPrivate() {
+  const { data, error } = await backend.db
+    .from('character_private')
+    .select('char_id, notes');
+  if (error) {
+    console.warn('[characters] histoire privée chargement impossible:', error.message);
+    return;
+  }
+  const map = {};
+  for (const r of data || []) map[r.char_id] = r.notes || '';
+  store.set({ charPrivate: map });
+}
+
+/**
+ * Met à jour l'histoire privée d'une fiche (optimiste + upsert debouncé).
+ * Seuls le propriétaire de la fiche et le MJ peuvent écrire (canEdit + RLS).
+ */
+export function updateCharPrivate(id, notes) {
+  store.set({ charPrivate: { ...store.get().charPrivate, [id]: notes } });
+
+  const target = store.get().characters.find((c) => c.id === id);
+  if (!target || !canEdit(target)) return;
+
+  if (!pendingPrivSaves.has(id)) {
+    pendingPrivSaves.set(
+      id,
+      debounce(async (charId) => {
+        const cur = store.get().charPrivate[charId] ?? '';
+        const { error } = await backend.db
+          .from('character_private')
+          .upsert(
+            {
+              char_id: charId,
+              notes: cur,
+              updated_at: new Date().toISOString(),
+              updated_by: store.get().user?.id ?? null,
+            },
+            { onConflict: 'char_id' }
+          );
+        if (error) {
+          console.error('[characters] histoire privée save échouée:', error.message);
+          showToast('Échec de l’enregistrement de l’histoire — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+        }
+      }, 900)
+    );
+  }
+  pendingPrivSaves.get(id)(id);
+}
+
+let _privSubbed = false;
+export function subscribeCharPrivate() {
+  if (_privSubbed) return () => {}; // abonnement unique pour la session
+  _privSubbed = true;
+  backend.realtime
+    .channel('character_private_feed')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'character_private' },
+      (payload) => {
+        const cur = { ...store.get().charPrivate };
+        if (payload.eventType === 'DELETE') {
+          delete cur[payload.old.char_id];
+        } else {
+          cur[payload.new.char_id] = payload.new.notes || '';
+        }
+        store.set({ charPrivate: cur });
+      }
+    )
+    .subscribe();
+  return () => {};
 }

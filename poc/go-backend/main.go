@@ -118,6 +118,14 @@ func OpenStore(path string) (*Store, error) {
 //	`ALTER TABLE characters ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;`
 var migrations = []string{
 	schema + "\n" + appSchema, // v1 — baseline
+	// v2 — private character story (visible to the character's owner + the DM).
+	// The RLS-equivalent authz lives in api.go (tables map / readScope / mayWrite).
+	`CREATE TABLE IF NOT EXISTS character_private (
+	  char_id    TEXT PRIMARY KEY REFERENCES characters(id) ON DELETE CASCADE,
+	  notes      TEXT NOT NULL DEFAULT '',
+	  updated_at TEXT DEFAULT ` + ts + `,
+	  updated_by TEXT
+	);`,
 }
 
 // migrate applies every pending migration in its own transaction, then stamps
