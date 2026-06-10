@@ -411,6 +411,17 @@ func redactSceneRow(row map[string]any) map[string]any {
 	return out
 }
 
+// redactProfileRow drops the email — players see each other's name/color/role,
+// not their email address. Callers keep the row's own email for its owner.
+func redactProfileRow(row map[string]any) map[string]any {
+	out := make(map[string]any, len(row))
+	for k, v := range row {
+		out[k] = v
+	}
+	delete(out, "email")
+	return out
+}
+
 func changeMsg(table, eventType string, row map[string]any) string {
 	b, _ := json.Marshal(map[string]any{"table": table, "eventType": eventType, "new": row})
 	return string(b)
@@ -425,11 +436,15 @@ func (s *Server) emitChange(table, eventType string, row map[string]any) {
 		return
 	}
 	dmMsg := changeMsg(table, eventType, row)
-	// scenes.state carries GM secrets (hidden tokens, GM notes, unrevealed
-	// pins/labels); non-DM subscribers get a redacted variant, like the REST read.
+	// Non-DM subscribers get a redacted variant where a table exposes secrets:
+	// scenes.state (hidden tokens, GM notes, unrevealed pins/labels) and profiles
+	// (other users' email). Mirrors the REST read filters.
 	playerMsg := dmMsg
-	if table == "scenes" {
+	switch table {
+	case "scenes":
 		playerMsg = changeMsg(table, eventType, redactSceneRow(row))
+	case "profiles":
+		playerMsg = changeMsg(table, eventType, redactProfileRow(row))
 	}
 	s.hub.broadcastFiltered("main", func(sub *subscriber) (string, bool) {
 		if sub.role == "dm" {
@@ -437,6 +452,10 @@ func (s *Server) emitChange(table, eventType string, row map[string]any) {
 		}
 		if !rowVisible(table, row, sub.uid) {
 			return "", false
+		}
+		// A profile's owner still receives their own email.
+		if table == "profiles" && asStr(row["id"]) == sub.uid {
+			return dmMsg, true
 		}
 		return playerMsg, true
 	})
@@ -504,6 +523,14 @@ func (s *Server) apiList(w http.ResponseWriter, r *http.Request) {
 	if table == "scenes" && u.Role != "dm" {
 		for _, row := range list {
 			row["state"] = filterSceneState(row["state"])
+		}
+	}
+	// Players see each other's name/color/role but not their email.
+	if table == "profiles" && u.Role != "dm" {
+		for _, row := range list {
+			if asStr(row["id"]) != u.ID {
+				delete(row, "email")
+			}
 		}
 	}
 	if single := q.Get("single"); single == "1" || single == "2" {
