@@ -8,6 +8,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -408,16 +409,47 @@ func TestMigrations(t *testing.T) {
 		t.Fatalf("fresh DB user_version=%d, want %d", got, len(migrations))
 	}
 
-	// Simulate a pre-migration database (version 0, tables already present):
-	// the idempotent baseline must re-converge without error.
-	if _, err := store.db.Exec(`PRAGMA user_version = 0`); err != nil {
-		t.Fatalf("reset version: %v", err)
+	// v3: the fixed default campaign exists and absorbs writes that omit
+	// campaign_id (column DEFAULT), so the current single-campaign front
+	// keeps working unchanged.
+	var sys string
+	if err := store.db.QueryRow(`SELECT system FROM campaigns WHERE id = ?`, defaultCampaignID).Scan(&sys); err != nil {
+		t.Fatalf("default campaign missing: %v", err)
 	}
-	if err := store.migrate(); err != nil {
-		t.Fatalf("re-migrate: %v", err)
+	if sys != "dnd5e-2014" {
+		t.Fatalf("default campaign system=%q, want dnd5e-2014", sys)
 	}
-	if got := version(); got != len(migrations) {
-		t.Fatalf("after re-migrate user_version=%d, want %d", got, len(migrations))
+	if _, err := store.db.Exec(`INSERT INTO session_state(key, value) VALUES('mig_probe','{}')`); err != nil {
+		t.Fatalf("untagged insert: %v", err)
+	}
+	var cid string
+	if err := store.db.QueryRow(`SELECT campaign_id FROM session_state WHERE key='mig_probe'`).Scan(&cid); err != nil || cid != defaultCampaignID {
+		t.Fatalf("untagged row campaign_id=%q err=%v, want default campaign", cid, err)
+	}
+
+	// Simulate a real pre-versioning database: baseline tables present but
+	// user_version 0 (deployments older than the migration system). Replaying
+	// from zero must converge — v1/v2 are idempotent, v3 adds columns that a
+	// legacy database does not have yet.
+	legacyPath := filepath.Join(t.TempDir(), "legacy.db")
+	legacy, err := sql.Open("sqlite", "file:"+legacyPath+"?_pragma=foreign_keys(1)")
+	if err != nil {
+		t.Fatalf("open legacy: %v", err)
+	}
+	if _, err := legacy.Exec(schema + "\n" + appSchema); err != nil {
+		t.Fatalf("seed legacy schema: %v", err)
+	}
+	if err := legacy.Close(); err != nil {
+		t.Fatalf("close legacy: %v", err)
+	}
+	migrated, err := OpenStore(legacyPath)
+	if err != nil {
+		t.Fatalf("migrate legacy DB: %v", err)
+	}
+	t.Cleanup(func() { migrated.db.Close() })
+	var v0 int
+	if err := migrated.db.QueryRow(`PRAGMA user_version`).Scan(&v0); err != nil || v0 != len(migrations) {
+		t.Fatalf("legacy DB user_version=%d err=%v, want %d", v0, err, len(migrations))
 	}
 }
 

@@ -116,6 +116,11 @@ func OpenStore(path string) (*Store, error) {
 // present) both converge here without harm. Example future entry:
 //
 //	`ALTER TABLE characters ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;`
+// defaultCampaignID is the fixed id of the campaign every pre-multi-campaign
+// row belongs to. Fixed (not random) so campaign_id column DEFAULTs can be
+// constant and the migration stays deterministic across databases.
+const defaultCampaignID = "00000000-0000-4000-8000-000000000001"
+
 var migrations = []string{
 	schema + "\n" + appSchema, // v1 — baseline
 	// v2 — private character story (visible to the character's owner + the DM).
@@ -126,6 +131,61 @@ var migrations = []string{
 	  updated_at TEXT DEFAULT ` + ts + `,
 	  updated_by TEXT
 	);`,
+	// v3 — multi-campaign, part A (additive, non-breaking): one campaign = one
+	// game group + one game system (src/lib/systems/). Existing rows and writes
+	// that omit campaign_id land in the fixed default campaign via the column
+	// DEFAULT. Part B (composite keys for semantic PKs, campaign-scoped authz,
+	// dropping the DEFAULTs) ships together with the multi-campaign UI.
+	// The new tables are NOT exposed through the API yet (no entry in the
+	// `tables` policy map) — exposure comes with the UI step.
+	// campaign_id columns carry no REFERENCES clause: with foreign_keys ON,
+	// SQLite only allows adding an FK column whose default is NULL; integrity
+	// is enforced at the API layer like the rest of the authz.
+	`CREATE TABLE IF NOT EXISTS campaigns (
+	  id         TEXT PRIMARY KEY,
+	  name       TEXT NOT NULL DEFAULT 'Campagne',
+	  system     TEXT NOT NULL DEFAULT 'dnd5e-2014',
+	  owner_id   TEXT,
+	  created_at TEXT DEFAULT ` + ts + `,
+	  updated_at TEXT DEFAULT ` + ts + `
+	);
+	CREATE TABLE IF NOT EXISTS campaign_members (
+	  campaign_id  TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+	  user_id      TEXT NOT NULL,
+	  role         TEXT NOT NULL DEFAULT 'player',
+	  character_id TEXT,
+	  created_at   TEXT DEFAULT ` + ts + `,
+	  PRIMARY KEY (campaign_id, user_id)
+	);
+	INSERT INTO campaigns (id, name, system)
+	  VALUES ('` + defaultCampaignID + `', 'Campagne 1', 'dnd5e-2014')
+	  ON CONFLICT(id) DO NOTHING;
+	INSERT INTO campaign_members (campaign_id, user_id, role, character_id)
+	  SELECT '` + defaultCampaignID + `', id, role, character_id FROM profiles
+	  WHERE true
+	  ON CONFLICT(campaign_id, user_id) DO NOTHING;
+	ALTER TABLE profiles ADD COLUMN active_campaign_id TEXT REFERENCES campaigns(id) ON DELETE SET NULL;
+	UPDATE profiles SET active_campaign_id = '` + defaultCampaignID + `' WHERE active_campaign_id IS NULL;
+	ALTER TABLE session_state ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE initiative    ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE session_notes ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE handouts      ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE dice_rolls    ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE messages      ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE vault_notes   ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE characters    ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE compendium    ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	ALTER TABLE scenes        ADD COLUMN campaign_id TEXT NOT NULL DEFAULT '` + defaultCampaignID + `';
+	CREATE INDEX IF NOT EXISTS idx_session_state_campaign ON session_state(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_initiative_campaign    ON initiative(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_session_notes_campaign ON session_notes(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_handouts_campaign      ON handouts(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_dice_rolls_campaign    ON dice_rolls(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_messages_campaign      ON messages(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_vault_notes_campaign   ON vault_notes(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_characters_campaign    ON characters(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_compendium_campaign    ON compendium(campaign_id);
+	CREATE INDEX IF NOT EXISTS idx_scenes_campaign        ON scenes(campaign_id);`,
 }
 
 // migrate applies every pending migration in its own transaction, then stamps
