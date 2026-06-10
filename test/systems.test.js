@@ -1,0 +1,50 @@
+import { describe, it, expect } from 'vitest';
+import { getSystem, listSystems, DEFAULT_SYSTEM } from '../src/lib/systems/index.js';
+import { dnd5e2014 } from '../src/lib/systems/dnd5e2014.js';
+
+describe('registre de systèmes', () => {
+  it('expose D&D 5e 2014 comme système par défaut', () => {
+    expect(DEFAULT_SYSTEM).toBe('dnd5e-2014');
+    expect(getSystem('dnd5e-2014')).toBe(dnd5e2014);
+  });
+
+  it('retombe sur le système par défaut si inconnu ou vide', () => {
+    expect(getSystem(undefined)).toBe(dnd5e2014);
+    expect(getSystem('pf2e')).toBe(dnd5e2014); // pas encore implémenté
+  });
+
+  it('listSystems renvoie { id, label }', () => {
+    expect(listSystems()).toContainEqual({ id: 'dnd5e-2014', label: 'D&D 5e (2014)' });
+  });
+});
+
+describe('descripteur dnd5e-2014', () => {
+  it('caractéristiques et compétences', () => {
+    expect(dnd5e2014.abilities.map((a) => a.key)).toEqual(['str', 'dex', 'con', 'int', 'wis', 'cha']);
+    expect(Object.keys(dnd5e2014.skills)).toHaveLength(18);
+    expect(dnd5e2014.skills.stealth).toEqual({ label: 'Discrétion', ability: 'dex' });
+  });
+
+  it('calculs dérivés (mod, sauvegarde, compétence)', () => {
+    expect(dnd5e2014.abilityMod(14)).toBe(2);
+    expect(dnd5e2014.fmtMod(2)).toBe('+2');
+    expect(dnd5e2014.fmtMod(-1)).toBe('-1');
+    // Sauvegarde : mod (+ maîtrise si la carac est maîtrisée).
+    expect(dnd5e2014.saveBonus({ con: 14, prof: 2, saves: ['con'] }, 'con')).toBe(4);
+    expect(dnd5e2014.saveBonus({ con: 14, prof: 2, saves: [] }, 'con')).toBe(2);
+    // Compétence : mod + maîtrise, doublée si expertise.
+    expect(dnd5e2014.skillBonus({ dex: 14, prof: 2, profs: ['stealth'] }, 'stealth')).toBe(4);
+    expect(dnd5e2014.skillBonus({ dex: 14, prof: 2, exp: ['stealth'], profs: [] }, 'stealth')).toBe(6);
+  });
+
+  it('createDefaults : fiche 5e neuve cohérente', () => {
+    const d = dnd5e2014.createDefaults();
+    expect(d.lvl).toBe(1);
+    expect(d.hdSize).toBe(8);
+    expect(d.size).toBe('M');
+    expect(d.str).toBe(10);
+    expect(Array.isArray(d.saves)).toBe(true);
+    // Instances indépendantes (pas de partage de référence entre fiches).
+    expect(dnd5e2014.createDefaults()).not.toBe(d);
+  });
+});

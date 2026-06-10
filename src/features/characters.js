@@ -2,6 +2,7 @@ import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
+import { createDefaults } from '../lib/systems/dnd5e2014.js';
 import { showToast } from '../lib/toast.js';
 
 // Réexport pour conserver l'API publique historique (de nombreux modules
@@ -18,63 +19,12 @@ export { abilityMod, resolveNotation, classResources };
 
 const pendingSaves = new Map(); // id -> debounced fn
 
-/* ── Constantes 5e ────────────────────────────────────────── */
-
-export const ABILITIES = [
-  { key: 'str', label: 'FOR' },
-  { key: 'dex', label: 'DEX' },
-  { key: 'con', label: 'CON' },
-  { key: 'int', label: 'INT' },
-  { key: 'wis', label: 'SAG' },
-  { key: 'cha', label: 'CHA' },
-];
-
-// Compétence -> { label, caractéristique }
-export const SKILLS = {
-  acrobatics:   { label: 'Acrobaties', ability: 'dex' },
-  animal:       { label: 'Dressage', ability: 'wis' },
-  arcana:       { label: 'Arcanes', ability: 'int' },
-  athletics:    { label: 'Athlétisme', ability: 'str' },
-  deception:    { label: 'Tromperie', ability: 'cha' },
-  history:      { label: 'Histoire', ability: 'int' },
-  insight:      { label: 'Perspicacité', ability: 'wis' },
-  intimidation: { label: 'Intimidation', ability: 'cha' },
-  investigation:{ label: 'Investigation', ability: 'int' },
-  medicine:     { label: 'Médecine', ability: 'wis' },
-  nature:       { label: 'Nature', ability: 'int' },
-  perception:   { label: 'Perception', ability: 'wis' },
-  performance:  { label: 'Représentation', ability: 'cha' },
-  persuasion:   { label: 'Persuasion', ability: 'cha' },
-  religion:     { label: 'Religion', ability: 'int' },
-  sleight:      { label: 'Escamotage', ability: 'dex' },
-  stealth:      { label: 'Discrétion', ability: 'dex' },
-  survival:     { label: 'Survie', ability: 'wis' },
-};
-
-/* ── Calculs ──────────────────────────────────────────────── */
-
-/** Formate un modificateur signé (+3 / -1 / +0). */
-export function fmtMod(n) {
-  return n >= 0 ? `+${n}` : `${n}`;
-}
-
-/** Bonus d'un jet de sauvegarde (mod + maîtrise si applicable). */
-export function saveBonus(data, abilityKey) {
-  const mod = abilityMod(data[abilityKey]);
-  const prof = (data.saves || []).includes(abilityKey) ? Number(data.prof || 0) : 0;
-  return mod + prof;
-}
-
-/** Bonus d'une compétence (mod + maîtrise, + expertise si listée). */
-export function skillBonus(data, skillKey) {
-  const sk = SKILLS[skillKey];
-  if (!sk) return 0;
-  const mod = abilityMod(data[sk.ability]);
-  const p = Number(data.prof || 0);
-  if ((data.exp || []).includes(skillKey)) return mod + p * 2;
-  if ((data.profs || []).includes(skillKey)) return mod + p;
-  return mod;
-}
+/* ── Système de jeu (descripteur 5e-2014 par défaut) ──────────
+ * Caractéristiques, compétences et calculs dérivés vivent désormais dans
+ * src/lib/systems/ (pour ouvrir l'app à pf2e / D&D 5e 2024 / custom). Ré-exportés
+ * ici pour préserver l'API historique (de nombreux modules les importent d'ici).
+ */
+export { ABILITIES, SKILLS, fmtMod, saveBonus, skillBonus } from '../lib/systems/dnd5e2014.js';
 
 /* ── Chargement ───────────────────────────────────────────── */
 
@@ -238,14 +188,7 @@ function syncHpToInitiative(charId, patch) {
 export async function createCharacter(name) {
   if (!store.get().isDM) return null;
   const id = `c_${crypto.randomUUID().slice(0, 8)}`;
-  const data = {
-    cls: '', sub: '', lvl: 1, race: '', bg: '', align: '',
-    hp: 10, hpMax: 10, hpTmp: 0, ac: 10, spd: 9, initB: 0, prof: 2, insp: false,
-    str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
-    saves: [], profs: [], exp: [], atks: [], sc: null, slots: {}, spells: [],
-    feats: '', equip: '', notes: '', story: '', ds: { s: 0, f: 0 }, xp: 0,
-    darkvision: 0, size: 'M', hdSize: 8,
-  };
+  const data = createDefaults(); // blob initial fourni par le système (5e-2014)
   const { error } = await backend.db.from('characters').insert({ id, name, data });
   if (error) {
     console.error('[characters] création échouée:', error.message);
