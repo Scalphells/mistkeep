@@ -261,7 +261,10 @@ function isSelfSceneEcho(id) {
   return !!id && id === _selfSceneEcho.id && Date.now() - _selfSceneEcho.t < 4000;
 }
 
+let _savePending = false;
+
 const saveDebounced = debounce(async () => {
+  _savePending = false;
   const m = store.get().map;
   const id = store.get().activeSceneId;
   if (!m || !id) return;
@@ -281,8 +284,11 @@ const saveDebounced = debounce(async () => {
 
 /** Force la persistance immédiate d'une sauvegarde de scène encore en debounce.
  *  À appeler avant de démonter la vue carte (changement d'onglet) pour ne pas
- *  perdre un changement récent — sinon le remontage rechargerait l'ancien état. */
+ *  perdre un changement récent — sinon le remontage rechargerait l'ancien état.
+ *  No-op si rien n'est en attente (pas d'écriture gratuite, pas de PATCH rejeté
+ *  côté joueur sur le backend Go). */
 export function flushSceneSave() {
+  if (!_savePending) return;
   saveDebounced.flush?.();
 }
 
@@ -292,6 +298,7 @@ export function patchMap(patch) {
   const cur = store.get().map || { ...DEFAULT_MAP };
   const next = { ...cur, ...patch };
   store.set({ map: next });
+  _savePending = true;
   saveDebounced();
 }
 
