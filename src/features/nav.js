@@ -1,16 +1,4 @@
 import { store } from '../state.js';
-import { mountImageBank } from './imagebank-ui.js';
-import { mountDice } from './dice-ui.js';
-import { mountCharacters } from './characters-ui.js';
-import { mountInitiative } from './initiative-ui.js';
-import { mountChat } from './chat-ui.js';
-import { mountMap } from './map-ui.js';
-import { mountHandouts } from './handouts-ui.js';
-import { mountSessionNotes } from './session-notes-ui.js';
-import { mountCompendium } from './compendium-ui.js';
-import { mountAmbience } from './ambience-ui.js';
-import { mountHelp } from './help-ui.js';
-import { mountCampaign } from './campaign-ui.js';
 import { openWindow } from '../lib/floatwindow.js';
 
 /**
@@ -19,27 +7,31 @@ import { openWindow } from '../lib/floatwindow.js';
  * Chaque feature expose une fonction `mount(container)` qui prend en charge
  * son propre rendu et ses propres souscriptions au store / realtime.
  * On démonte la vue précédente (cleanup) avant d'en monter une nouvelle.
+ *
+ * Chargement à la demande (code-split) : `load()` importe le module de la vue
+ * seulement quand on l'ouvre, pour ne pas embarquer les 12 vues au démarrage.
  */
 
 const VIEWS = [
-  { id: 'vault', label: '🖼 Banque', dmOnly: true, mount: mountImageBank },
-  { id: 'campaign', label: '📖 Campagne', dmOnly: true, mount: mountCampaign },
-  { id: 'characters', label: '🛡 Fiches', dmOnly: false, mount: mountCharacters },
-  { id: 'initiative', label: '⚔ Combat', dmOnly: false, mount: mountInitiative },
-  { id: 'map', label: '🗺 Carte', dmOnly: false, mount: mountMap },
-  { id: 'handouts', label: '🖼 Handouts', dmOnly: false, mount: mountHandouts },
-  { id: 'notes', label: '📝 Notes', dmOnly: false, mount: mountSessionNotes },
-  { id: 'compendium', label: '📚 Compendium', dmOnly: false, mount: mountCompendium },
-  { id: 'ambience', label: '🎵 Ambiance', dmOnly: true, mount: mountAmbience },
-  { id: 'help', label: '📖 Aide', dmOnly: false, mount: mountHelp },
-  { id: 'dice', label: '🎲 Dés', dmOnly: false, mount: mountDice },
-  { id: 'chat', label: '💬 Chat', dmOnly: false, mount: mountChat },
+  { id: 'vault', label: '🖼 Banque', dmOnly: true, load: () => import('./imagebank-ui.js').then((m) => m.mountImageBank) },
+  { id: 'campaign', label: '📖 Campagne', dmOnly: true, load: () => import('./campaign-ui.js').then((m) => m.mountCampaign) },
+  { id: 'characters', label: '🛡 Fiches', dmOnly: false, load: () => import('./characters-ui.js').then((m) => m.mountCharacters) },
+  { id: 'initiative', label: '⚔ Combat', dmOnly: false, load: () => import('./initiative-ui.js').then((m) => m.mountInitiative) },
+  { id: 'map', label: '🗺 Carte', dmOnly: false, load: () => import('./map-ui.js').then((m) => m.mountMap) },
+  { id: 'handouts', label: '🖼 Handouts', dmOnly: false, load: () => import('./handouts-ui.js').then((m) => m.mountHandouts) },
+  { id: 'notes', label: '📝 Notes', dmOnly: false, load: () => import('./session-notes-ui.js').then((m) => m.mountSessionNotes) },
+  { id: 'compendium', label: '📚 Compendium', dmOnly: false, load: () => import('./compendium-ui.js').then((m) => m.mountCompendium) },
+  { id: 'ambience', label: '🎵 Ambiance', dmOnly: true, load: () => import('./ambience-ui.js').then((m) => m.mountAmbience) },
+  { id: 'help', label: '📖 Aide', dmOnly: false, load: () => import('./help-ui.js').then((m) => m.mountHelp) },
+  { id: 'dice', label: '🎲 Dés', dmOnly: false, load: () => import('./dice-ui.js').then((m) => m.mountDice) },
+  { id: 'chat', label: '💬 Chat', dmOnly: false, load: () => import('./chat-ui.js').then((m) => m.mountChat) },
 ];
 
 let activeView = null;
 let cleanup = null;
 let _navEl = null;
 let _viewEl = null;
+let loadSeq = 0; // garde anti-course : ignore un montage tardif si on a déjà rebasculé
 
 /** Navigation programmatique (toasts, raccourcis…). */
 export function navigateTo(id) {
@@ -106,7 +98,7 @@ function switchView(id, navEl, viewEl) {
     store.set({ sideTab: id });
     if (id === 'handouts' && store.get().unreadHandouts) store.set({ unreadHandouts: 0 });
     if (id === 'chat' && store.get().unreadMessages) store.set({ unreadMessages: 0 });
-    openWindow(id, { title: view.label, mount: view.mount });
+    openWindow(id, { title: view.label, mount: (body) => view.load().then((m) => m(body)) });
     return;
   }
   if (id === activeView) return;
@@ -139,12 +131,17 @@ function switchView(id, navEl, viewEl) {
   void viewEl.offsetWidth; // relance l'animation
   viewEl.classList.add('view-anim');
 
-  // `mount` peut renvoyer une fonction de cleanup (ou une promesse de cleanup).
-  const result = view.mount(viewEl);
-  if (typeof result === 'function') cleanup = result;
-  else if (result && typeof result.then === 'function') {
-    result.then((c) => {
-      if (typeof c === 'function') cleanup = c;
+  // Charge le module de la vue à la demande, puis le monte. `mount` peut renvoyer
+  // une fonction de cleanup (ou une promesse de cleanup). Le jeton protège d'une
+  // bascule rapide : si une vue plus récente a été demandée entre-temps, on
+  // abandonne — et on nettoie un montage arrivé trop tard.
+  const token = ++loadSeq;
+  view.load().then((mount) => {
+    if (token !== loadSeq) return;
+    Promise.resolve(mount(viewEl)).then((c) => {
+      if (typeof c !== 'function') return;
+      if (token === loadSeq) cleanup = c;
+      else try { c(); } catch { /* no-op */ }
     });
-  }
+  });
 }
