@@ -2,6 +2,7 @@ import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
+import { showToast } from '../lib/toast.js';
 
 // Réexport pour conserver l'API publique historique (de nombreux modules
 // importent ces règles depuis features/characters.js).
@@ -197,7 +198,10 @@ export function updateCharacter(id, patch) {
             updated_by: store.get().user?.id ?? null,
           })
           .eq('id', charId);
-        if (error) console.error('[characters] save échouée:', error.message);
+        if (error) {
+          console.error('[characters] save échouée:', error.message);
+          showToast('Échec de l’enregistrement de la fiche — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+        }
       }, 900)
     );
   }

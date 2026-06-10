@@ -2,6 +2,7 @@ import { backend } from '../lib/backend.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { updateLayer } from '../lib/ambience.js';
+import { showToast } from '../lib/toast.js';
 
 /**
  * Carte de combat partagée (battle map).
@@ -271,7 +272,10 @@ const saveDebounced = debounce(async () => {
     .from('scenes')
     .update({ state: m, updated_at: new Date().toISOString() })
     .eq('id', id);
-  if (error) console.error('[map] sauvegarde scène échouée:', error.message);
+  if (error) {
+    console.error('[map] sauvegarde scène échouée:', error.message);
+    showToast('Échec de l’enregistrement de la scène — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+  }
   // Filet de sécurité temps réel : signale aux autres clients de recharger la
   // scène (au cas où les postgres_changes sur `scenes` ne leur parviendraient pas).
   else _pingChannel?.send({ type: 'broadcast', event: 'scenedirty', payload: { id, by: store.get().user?.id } });
