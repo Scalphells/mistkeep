@@ -7,7 +7,7 @@ import { portraitUrl, uploadPortrait } from './characters.js';
 import { longRestHitDiceRegain } from '../lib/rules.js';
 import { openPartyLoot } from './partyloot-ui.js';
 import { openQuests } from './quests-ui.js';
-import { logCombat, addCombatant } from './initiative.js';
+import { logCombat } from './initiative.js';
 import { openActionCard } from '../lib/actioncard.js';
 import { postCard } from '../lib/chatpost.js';
 import { renderMarkdown } from '../lib/markdown.js';
@@ -42,8 +42,36 @@ import {
   deleteCharacter,
   assignOwner,
   subscribeCharacters,
+  loadCharPrivate,
+  updateCharPrivate,
+  subscribeCharPrivate,
 } from './characters.js';
 import { parseStatblockActions } from '../lib/statblock.js';
+import {
+  CLASSES,
+  RACES,
+  BACKGROUNDS,
+  classByLabel,
+  raceByLabel,
+  backgroundByLabel,
+  subclassByLabel,
+  deriveClassPatch,
+  deriveRacePatch,
+  deriveBackgroundPatch,
+  deriveSubclassPatch,
+  classStartingEquipment,
+  suggestHpMax,
+  applyRaceMods,
+  mergeFeatsBlock,
+  isSrdMarker,
+  srdManagedLines,
+  totalLevel,
+  profBonusForLevel,
+  combinedCasterLevel,
+  multiclassSpellSlots,
+  hitDiceSummary,
+  deriveProficiencies,
+} from '../lib/srd5e.js';
 
 /**
  * UI des fiches de personnage : liste à gauche, fiche détaillée à droite.
@@ -74,7 +102,9 @@ export async function mountCharacters(container) {
   `;
 
   await loadCharacters();
+  await loadCharPrivate();
   const unsubRealtime = subscribeCharacters();
+  const unsubPrivate = subscribeCharPrivate();
   const unsubStore = store.subscribe(onStoreChange);
   renderList();
   renderSheet(true);
@@ -133,6 +163,7 @@ export async function mountCharacters(container) {
   return () => {
     unsubStore();
     unsubRealtime();
+    unsubPrivate();
     renderedCharId = null;
     _charImport?.remove();
     _charImport = null;
@@ -153,7 +184,7 @@ function onStoreChange() {
   // Les événements temps réel des autres modules (chat, carte, notifications…)
   // ne doivent pas reconstruire la fiche — sinon ils « volent » les clics.
   const cur = characters.find((c) => c.id === activeChar);
-  const sig = cur ? JSON.stringify(cur) : '';
+  const sig = cur ? `${JSON.stringify(cur)}|${store.get().charPrivate?.[cur.id] ?? ''}` : '';
   if (sig === renderedSig) return;
   // …et jamais pendant une saisie texte active (pour ne pas perdre le curseur).
   const ae = document.activeElement;
@@ -351,7 +382,8 @@ const FIELD_LABELS = {
   hp: 'PV', hpMax: 'PV max', hpTmp: 'PV temp', ac: 'CA', spd: 'Vitesse', initB: 'Init', prof: 'Maîtrise', insp: 'Inspiration',
   str: 'FOR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'SAG', cha: 'CHA',
   saves: 'Sauvegardes', profs: 'Compétences', exp: 'Expertises', atks: 'Attaques', spells: 'Sorts', slots: 'Emplacements',
-  feats: 'Aptitudes', equip: 'Équipement', notes: 'Notes', resources: 'Ressources', features: 'Capacités',
+  feats: 'Aptitudes', equip: 'Équipement', notes: 'Notes', story: 'Histoire partagée', resources: 'Ressources', features: 'Capacités',
+  spd: 'Vitesse', darkvision: 'Vision', size: 'Taille',
   hd: 'Dés de vie', hdMax: 'Dés de vie max', xp: 'XP', portrait: 'Portrait', sc: 'Carac. d’incantation', ds: 'Jets de mort',
 };
 const fieldLabel = (k) => FIELD_LABELS[k] || k;
@@ -420,6 +452,473 @@ function confirmImportDiff({ name, oldName, oldData, newData }) {
   });
 }
 
+/* ── Application d'un gabarit SRD (classe / race) ─────────────────────────
+ * Aperçu + confirmation : calcule les champs dérivés du choix, montre un diff,
+ * propose un sélecteur de compétences (classe) ou de caractéristiques au choix
+ * (race), puis applique TOUT en un seul updateCharacter (évite la course du
+ * debounce). Rien n'est écrit sans validation.
+ */
+
+/** Lignes du bloc « aptitudes » géré (aptitudes/traits + maîtrises, langues, sorts). */
+function srdFeatLines(data) {
+  return srdManagedLines(data);
+}
+
+/** Synthèse courte d'un jeu d'emplacements de sorts (« Niv.1 ×2 · Niv.2 ×3 »). */
+function slotsSumm(slots) {
+  if (!slots || !Object.keys(slots).length) return '∅';
+  return Object.keys(slots)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((lv) => `Niv.${lv} ×${slots[lv].m}`)
+    .join(' · ');
+}
+
+async function openDeriveModal(id, mode) {
+  const cur = store.get().characters.find((c) => c.id === id);
+  if (!cur || !canEdit(cur)) return;
+  const data = cur.data || {};
+  const classEntry = classByLabel(data.cls);
+  const raceEntry = raceByLabel(data.race);
+  const bgEntry = backgroundByLabel(data.bg);
+  const subEntry = subclassByLabel(data.sub);
+  if (mode === 'class' && !classEntry) return;
+  if (mode === 'race' && !raceEntry) return;
+  if (mode === 'bg' && !bgEntry) return;
+  if (mode === 'sub' && !subEntry) return;
+
+  let skillCfg = null; // {count, list, mode} (sélecteur de compétences)
+  let abilityCfg = null; // {count, amount, from} (mode race, bonus flexibles)
+
+  const abLabel = (k) => ABILITIES.find((a) => a.key === k)?.label || k;
+  const skLabel = (k) => SKILLS[k]?.label || k;
+  const showVal = (key, v) => {
+    if (key === 'saves' && Array.isArray(v)) return v.map(abLabel).join(', ') || '∅';
+    if (key === 'profs' && Array.isArray(v)) return v.map(skLabel).join(', ') || '∅';
+    if (key === 'sc') return v ? abLabel(v) : 'aucune';
+    return valSumm(v);
+  };
+
+  // Lignes cochables de l'aperçu. kind 'field' → patch[key] = to ;
+  // kind 'ability' → contribue au delta racial (appliqué via applyRaceMods).
+  const rows = [];
+  let rid = 0;
+  const addField = (key, to, disp) => {
+    const from = data[key];
+    if (JSON.stringify(from) === JSON.stringify(to)) return;
+    rows.push({
+      id: `r${rid++}`, kind: 'field', key, to, label: fieldLabel(key),
+      fromDisp: disp ? disp.from : showVal(key, from),
+      toDisp: disp ? disp.to : showVal(key, to),
+    });
+  };
+
+  let headTitle = '';
+  if (mode === 'class') {
+    headTitle = classEntry.label;
+    const dc = deriveClassPatch(data, classEntry);
+    addField('hdSize', dc.patch.hdSize);
+    addField('hdMax', dc.patch.hdMax);
+    addField('hd', dc.patch.hd);
+    addField('saves', dc.patch.saves);
+    // N'efface PAS la carac. d'incantation pour une classe non-lanceuse
+    // (préserve les sous-classes lanceuses, ex. Voie de l'Ombre).
+    if (dc.patch.sc) addField('sc', dc.patch.sc);
+    const raceHp = raceByLabel(data.race)?.hpPerLevel || 0; // ex. Robustesse naine
+    addField('hpMax', suggestHpMax({ ...data, hdSize: dc.patch.hdSize }, raceHp));
+    // Emplacements de sorts selon classe + niveau (préserve les « utilisés »).
+    if (dc.spellSlots) {
+      const cur = data.slots || {};
+      const merged = {};
+      for (const [lv, sl] of Object.entries(dc.spellSlots)) {
+        merged[lv] = { m: sl.m, u: Math.min(Number(cur[lv]?.u) || 0, sl.m) };
+      }
+      addField('slots', merged, { from: slotsSumm(data.slots), to: slotsSumm(merged) });
+    }
+    skillCfg = { count: dc.skillOptions.count, list: dc.skillOptions.list, mode: 'class' };
+  } else if (mode === 'bg') {
+    headTitle = bgEntry.label;
+    const db = deriveBackgroundPatch(data, bgEntry);
+    // Maîtrises d'historique : additif, on n'affiche que les AJOUTS.
+    const added = db.skills.filter((k) => !(data.profs || []).includes(k));
+    if (added.length) {
+      const to = [...new Set([...(data.profs || []), ...db.skills])];
+      addField('profs', to, { from: '', to: `+ ${added.map(skLabel).join(', ')}` });
+    }
+  } else if (mode === 'sub') {
+    // Sous-classe : seul le bloc d'aptitudes change (ajouté plus bas, selon le niveau).
+    headTitle = subEntry.label;
+  } else {
+    headTitle = raceEntry.label;
+    const dr = deriveRacePatch(data, raceEntry);
+    // Vitesse : ne pas réduire si l'actuelle est déjà supérieure (bonus de classe).
+    if (!((Number(data.spd) || 0) > dr.patch.spd)) addField('spd', dr.patch.spd);
+    addField('darkvision', dr.patch.darkvision);
+    addField('size', dr.patch.size);
+    // Bonus de caractéristiques déterministes — une ligne cochable par carac.
+    const det = applyRaceMods(data, dr.abilityDelta);
+    for (const [k, v] of Object.entries(det.scores)) {
+      rows.push({
+        id: `r${rid++}`, kind: 'ability', key: k, to: v, delta: dr.abilityDelta[k],
+        label: fieldLabel(k), fromDisp: showVal(k, data[k]), toDisp: showVal(k, v),
+      });
+    }
+    abilityCfg = dr.abilityChoose;
+    if (dr.skillChoose) {
+      const from = dr.skillChoose.from === 'all' ? Object.keys(SKILLS) : dr.skillChoose.from;
+      skillCfg = { count: dr.skillChoose.count, list: from, mode: 'race' };
+    }
+    if (dr.hpPerLevel && Number(data.hdSize)) addField('hpMax', suggestHpMax(data, dr.hpPerLevel));
+  }
+
+  // Bloc d'aptitudes (features de classe + traits de race + historique).
+  const featLines = srdFeatLines(data);
+  const newFeats = mergeFeatsBlock(data.feats, featLines);
+  if (newFeats !== (data.feats || '')) {
+    addField('feats', newFeats, { from: '…', to: `${featLines.length} ligne(s) SRD` });
+  }
+
+  // Compétences raciales fixes (ajoutées d'office) — utiles pour le mode classe aussi.
+  const racialFixed = raceEntry ? raceEntry.fixedSkills || [] : [];
+
+  // Sélecteur de compétences de classe (hors compétences raciales fixes).
+  let pickList = [];
+  let preChecked = new Set();
+  if (skillCfg) {
+    pickList = skillCfg.list.filter((k) => !racialFixed.includes(k));
+    // En mode classe, on pré-coche les maîtrises déjà présentes (ré-application
+    // non destructive) ; en mode race (choix libre), on laisse vide.
+    if (skillCfg.mode === 'class') {
+      preChecked = new Set((data.profs || []).filter((k) => pickList.includes(k)).slice(0, skillCfg.count));
+    }
+  }
+
+  const rowsHtml = rows
+    .map(
+      (r) => `<label class="diff-row pickable">
+        <input type="checkbox" data-apply="${r.id}" checked />
+        <span class="diff-k">${escapeHtml(r.label)}</span>
+        <span class="diff-old">${escapeHtml(r.fromDisp)}</span>
+        <span class="diff-arrow">→</span>
+        <span class="diff-new">${escapeHtml(r.toDisp)}</span>
+      </label>`
+    )
+    .join('');
+
+  const skillHtml = skillCfg
+    ? `<div class="derive-pick">
+         <div class="derive-pick-h">${skillCfg.mode === 'race' ? 'Compétences raciales' : 'Compétences de classe'} — choisis-en <b>${skillCfg.count}</b> <span class="derive-count">(0 / ${skillCfg.count})</span></div>
+         ${racialFixed.length ? `<div class="derive-fixed">Raciales (incluses) : ${racialFixed.map((k) => escapeHtml(SKILLS[k]?.label || k)).join(', ')}</div>` : ''}
+         <div class="derive-grid">
+           ${pickList
+             .map(
+               (k) => `<label class="derive-opt"><input type="checkbox" data-skillpick value="${k}" ${preChecked.has(k) ? 'checked' : ''}/> ${escapeHtml(SKILLS[k]?.label || k)}</label>`
+             )
+             .join('')}
+         </div>
+       </div>`
+    : '';
+
+  const abilityHtml = abilityCfg
+    ? `<div class="derive-pick">
+         <div class="derive-pick-h">Bonus de caractéristique au choix — +${abilityCfg.amount} sur <b>${abilityCfg.count}</b> <span class="derive-count">(0 / ${abilityCfg.count})</span></div>
+         <div class="derive-grid">
+           ${abilityCfg.from
+             .map(
+               (k) => `<label class="derive-opt"><input type="checkbox" data-abilpick value="${k}"/> ${escapeHtml(ABILITIES.find((a) => a.key === k)?.label || k)}</label>`
+             )
+             .join('')}
+         </div>
+       </div>`
+    : '';
+
+  const nothing = !rows.length && !skillCfg && !abilityCfg;
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay show';
+  ov.innerHTML = `
+    <div class="modal-card diff-card" role="dialog" aria-modal="true">
+      <h3 class="modal-title">Appliquer « ${escapeHtml(headTitle)} » ?</h3>
+      <p class="modal-msg">${nothing ? 'Cette fiche est déjà à jour pour ce choix.' : 'Décoche ce que tu ne veux pas appliquer :'}</p>
+      <div class="diff-list">${rowsHtml || '<div class="dock-empty">—</div>'}</div>
+      ${skillHtml}
+      ${abilityHtml}
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel">Annuler</button>
+        <button class="modal-btn modal-ok">Appliquer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const okBtn = ov.querySelector('.modal-ok');
+  const skillBoxes = [...ov.querySelectorAll('[data-skillpick]')];
+  const abilBoxes = [...ov.querySelectorAll('[data-abilpick]')];
+
+  const refresh = () => {
+    let ok = true;
+    if (skillCfg) {
+      const checked = skillBoxes.filter((b) => b.checked);
+      const n = checked.length;
+      ov.querySelectorAll('.derive-pick')[0].querySelector('.derive-count').textContent = `(${n} / ${skillCfg.count})`;
+      skillBoxes.forEach((b) => {
+        b.disabled = !b.checked && n >= skillCfg.count;
+      });
+      if (n !== skillCfg.count) ok = false;
+    }
+    if (abilityCfg) {
+      const checked = abilBoxes.filter((b) => b.checked);
+      const n = checked.length;
+      // Le compteur des caractéristiques est le dernier .derive-count.
+      const counters = ov.querySelectorAll('.derive-count');
+      counters[counters.length - 1].textContent = `(${n} / ${abilityCfg.count})`;
+      abilBoxes.forEach((b) => {
+        b.disabled = !b.checked && n >= abilityCfg.count;
+      });
+      if (n !== abilityCfg.count) ok = false;
+    }
+    okBtn.disabled = !ok;
+  };
+  skillBoxes.forEach((b) => b.addEventListener('change', refresh));
+  abilBoxes.forEach((b) => b.addEventListener('change', refresh));
+  refresh();
+
+  const close = () => ov.remove();
+  ov.querySelector('.modal-cancel').addEventListener('click', close);
+  ov.addEventListener('mousedown', (e) => {
+    if (e.target === ov) close();
+  });
+
+  okBtn.addEventListener('click', () => {
+    const patch = {};
+    const appliedDelta = {}; // bonus de carac. raciaux effectivement appliqués
+
+    // Lignes cochées uniquement.
+    for (const r of rows) {
+      const box = ov.querySelector(`[data-apply="${r.id}"]`);
+      if (box && !box.checked) continue;
+      if (r.kind === 'ability') appliedDelta[r.key] = r.delta;
+      else patch[r.key] = r.to;
+    }
+
+    if (skillCfg && skillCfg.mode === 'class') {
+      // Remplace la portion « compétences de classe » par les choix, conserve le reste.
+      const chosen = skillBoxes.filter((b) => b.checked).map((b) => b.value);
+      const keep = (data.profs || []).filter((k) => !skillCfg.list.includes(k));
+      patch.profs = [...new Set([...keep, ...chosen, ...racialFixed])];
+    } else if (skillCfg && skillCfg.mode === 'race') {
+      // Choix raciaux : additif (ne retire jamais une maîtrise existante).
+      const chosen = skillBoxes.filter((b) => b.checked).map((b) => b.value);
+      patch.profs = [...new Set([...(patch.profs || data.profs || []), ...chosen, ...racialFixed])];
+    } else if (racialFixed.length) {
+      const baseP = patch.profs || data.profs || []; // préserve les profs déjà calculées (ex. historique)
+      patch.profs = [...new Set([...baseP, ...racialFixed])];
+    }
+
+    if (mode === 'race') {
+      if (abilityCfg) {
+        for (const b of abilBoxes.filter((x) => x.checked)) {
+          appliedDelta[b.value] = (Number(appliedDelta[b.value]) || 0) + abilityCfg.amount;
+        }
+      }
+      const det = applyRaceMods(data, appliedDelta);
+      Object.assign(patch, det.scores);
+      patch._raceMods = det._raceMods;
+    }
+
+    close();
+    if (Object.keys(patch).length) updateCharacter(id, patch);
+    showToast(`✨ Gabarit « ${headTitle} » appliqué.`, { type: 'success', timeout: 2600 });
+  });
+}
+
+/**
+ * Bloc « Multiclassage » : classes secondaires (en plus de la classe principale).
+ * Affiche une synthèse (niveau total, maîtrise, dés de vie, niveau de lanceur
+ * combiné) et, en édition, un éditeur de classes secondaires + bouton Appliquer.
+ */
+function multiclassSection(d, ed) {
+  const mc = d.mc || [];
+  if (!ed && !mc.length) return ''; // rien à montrer au joueur sans multiclasse
+  const total = totalLevel(d);
+  const prof = profBonusForLevel(total);
+  const hd = hitDiceSummary(d) || '—';
+  const ccl = combinedCasterLevel(d);
+  const summary = `Niveau total <b>${total}</b> · Maîtrise <b>+${prof}</b> · Dés de vie <b>${escapeHtml(hd)}</b>${ccl > 0 ? ` · Lanceur combiné <b>${ccl}</b>` : ''}`;
+  const rows = mc
+    .map((e, i) => {
+      if (!ed) {
+        return `<div class="mc-line">${escapeHtml(e.cls || '—')}${e.sub ? ` (${escapeHtml(e.sub)})` : ''} · niv.${num(e.lvl) || 1}</div>`;
+      }
+      const subs = (CLASSES.find((c) => c.label === e.cls)?.subclasses) || [];
+      return `<div class="mc-edit">
+        <select class="sf" data-mc-i="${i}" data-mc-k="cls">
+          <option value="">— Classe —</option>
+          ${CLASSES.map((c) => `<option value="${escapeHtml(c.label)}" ${c.label === e.cls ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+        </select>
+        <select class="sf" data-mc-i="${i}" data-mc-k="sub">
+          <option value="">— Sous-classe —</option>
+          ${subs.map((s) => `<option value="${escapeHtml(s)}" ${s === e.sub ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+        </select>
+        <input type="number" class="sf-num mc-lvl" min="1" max="20" value="${num(e.lvl) || 1}" data-mc-i="${i}" data-mc-k="lvl"/>
+        <button class="mini-del" data-mc-del="${i}">×</button>
+      </div>`;
+    })
+    .join('');
+  return `<details class="sheet-block mc-block" ${mc.length ? 'open' : ''}>
+    <summary>🔀 Multiclassage</summary>
+    <div class="mc-summary">${summary}</div>
+    <div class="mc-list">${rows || '<div class="char-empty">Aucune classe secondaire.</div>'}</div>
+    ${ed ? `<div class="mc-actions"><button class="mini-add" data-mc-add>+ Classe secondaire</button> <button class="rest-btn" data-mc-apply title="Recalcule maîtrise, emplacements de sorts combinés et aptitudes">⚙ Appliquer</button></div>
+       <div class="feats-hint">La classe principale (ci-dessus) reste le pilier (sauvegardes, dé de vie principal). « Appliquer » recalcule la maîtrise selon le niveau total et combine les emplacements de sorts.</div>` : ''}
+  </details>`;
+}
+
+/** Applique le multiclassage : bonus de maîtrise (niveau total), emplacements combinés, aptitudes. */
+async function openMulticlassApply(id) {
+  const cur = store.get().characters.find((c) => c.id === id);
+  if (!cur || !canEdit(cur)) return;
+  const d = cur.data || {};
+  const total = totalLevel(d);
+  const prof = profBonusForLevel(total);
+  const slots = multiclassSpellSlots(d);
+  const feats = mergeFeatsBlock(d.feats, srdFeatLines(d));
+  const bits = [`Niveau total ${total} → maîtrise +${prof}`];
+  if (slots) bits.push(`Emplacements combinés : ${slotsSumm(slots)}`);
+  bits.push('Aptitudes des classes secondaires ajoutées');
+  if (!(await modalConfirm(bits.join(' · '), { title: '🔀 Appliquer le multiclassage', okLabel: 'Appliquer' }))) return;
+  const patch = { prof };
+  if (slots) {
+    const cur0 = d.slots || {};
+    const s = {};
+    for (const [lv, sl] of Object.entries(slots)) s[lv] = { m: sl.m, u: Math.min(Number(cur0[lv]?.u) || 0, sl.m) };
+    patch.slots = s;
+  }
+  if (feats !== (d.feats || '')) patch.feats = feats;
+  updateCharacter(id, patch);
+  showToast('🔀 Multiclassage appliqué.', { type: 'success', timeout: 2600 });
+}
+
+/**
+ * Encart en lecture seule « Maîtrises, langues & sorts », calculé en direct
+ * depuis la classe / race / historique (toujours à jour, sans application).
+ */
+function profileSummarySection(d) {
+  const p = deriveProficiencies(d);
+  const tools = p.tools.join(' ; ');
+  const langs = p.languages.join(' ; ');
+  const sorts = p.casterClass && p.spellLine
+    ? `${p.cantrips ? `${p.cantrips} sort(s) mineur(s) · ` : ''}${p.spellLine}`
+    : '';
+  if (!p.armor && !p.weapons && !tools && !langs && !sorts) return '';
+  const row = (label, val) =>
+    val ? `<div class="ps-row"><span class="ps-k">${label}</span><span class="ps-v">${escapeHtml(val)}</span></div>` : '';
+  return `<section class="sheet-block">
+      <h3>Maîtrises, langues & sorts</h3>
+      ${row('Armures', p.armor)}
+      ${row('Armes', p.weapons)}
+      ${row('Outils', tools)}
+      ${row('Langues', langs)}
+      ${row('Sorts', sorts)}
+      <div class="feats-hint">Déduit de la classe, la race et l'historique. Le détail est aussi inséré dans « Capacités &amp; traits ».</div>
+    </section>`;
+}
+
+/** Libellé court d'un objet d'inventaire (avec quantité). */
+function itemLabel(it) {
+  return Number(it.qty) > 1 ? `${it.nm} ×${it.qty}` : it.nm;
+}
+
+/**
+ * Équipement de départ : kit de classe (avec choix (a)/(b)) + objets et or de
+ * l'historique. Action additive, déclenchée explicitement (bouton). Un drapeau
+ * `_startKit` évite l'ajout en double par mégarde.
+ */
+function openStartingEquipment(id) {
+  const cur = store.get().characters.find((c) => c.id === id);
+  if (!cur || !canEdit(cur)) return;
+  const data = cur.data || {};
+  const classEntry = classByLabel(data.cls);
+  const bgEntry = backgroundByLabel(data.bg);
+  const groups = classStartingEquipment(classEntry || data.cls);
+  const bgKit = bgEntry ? deriveBackgroundPatch(data, bgEntry) : null;
+
+  if (!groups.length && !bgKit) {
+    modalAlert('Choisis d’abord une classe ou un historique SRD pour proposer un équipement de départ.', { title: 'Équipement de départ' });
+    return;
+  }
+
+  let gi = 0;
+  const groupsHtml = groups
+    .map((g) => {
+      if (g.fixed) return `<div class="eq-group eq-fixed">${g.fixed.map((it) => escapeHtml(itemLabel(it))).join(' · ')}</div>`;
+      const idx = gi++;
+      return `<div class="eq-group">${g.choose
+        .map((opt, oi) => `<label class="derive-opt"><input type="radio" name="eq-${idx}" value="${oi}" ${oi === 0 ? 'checked' : ''}/> ${escapeHtml(opt.label)}</label>`)
+        .join('')}</div>`;
+    })
+    .join('');
+
+  const bgHtml = bgKit
+    ? `<div class="derive-pick">
+         <div class="derive-pick-h">Historique — ${escapeHtml(bgEntry.label)}</div>
+         <div class="eq-fixed">${bgKit.equipment.map((it) => escapeHtml(itemLabel(it))).join(' · ')}${bgKit.gold ? ` · <b>${bgKit.gold} po</b>` : ''}</div>
+       </div>`
+    : '';
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay show';
+  ov.innerHTML = `
+    <div class="modal-card diff-card" role="dialog" aria-modal="true">
+      <h3 class="modal-title">🎒 Équipement de départ</h3>
+      ${data._startKit ? '<p class="modal-msg" style="color:var(--yellow)">⚠ Un équipement de départ a déjà été ajouté à cette fiche.</p>' : '<p class="modal-msg">Choisis tes options, puis ajoute le tout à l’inventaire :</p>'}
+      ${classEntry ? `<div class="derive-pick"><div class="derive-pick-h">Classe — ${escapeHtml(classEntry.label)}</div>${groupsHtml}</div>` : ''}
+      ${bgHtml}
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel">Annuler</button>
+        <button class="modal-btn modal-ok">Ajouter à l'inventaire</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.querySelector('.modal-cancel').addEventListener('click', close);
+  ov.addEventListener('mousedown', (e) => {
+    if (e.target === ov) close();
+  });
+
+  ov.querySelector('.modal-ok').addEventListener('click', () => {
+    const items = [];
+    let ci = 0;
+    for (const g of groups) {
+      if (g.fixed) {
+        items.push(...g.fixed);
+        continue;
+      }
+      const sel = ov.querySelector(`input[name="eq-${ci}"]:checked`);
+      ci++;
+      const opt = g.choose[Number(sel?.value) || 0];
+      if (opt) items.push(...opt.items);
+    }
+    if (bgKit) items.push(...bgKit.equipment);
+
+    // Fusionne dans l'inventaire (regroupe les quantités par nom).
+    const inv = [...(data.inv || [])];
+    for (const it of items) {
+      const ix = inv.findIndex((x) => x.nm === it.nm);
+      if (ix >= 0) inv[ix] = { ...inv[ix], qty: (Number(inv[ix].qty) || 0) + (Number(it.qty) || 1) };
+      else inv.push({ nm: it.nm, qty: it.qty || 1, wt: '', note: 'Départ' });
+    }
+    const patch = { inv, _startKit: true };
+    if (bgKit?.gold) {
+      const coins = { ...(data.coins || {}) };
+      coins.po = (Number(coins.po) || 0) + bgKit.gold;
+      patch.coins = coins;
+    }
+    close();
+    updateCharacter(id, patch);
+    showToast(`🎒 Équipement de départ ajouté (${items.length} objet(s)${bgKit?.gold ? `, ${bgKit.gold} po` : ''}).`, { type: 'success', timeout: 3000 });
+  });
+}
+
 async function importCharFromJson(file) {
   try {
     const obj = JSON.parse(await file.text());
@@ -464,7 +963,7 @@ function renderSheet(scrollTop = false) {
   const { characters, activeChar } = store.get();
   const c = characters.find((x) => x.id === activeChar);
   renderedCharId = activeChar;
-  renderedSig = c ? JSON.stringify(c) : '';
+  renderedSig = c ? `${JSON.stringify(c)}|${store.get().charPrivate?.[c.id] ?? ''}` : '';
 
   if (!c) {
     el.innerHTML = `<div class="char-empty">Sélectionne un personnage.</div>`;
@@ -498,6 +997,7 @@ function renderSheet(scrollTop = false) {
     { id: 'spells', label: '✨ Sorts' },
     { id: 'feats', label: '🎴 Aptitudes' },
     { id: 'inv', label: '🎒 Inventaire' },
+    { id: 'story', label: '📖 Histoire' },
     { id: 'notes', label: '📝 Notes' },
   ];
   const subline = `${escapeHtml(d.cls || 'Classe')}${d.sub ? ` (${escapeHtml(d.sub)})` : ''} · Niv. ${num(d.lvl) || 1}`;
@@ -552,13 +1052,6 @@ function renderSheet(scrollTop = false) {
                  </div>`
               : ''
           }
-          ${
-            isDM
-              ? `<div class="rest-row">
-                   <button class="rest-btn" data-act="tocombat" title="Ajouter ce personnage au combat en cours">⚔ Ajouter au combat</button>
-                 </div>`
-              : ''
-          }
         </div>
 
         <div class="hd-block">
@@ -577,6 +1070,8 @@ function renderSheet(scrollTop = false) {
           ${stat('CA', 'ac', d.ac, ro)}
           ${stat('Init.', 'initB', d.initB, ro, '', true)}
           ${stat('Vitesse', 'spd', d.spd, ro, 'm')}
+          ${stat('Vision', 'darkvision', d.darkvision, ro, 'm')}
+          ${sizeStat(d.size, ro)}
           ${stat('Maîtrise', 'prof', d.prof, ro, '', true)}
         </div>
 
@@ -603,16 +1098,17 @@ function renderSheet(scrollTop = false) {
         <div class="sheet-panes">
           <section class="tab-pane ${sheetTab === 'stats' ? 'active' : ''}" data-pane="stats">
             <div class="sheet-id-grid">
-              <input class="sf" value="${escapeHtml(d.race || '')}" data-d="race" placeholder="Race" ${ro}/>
-              <input class="sf" value="${escapeHtml(d.cls || '')}" data-d="cls" placeholder="Classe" ${ro}/>
-              <input class="sf" value="${escapeHtml(d.sub || '')}" data-d="sub" placeholder="Sous-classe" ${ro}/>
+              ${idSelect('race', 'Race', RACES, d.race, ro, ed)}
+              ${idSelect('cls', 'Classe', CLASSES, d.cls, ro, ed)}
+              ${subSelect(d, ro, ed)}
               <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
-              <input class="sf" value="${escapeHtml(d.bg || '')}" data-d="bg" placeholder="Historique" ${ro}/>
+              ${idSelect('bg', 'Historique', BACKGROUNDS, d.bg, ro, ed)}
               <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
               <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
               ${ed ? `<button class="sf-levelup" data-levelup title="Monter d'un niveau (maîtrise + dé de vie)">⬆ Niveau</button>` : ''}
               <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
             </div>
+            ${multiclassSection(d, ed)}
             <section class="sheet-abilities">
               ${ABILITIES.map((a) => abilityBox(a, d, ro)).join('')}
             </section>
@@ -620,6 +1116,7 @@ function renderSheet(scrollTop = false) {
               <h3>Compétences</h3>
               ${Object.keys(SKILLS).map((k) => skillRow(k, d, ed)).join('')}
             </section>
+            ${profileSummarySection(d)}
           </section>
 
           <section class="tab-pane ${sheetTab === 'combat' ? 'active' : ''}" data-pane="combat">
@@ -640,6 +1137,10 @@ function renderSheet(scrollTop = false) {
 
           <section class="tab-pane ${sheetTab === 'inv' ? 'active' : ''}" data-pane="inv">
             ${inventorySection(d, ed, ro)}
+          </section>
+
+          <section class="tab-pane ${sheetTab === 'story' ? 'active' : ''}" data-pane="story">
+            ${storySection(c, d, ed, ro)}
           </section>
 
           <section class="tab-pane ${sheetTab === 'notes' ? 'active' : ''}" data-pane="notes">
@@ -691,6 +1192,59 @@ function stat(label, key, val, ro, suffix = '', signed = false) {
         ${suffix ? `<span class="cs-suffix">${suffix}</span>` : ''}
       </div>
       ${display ? `<div class="cs-hint">${display}</div>` : ''}
+    </div>`;
+}
+
+/**
+ * Menu déroulant classe/race piloté par le SRD. Préserve une valeur hors-SRD
+ * (ajoutée comme option « (perso) ») et propose un bouton ⚙ pour ré-appliquer
+ * le gabarit sans changer la sélection.
+ */
+function idSelect(kind, label, entries, value, ro, ed) {
+  const cur = String(value || '');
+  const inList = entries.some((e) => e.label === cur);
+  const opts = [`<option value="">— ${label} —</option>`]
+    .concat(
+      entries.map(
+        (e) => `<option value="${escapeHtml(e.label)}" ${e.label === cur ? 'selected' : ''}>${escapeHtml(e.label)}</option>`
+      )
+    );
+  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (perso)</option>`);
+  const known = kind === 'cls' ? classByLabel(cur) : kind === 'race' ? raceByLabel(cur) : backgroundByLabel(cur);
+  return `<span class="sf-derive">
+      <select class="sf" data-derive="${kind}" ${ro}>${opts.join('')}</select>
+      ${ed && known ? `<button class="sf-cog" data-derive-open="${kind}" title="Appliquer le gabarit ${escapeHtml(label.toLowerCase())} (sauvegardes, vitesse, vision…)">⚙</button>` : ''}
+    </span>`;
+}
+
+/** Menu de sous-classe dépendant de la classe sélectionnée (valeur custom préservée). */
+function subSelect(d, ro, ed) {
+  const cls = classByLabel(d.cls);
+  const cur = String(d.sub || '');
+  const subs = cls ? cls.subclasses : [];
+  const inList = subs.includes(cur);
+  const opts = ['<option value="">— Sous-classe —</option>']
+    .concat(subs.map((s) => `<option value="${escapeHtml(s)}" ${s === cur ? 'selected' : ''}>${escapeHtml(s)}</option>`));
+  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (perso)</option>`);
+  const known = subclassByLabel(cur);
+  return `<span class="sf-derive">
+      <select class="sf" data-derive="sub" ${ro}>${opts.join('')}</select>
+      ${ed && known ? `<button class="sf-cog" data-derive-open="sub" title="Appliquer les aptitudes de sous-classe débloquées par le niveau">⚙</button>` : ''}
+    </span>`;
+}
+
+/** Contrôle « Taille » (chaîne P/M/G) pour le rail — distinct de stat() (numérique). */
+function sizeStat(val, ro) {
+  const v = val || 'M';
+  const opts = [['P', 'P'], ['M', 'M'], ['G', 'G']];
+  return `
+    <div class="combat-stat">
+      <div class="cs-label">Taille</div>
+      <div class="cs-val">
+        <select class="cs-size" data-d="size" ${ro}>
+          ${opts.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
     </div>`;
 }
 
@@ -916,6 +1470,7 @@ function parseFeats(text) {
   const items = [];
   let cur = null;
   for (const raw of lines) {
+    if (isSrdMarker(raw)) continue; // marqueurs du bloc SRD géré : invisibles dans l'accordéon
     if (!raw.trim()) {
       if (cur) cur.body += '\n';
       continue;
@@ -1012,7 +1567,7 @@ function inventorySection(d, ed, ro) {
       </div>
     </section>
     <section class="sheet-block">
-      <h3>Inventaire ${ed ? `<button class="mini-add" data-add="inv">+</button>` : ''}
+      <h3>Inventaire ${ed ? `<button class="mini-add" data-add="inv">+</button> <button class="mini-add" data-startkit title="Ajouter l'équipement de départ (classe + historique)">🎒 Départ</button>` : ''}
         <span class="inv-weight ${over ? 'over' : ''}" title="Capacité de charge = FOR × 15">${totalW.toFixed(1)} / ${cap} lb</span>
       </h3>
       <div class="inv-table">${items.length ? items.map((it, i) => invRow(it, i, ed)).join('') : '<div class="char-empty">—</div>'}</div>
@@ -1027,6 +1582,30 @@ function textBlock(title, key, val, ro) {
       <h3>${title}</h3>
       <textarea class="sheet-text" data-d="${key}" ${ro} rows="4">${escapeHtml(val || '')}</textarea>
     </section>`;
+}
+
+/**
+ * Onglet « Histoire » : une partie partagée (stockée dans data.story, lisible
+ * par tout le groupe) et une partie secrète (table character_private, visible
+ * uniquement par le joueur propriétaire et le MJ).
+ */
+function storySection(c, d, ed, ro) {
+  const priv = store.get().charPrivate?.[c.id] ?? '';
+  const shared = `
+    <section class="sheet-block">
+      <h3>📖 Histoire partagée <span class="story-tag story-tag-shared">Visible par tout le groupe</span></h3>
+      <textarea class="sheet-text" data-d="story" ${ro} rows="8" placeholder="Le passé de ${escapeHtml(c.name)}, connu de tous…">${escapeHtml(d.story || '')}</textarea>
+    </section>`;
+  // La partie secrète n'est rendue que pour le propriétaire et le MJ. Les autres
+  // joueurs ne la voient pas (et la RLS les empêche de toute façon de la lire).
+  const secret = ed
+    ? `
+    <section class="sheet-block">
+      <h3>🔒 Histoire secrète <span class="story-tag story-tag-private">Visible par le joueur et le MJ uniquement</span></h3>
+      <textarea class="sheet-text" data-priv ${ro} rows="8" placeholder="Secrets, objectifs cachés, liens connus de toi seul et du MJ…">${escapeHtml(priv)}</textarea>
+    </section>`
+    : '';
+  return shared + secret;
 }
 
 /* ── Liaison des événements ───────────────────────────────── */
@@ -1049,6 +1628,55 @@ function bindSheet(el, id, ed) {
       updateCharacter(id, { [key]: val });
     });
   });
+
+  // Histoire secrète (table character_private, hors data.*)
+  const privInput = el.querySelector('[data-priv]');
+  privInput?.addEventListener('input', () => updateCharPrivate(id, privInput.value));
+
+  // Classe / race / sous-classe : menus déroulants pilotés par le SRD.
+  // On persiste le libellé tout de suite, puis on ouvre l'aperçu d'application
+  // si le choix correspond à une entrée connue.
+  el.querySelectorAll('[data-derive]').forEach((sel) =>
+    sel.addEventListener('change', () => {
+      const kind = sel.dataset.derive; // 'cls' | 'race' | 'sub'
+      const val = sel.value;
+      updateCharacter(id, { [kind]: val });
+      if (kind === 'cls' && classByLabel(val)) openDeriveModal(id, 'class');
+      else if (kind === 'race' && raceByLabel(val)) openDeriveModal(id, 'race');
+      else if (kind === 'bg' && backgroundByLabel(val)) openDeriveModal(id, 'bg');
+      else if (kind === 'sub' && subclassByLabel(val)) openDeriveModal(id, 'sub');
+    })
+  );
+  const DERIVE_MODE = { cls: 'class', race: 'race', bg: 'bg', sub: 'sub' };
+  el.querySelectorAll('[data-derive-open]').forEach((b) =>
+    b.addEventListener('click', () => openDeriveModal(id, DERIVE_MODE[b.dataset.deriveOpen] || 'class'))
+  );
+  el.querySelector('[data-startkit]')?.addEventListener('click', () => openStartingEquipment(id));
+
+  // Multiclassage : édition des classes secondaires (data.mc) + application.
+  el.querySelectorAll('[data-mc-i]').forEach((input) =>
+    input.addEventListener('input', () => {
+      const i = Number(input.dataset.mcI);
+      const k = input.dataset.mcK;
+      const c = store.get().characters.find((x) => x.id === id);
+      const mc = [...(c.data.mc || [])];
+      mc[i] = { ...mc[i], [k]: k === 'lvl' ? toNum(input.value) : input.value };
+      if (k === 'cls') mc[i].sub = ''; // réinitialise la sous-classe au changement de classe
+      updateCharacter(id, { mc });
+    })
+  );
+  el.querySelectorAll('[data-mc-del]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const c = store.get().characters.find((x) => x.id === id);
+      const mc = (c.data.mc || []).filter((_, idx) => idx !== Number(b.dataset.mcDel));
+      updateCharacter(id, { mc });
+    })
+  );
+  el.querySelector('[data-mc-add]')?.addEventListener('click', () => {
+    const c = store.get().characters.find((x) => x.id === id);
+    updateCharacter(id, { mc: [...(c.data.mc || []), { cls: '', sub: '', lvl: 1 }] });
+  });
+  el.querySelector('[data-mc-apply]')?.addEventListener('click', () => openMulticlassApply(id));
 
   // Nom du personnage (colonne dédiée, pas dans data)
   const nameInput = el.querySelector('[data-field="__name"]');
@@ -1089,11 +1717,25 @@ function bindSheet(el, id, ed) {
     if (!cur) return;
     const dd = cur.data;
     const newLvl = (Number(dd.lvl) || 1) + 1;
-    if (!(await modalConfirm(`Passer ${cur.name} au niveau ${newLvl} ? (maîtrise et dé de vie mis à jour ; pense à ajuster PV max et emplacements de sorts)`, { title: '⬆ Montée de niveau', okLabel: `Niveau ${newLvl}` }))) return;
+    if (!(await modalConfirm(`Passer ${cur.name} au niveau ${newLvl} ? (maîtrise, dé de vie, aptitudes de sous-classe et emplacements de sorts mis à jour ; pense à ajuster les PV max)`, { title: '⬆ Montée de niveau', okLabel: `Niveau ${newLvl}` }))) return;
     const prof = 2 + Math.floor((newLvl - 1) / 4);
     const hdMax = newLvl;
     const hd = Math.min(hdMax, (Number(dd.hd ?? (Number(dd.lvl) || 1)) || 0) + 1);
-    updateCharacter(id, { lvl: newLvl, prof, hdMax, hd });
+    const patch = { lvl: newLvl, prof, hdMax, hd };
+    // Débloque les aptitudes de sous-classe du nouveau niveau dans le bloc géré.
+    const feats = mergeFeatsBlock(dd.feats, srdFeatLines({ ...dd, lvl: newLvl }));
+    if (feats !== (dd.feats || '')) patch.feats = feats;
+    // Met à jour les emplacements de sorts (lanceurs), en préservant les utilisés.
+    const dc = classByLabel(dd.cls) ? deriveClassPatch({ ...dd, lvl: newLvl }, dd.cls) : null;
+    if (dc?.spellSlots) {
+      const cur0 = dd.slots || {};
+      const slots = {};
+      for (const [lv, sl] of Object.entries(dc.spellSlots)) {
+        slots[lv] = { m: sl.m, u: Math.min(Number(cur0[lv]?.u) || 0, sl.m) };
+      }
+      patch.slots = slots;
+    }
+    updateCharacter(id, patch);
     showToast(`⬆ ${cur.name} atteint le niveau ${newLvl} ! (maîtrise +${prof})`, { type: 'success', icon: '✨' });
   });
 
@@ -1136,27 +1778,6 @@ function bindSheet(el, id, ed) {
     updateCharacter(id, { resources });
     showToast('🔥 Repos court : ressources récupérées.', { timeout: 2000 });
     postCard({ kind: 'note', icon: '🔥', title: `${cur.name} prend un repos court`, sub: 'Repos court', lines: ['Ressources « repos court » récupérées'] });
-  });
-
-  // Ajoute ce personnage au combat en cours (MJ). Évite les doublons.
-  el.querySelector('[data-act="tocombat"]')?.addEventListener('click', async () => {
-    if (!store.get().isDM) return;
-    const cur = store.get().characters.find((c) => c.id === id);
-    if (!cur) return;
-    if (store.get().initiative.some((c) => c.char_id === cur.id)) {
-      showToast(`${cur.name} est déjà dans le combat.`, { timeout: 2000 });
-      return;
-    }
-    const dd = cur.data || {};
-    await addCombatant({
-      name: cur.name,
-      initiative: 0,
-      hp: dd.hp ?? null,
-      hpMax: dd.hpMax ?? null,
-      hpTemp: dd.hpTmp ?? 0,
-      charId: cur.id,
-    });
-    showToast(`⚔ ${cur.name} ajouté au combat.`, { timeout: 2200 });
   });
 
   el.querySelector('[data-rest="long"]')?.addEventListener('click', async () => {

@@ -2912,3 +2912,54 @@ html[data-vttrail] #view { min-height: calc(100vh - 70px); }
 .sw-btn.sw-close:hover { border-color: var(--red); color: var(--red); }
 .sheet-window-body { flex: 1; overflow: auto; padding: 12px; }
 .sw-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; background: linear-gradient(135deg, transparent 50%, var(--border-l) 50%); border-bottom-right-radius: 12px; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Fiches dynamiques SRD (porté de vault-mj) : sélecteurs de gabarit, modale
+   d'aperçu cochable, multiclassage, encart maîtrises, étiquettes d'histoire.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Étiquettes de visibilité de l'onglet « Histoire ». */
+.story-tag { margin-left:auto; font-size:9px; font-weight:600; letter-spacing:0.3px; text-transform:none; padding:2px 8px; border-radius:999px; border:1px solid var(--border-l); }
+.story-tag-shared { color:var(--green); border-color:color-mix(in srgb, var(--green) 45%, transparent); }
+.story-tag-private { color:var(--yellow); border-color:color-mix(in srgb, var(--yellow) 45%, transparent); }
+
+/* Menus déroulants classe/race (gabarits SRD). */
+.sf-derive { display:flex; gap:4px; align-items:center; min-width:0; }
+.sf-derive .sf { flex:1; min-width:0; }
+.sf-cog { flex:0 0 auto; padding:0 8px; height:30px; border:1px solid var(--border-l); border-radius:6px; background:var(--bg1); color:var(--td); cursor:pointer; font-size:13px; }
+.sf-cog:hover { border-color:var(--accent); color:var(--ah); }
+.cs-size { width:100%; background:var(--bg1); border:1px solid var(--border); border-radius:6px; color:var(--td); padding:4px; font-size:13px; text-align:center; }
+
+/* Sélecteurs de la modale d'application (compétences / carac.). */
+.derive-pick { margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
+.derive-pick-h { font-size:12px; color:var(--td); margin-bottom:6px; }
+.derive-count { color:var(--accent); font-weight:600; }
+.derive-fixed { font-size:11px; color:var(--tm); margin-bottom:6px; }
+.derive-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:4px 12px; }
+.derive-opt { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--td); cursor:pointer; }
+.derive-opt input { accent-color:var(--accent); }
+.eq-group { display:flex; flex-direction:column; gap:3px; padding:5px 0; border-bottom:1px dashed var(--border); }
+.eq-group:last-child { border-bottom:none; }
+.eq-fixed { font-size:12px; color:var(--tm); }
+
+/* Multiclassage. */
+.mc-block { margin-top:10px; }
+.mc-block > summary { cursor:pointer; font-weight:600; font-size:13px; color:var(--td); }
+.mc-summary { font-size:12px; color:var(--tm); margin:6px 0 8px; }
+.mc-list { display:flex; flex-direction:column; gap:4px; }
+.mc-line { font-size:12px; color:var(--td); }
+.mc-edit { display:flex; gap:6px; align-items:center; }
+.mc-edit .sf { flex:1; min-width:0; }
+.mc-edit .mc-lvl { width:56px; flex:none; }
+.mc-actions { display:flex; gap:8px; align-items:center; margin-top:8px; }
+
+/* Encart « Maîtrises, langues & sorts » (lecture seule, calculé). */
+.ps-row { display:grid; grid-template-columns:84px 1fr; gap:10px; font-size:12px; padding:4px 0; border-bottom:1px dashed var(--border); }
+.ps-row:last-of-type { border-bottom:none; }
+.ps-k { color:var(--tm); font-weight:600; }
+.ps-v { color:var(--td); }
+
+/* Modale d'aperçu : carte scrollable + lignes cochables. */
+.diff-card { max-height:88vh; overflow:auto; }
+.diff-row.pickable { grid-template-columns:auto 1fr auto auto auto; cursor:pointer; }
+.diff-row.pickable input { accent-color:var(--accent); margin:0; }
