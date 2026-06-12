@@ -1,6 +1,7 @@
 import { escapeHtml } from './utils.js';
 import { backend } from './backend.js';
 import { store } from '../state.js';
+import { playTurnChime } from './turnsound.js';
 
 /**
  * Préférences d'affichage. Thème & lisibilité : échelle (zoom), contraste
@@ -14,7 +15,7 @@ import { store } from '../state.js';
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true, turnSound: true };
 
 function load() {
   try {
@@ -49,6 +50,11 @@ function apply() {
 export function initPrefs() {
   prefs = load();
   apply();
+}
+
+/** Lit une préférence hors de la modale (ex. `turnSound` pour le carillon). */
+export function getPref(name) {
+  return prefs[name];
 }
 
 /* ── Synchronisation avec le profil ─────────────────────────────
@@ -161,6 +167,13 @@ export function openPrefs() {
           <button data-v="on">Rail VTT</button>
         </div>
       </div>
+      <div class="atk-row">
+        <label>Son de tour <small style="color:var(--muted)">(carillon « À toi de jouer ! »)</small></label>
+        <div class="atk-modes" id="pref-turnsound">
+          <button data-s="on">🔔 Activé</button>
+          <button data-s="off">🔕 Coupé</button>
+        </div>
+      </div>
       <div class="modal-actions">
         <button class="modal-btn pref-reset">Réinitialiser</button>
         <button class="modal-btn modal-ok pref-close">Fermer</button>
@@ -188,6 +201,9 @@ export function openPrefs() {
     );
     overlay.querySelectorAll('#pref-vtt button').forEach((b) =>
       b.classList.toggle('active', (b.dataset.v === 'on') === !!prefs.vttRail)
+    );
+    overlay.querySelectorAll('#pref-turnsound button').forEach((b) =>
+      b.classList.toggle('active', (b.dataset.s === 'on') === !!prefs.turnSound)
     );
   };
   const commit = () => {
@@ -232,6 +248,13 @@ export function openPrefs() {
     b.addEventListener('click', () => {
       prefs.vttRail = b.dataset.v === 'on';
       commit();
+    })
+  );
+  overlay.querySelectorAll('#pref-turnsound button').forEach((b) =>
+    b.addEventListener('click', () => {
+      prefs.turnSound = b.dataset.s === 'on';
+      commit();
+      if (prefs.turnSound) playTurnChime(); // aperçu immédiat du carillon
     })
   );
   overlay.querySelector('.pref-reset').addEventListener('click', () => {

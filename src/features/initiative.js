@@ -4,6 +4,8 @@ import { store } from '../state.js';
 import { loadCharacters, abilityMod, updateCharacter, saveBonus, ABILITIES } from './characters.js';
 import { addPin, updatePin, updateToken, toggleDoor } from './map.js';
 import { showToast } from '../lib/toast.js';
+import { getPref } from '../lib/prefs.js';
+import { playTurnChime } from '../lib/turnsound.js';
 import { resolveAttackVsTargets, applyDamageRollToTargets } from '../lib/applyroll.js';
 import { resolveDeathSave, baseName } from '../lib/rules.js';
 import { parseLoot, hasLoot } from '../lib/loot.js';
@@ -638,6 +640,7 @@ export function subscribeInitiative() {
           const ch = store.get().characters.find((c) => c.id === active.char_id);
           if (ch?.owner_id === store.get().user?.id) {
             showToast('🗡 À toi de jouer !', { type: 'info', icon: '⚔️', timeout: 6000 });
+            if (getPref('turnSound')) playTurnChime(); // coupable dans ⚙ Affichage
           }
         }
       }
