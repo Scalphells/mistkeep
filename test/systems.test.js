@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getSystem, listSystems, DEFAULT_SYSTEM } from '../src/lib/systems/index.js';
 import { dnd5e2014 } from '../src/lib/systems/dnd5e2014.js';
 import { custom, setCustomConfig, normalizeConfig, slugKey } from '../src/lib/systems/custom.js';
+import { dnd5e2024 } from '../src/lib/systems/dnd5e2024.js';
 
 describe('registre de systèmes', () => {
   it('expose D&D 5e 2014 comme système par défaut', () => {
@@ -59,6 +60,42 @@ describe('descripteur dnd5e-2014', () => {
     expect(Array.isArray(d.saves)).toBe(true);
     // Instances indépendantes (pas de partage de référence entre fiches).
     expect(dnd5e2014.createDefaults()).not.toBe(d);
+  });
+});
+
+describe('descripteur dnd5e-2024', () => {
+  it('est enregistré et réutilise les maths 2014', () => {
+    expect(getSystem('dnd5e-2024')).toBe(dnd5e2024);
+    expect(dnd5e2024.abilities).toBe(dnd5e2014.abilities);
+    expect(dnd5e2024.skills).toBe(dnd5e2014.skills);
+    expect(dnd5e2024.sheet).toBe(dnd5e2014.sheet);
+    expect(dnd5e2024.createDefaults().system).toBe('dnd5e-2024');
+  });
+
+  it('espèces 2024 : neuf, sans bonus de caractéristiques', () => {
+    expect(dnd5e2024.srd.races).toHaveLength(9);
+    expect(dnd5e2024.srd.races.every((r) => Object.keys(r.ability).length === 0)).toBe(true);
+    expect(dnd5e2024.srd.races.map((r) => r.key)).toEqual(
+      expect.arrayContaining(['goliath', 'orc', 'humain', 'drakeide'])
+    );
+    expect(dnd5e2024.srd.racesLabel).toBe('Espèce');
+  });
+
+  it('historiques 2024 : quatre, porteurs des +2/+1 et du don d’origine', () => {
+    expect(dnd5e2024.srd.backgrounds.map((b) => b.key)).toEqual(['acolyte', 'criminel', 'erudit', 'soldat']);
+    expect(dnd5e2024.srd.backgrounds.every((b) => b.feature.desc.includes('+2/+1'))).toBe(true);
+  });
+
+  it('douze classes, une sous-classe SRD 5.2 chacune', () => {
+    expect(dnd5e2024.srd.classes).toHaveLength(12);
+    expect(dnd5e2024.srd.classes.every((c) => c.subclasses.length === 1)).toBe(true);
+    expect(dnd5e2024.srd.subclasses['Champion'].classKey).toBe('guerrier');
+    expect(dnd5e2024.srd.subclasses['Évocateur'].classKey).toBe('magicien');
+    expect(Object.keys(dnd5e2024.srd.subclasses)).toHaveLength(12);
+    // Les stats de base (DV, sauvegardes, incantation) restent celles de 2014.
+    const barb = dnd5e2024.srd.classes.find((c) => c.key === 'barbare');
+    expect(barb.hd).toBe(12);
+    expect(barb.saves).toEqual(['str', 'con']);
   });
 });
 

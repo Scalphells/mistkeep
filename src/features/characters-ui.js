@@ -51,10 +51,10 @@ import {
   CLASSES,
   RACES,
   BACKGROUNDS,
-  classByLabel,
-  raceByLabel,
-  backgroundByLabel,
-  subclassByLabel,
+  classByLabel as classByLabel5e,
+  raceByLabel as raceByLabel5e,
+  backgroundByLabel as backgroundByLabel5e,
+  subclassByLabel as subclassByLabel5e,
   deriveClassPatch,
   deriveRacePatch,
   deriveBackgroundPatch,
@@ -74,6 +74,41 @@ import {
 } from '../lib/srd5e.js';
 import { getSystem } from '../lib/systems/index.js';
 import { activeCampaign } from '../lib/campaigns.js';
+
+/* ── Contenu SRD du système actif ──────────────────────────────
+ * Un système d'identité « srd5e » peut embarquer SON contenu (sys.srd :
+ * espèces/races, classes, historiques, sous-classes — cf. dnd5e2024.js) ; à
+ * défaut, repli sur le SRD 5.1 (D&D 5e 2014) de srd5e.js. Les fonctions
+ * derive* acceptent les entrées en paramètre : la machinerie (gabarits ⚙,
+ * emplacements, PV suggérés) est partagée entre les deux éditions. Les
+ * wrappers gardent les NOMS historiques pour que tous les appels existants
+ * deviennent conscients du système sans changement. */
+
+function srdContent() {
+  return getSystem(activeCampaign()?.system).srd || null;
+}
+
+function classByLabel(label) {
+  const c = srdContent();
+  return c ? c.classes.find((x) => x.label === label) || null : classByLabel5e(label);
+}
+
+function raceByLabel(label) {
+  const c = srdContent();
+  return c ? c.races.find((x) => x.label === label) || null : raceByLabel5e(label);
+}
+
+function backgroundByLabel(label) {
+  const c = srdContent();
+  return c ? c.backgrounds.find((x) => x.label === label) || null : backgroundByLabel5e(label);
+}
+
+function subclassByLabel(label) {
+  const c = srdContent();
+  if (!c) return subclassByLabel5e(label);
+  const e = label && c.subclasses ? c.subclasses[label] : null;
+  return e ? { label, ...e } : null;
+}
 
 /**
  * UI des fiches de personnage : liste à gauche, fiche détaillée à droite.
@@ -1162,12 +1197,13 @@ function identityBlock(sheet, d, ed, ro) {
         <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
       </div>`;
   }
+  const srd = srdContent(); // listes du système actif (2024…), sinon SRD 5.1
   return `<div class="sheet-id-grid">
-      ${idSelect('race', 'Race', RACES, d.race, ro, ed)}
-      ${idSelect('cls', 'Classe', CLASSES, d.cls, ro, ed)}
+      ${idSelect('race', srd?.racesLabel || 'Race', srd?.races || RACES, d.race, ro, ed)}
+      ${idSelect('cls', 'Classe', srd?.classes || CLASSES, d.cls, ro, ed)}
       ${subSelect(d, ro, ed)}
       <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
-      ${idSelect('bg', 'Historique', BACKGROUNDS, d.bg, ro, ed)}
+      ${idSelect('bg', 'Historique', srd?.backgrounds || BACKGROUNDS, d.bg, ro, ed)}
       <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
       <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
       ${ed ? `<button class="sf-levelup" data-levelup title="Monter d'un niveau (maîtrise + dé de vie)">⬆ Niveau</button>` : ''}

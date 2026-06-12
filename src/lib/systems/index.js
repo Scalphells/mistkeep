@@ -8,10 +8,12 @@
  */
 
 import { dnd5e2014 } from './dnd5e2014.js';
+import { dnd5e2024 } from './dnd5e2024.js';
 import { custom } from './custom.js';
 
 const SYSTEMS = {
   [dnd5e2014.id]: dnd5e2014,
+  [dnd5e2024.id]: dnd5e2024,
   [custom.id]: custom,
 };
 
