@@ -79,6 +79,7 @@ import {
   undoMapPatch,
 } from './map.js';
 import { colorFor } from '../lib/profile.js';
+import { gridFromCorners } from '../lib/gridcal.js';
 
 /**
  * Carte de combat : fond + grille, jetons déplaçables (MJ), brouillard de
@@ -3222,6 +3223,7 @@ export async function mountMap(container) {
   let gridCalEl = null;
   function closeGridCalib() {
     if (gridCalEl) {
+      gridCalEl._cleanup?.(); // désarme l'alignement 2 clics (listener sur le viewport)
       gridCalEl.remove();
       gridCalEl = null;
     }
@@ -3239,6 +3241,7 @@ export async function mountMap(container) {
       <div class="map-gridcal-row"><span>Taille</span><button data-gc="size" data-d="-1">−</button><input type="number" id="gc-size" min="10" max="400"><button data-gc="size" data-d="1">+</button></div>
       <div class="map-gridcal-row"><span>Décalage X</span><button data-gc="ox" data-d="-1">−</button><input type="number" id="gc-ox"><button data-gc="ox" data-d="1">+</button></div>
       <div class="map-gridcal-row"><span>Décalage Y</span><button data-gc="oy" data-d="-1">−</button><input type="number" id="gc-oy"><button data-gc="oy" data-d="1">+</button></div>
+      <div class="map-gridcal-row"><button id="gc-align" style="flex:1" title="Clique deux coins opposés d'une même case : taille et décalage sont calculés">🎯 Aligner en 2 clics</button></div>
       <div class="map-gridcal-hint">Ajustez jusqu'à ce que la grille colle à l'image.</div>`;
     (container.querySelector('.map-viewport') || container).appendChild(panel);
     gridCalEl = panel;
@@ -3269,6 +3272,48 @@ export async function mountMap(container) {
       panel.querySelector(`#gc-${prop}`).addEventListener('input', (e) => setProp(prop, e.target.value))
     );
     panel.querySelector('.map-gridcal-x').addEventListener('click', closeGridCalib);
+
+    // Alignement en 2 clics : armé, les deux prochains clics sur la carte
+    // (coins opposés d'UNE case) calculent taille + décalage via gridFromCorners.
+    const hintEl = panel.querySelector('.map-gridcal-hint');
+    const alignBtn = panel.querySelector('#gc-align');
+    const hintDefault = hintEl.textContent;
+    let alignPts = [];
+    const onAlignPick = (e) => {
+      if (panel.contains(e.target)) return; // clics dans le panneau : inchangés
+      e.preventDefault();
+      e.stopPropagation();
+      alignPts.push(toImage(e.clientX, e.clientY));
+      if (alignPts.length < 2) {
+        hintEl.textContent = 'Maintenant, le coin opposé de la même case.';
+        return;
+      }
+      const res = gridFromCorners(alignPts[0], alignPts[1]);
+      disarmAlign();
+      if (!res) {
+        showToast('Coins trop proches ou trop éloignés — zoome et réessaie.', { type: 'warn', icon: '📐' });
+        return;
+      }
+      const m = store.get().map;
+      patchMap({ grid: { ...curGrid(), size: res.size, ox: res.ox, oy: res.oy }, fog: { ...m.fog, cell: res.size } });
+      syncInputs();
+      showToast(`Grille calée : case de ${res.size}px, décalage (${res.ox}, ${res.oy}).`, { type: 'info', icon: '📐' });
+    };
+    function disarmAlign() {
+      alignPts = [];
+      alignBtn.classList.remove('active');
+      hintEl.textContent = hintDefault;
+      vp.removeEventListener('pointerdown', onAlignPick, true);
+    }
+    function armAlign() {
+      alignPts = [];
+      alignBtn.classList.add('active');
+      hintEl.textContent = 'Clique un coin d’une case de l’image…';
+      vp.addEventListener('pointerdown', onAlignPick, true);
+    }
+    alignBtn.addEventListener('click', () => (alignBtn.classList.contains('active') ? disarmAlign() : armAlign()));
+    panel._cleanup = disarmAlign;
+
     syncInputs();
   }
 
