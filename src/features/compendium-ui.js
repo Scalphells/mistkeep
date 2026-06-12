@@ -16,6 +16,7 @@ import {
   srdImportMany,
 } from './compendium.js';
 import { createHandout, uploadHandout } from './handouts.js';
+import { sendMessage } from './chat.js';
 import { addToken, uploadTokenAsset, signedTokenUrl, switchScene } from './map.js';
 import { updateCharacter } from './characters.js';
 import { openTarokka } from '../lib/tarokka.js';
@@ -948,9 +949,24 @@ function renderDetail(container) {
   el.querySelector('[data-act="roll"]')?.addEventListener('click', () => {
     const res = rollTable(entry);
     const out = container.querySelector('#cmp-roll-result');
-    out.innerHTML = res
-      ? `🎲 <strong>${escapeHtml(res)}</strong>`
-      : `<span class="cmp-muted">Table vide — ajoute des résultats.</span>`;
+    if (!res) {
+      out.innerHTML = `<span class="cmp-muted">Table vide — ajoute des résultats.</span>`;
+      return;
+    }
+    // Tirage local d'abord (le MJ peut rester discret), annonce au chat en option.
+    out.innerHTML = `🎲 <strong>${escapeHtml(res)}</strong>
+      <button class="btn cmp-act" data-act="announce" title="Poster le résultat dans le chat public">📣 Annoncer</button>`;
+    out.querySelector('[data-act="announce"]')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        await sendMessage(`🎲 ${entry.name} — ${res}`, 'public');
+        btn.textContent = '✓ Annoncé';
+      } catch (err) {
+        btn.disabled = false;
+        showToast('Envoi impossible : ' + err.message, { type: 'warn', icon: '⚠️' });
+      }
+    });
   });
 }
 
