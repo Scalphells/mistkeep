@@ -1,7 +1,7 @@
 import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
 import { backend } from '../lib/backend.js';
-import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAMPAIGN_ID } from '../lib/campaigns.js';
+import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAMPAIGN_ID, generateInviteCode, setInviteCode, joinCampaignByCode } from '../lib/campaigns.js';
 import { listSystems } from '../lib/systems/index.js';
 import { ABILITIES as CUSTOM_ABILITIES, SKILLS as CUSTOM_SKILLS, slugKey, normalizeConfig } from '../lib/systems/custom.js';
 import { loadSystemConfig, saveSystemConfig } from '../lib/systems/config.js';
@@ -90,12 +90,29 @@ export function openCampaignManager() {
                </div>`
             : ''
         }
+        <div style="margin-top:10px;border-top:1px solid var(--border,#333);padding-top:10px">
+          <label class="prof-label">Rejoindre une campagne</label>
+          <div style="display:flex;gap:8px">
+            <input class="modal-input" id="camp-join-code" type="text" placeholder="Code d'invitation (XXXX-XXXX)" maxlength="9" style="flex:1;text-transform:uppercase" />
+            <button class="modal-btn" id="camp-join">Rejoindre</button>
+          </div>
+        </div>
         <div class="modal-actions">
           <button class="modal-btn modal-cancel">Fermer</button>
         </div>
       </div>`;
 
     ov.querySelector('.modal-cancel').addEventListener('click', close);
+
+    ov.querySelector('#camp-join')?.addEventListener('click', async () => {
+      const code = ov.querySelector('#camp-join-code')?.value?.trim();
+      if (!code) return;
+      try {
+        await joinCampaignByCode(code); // bascule + reload en cas de succès
+      } catch (e) {
+        showToast('Impossible de rejoindre : ' + e.message, { type: 'warn', icon: '⚠️' });
+      }
+    });
 
     ov.querySelectorAll('[data-switch]').forEach((b) =>
       b.addEventListener('click', async () => {
@@ -218,8 +235,15 @@ export function openCampaignManager() {
     };
     const notMember = profiles.filter((p) => !members.some((m) => m.user_id === p.id));
     const myId = store.get().user?.id;
+    const camp = (store.get().campaigns || []).find((x) => x.id === cid);
 
     panel.innerHTML = `
+      <div style="display:flex;gap:6px;align-items:center;padding:2px 0 8px">
+        <span style="opacity:.7">Code d'invitation :</span>
+        ${camp?.invite_code ? `<code>${escapeHtml(camp.invite_code)}</code>
+          <button class="modal-btn" data-code-copy="${escapeHtml(camp.invite_code)}" style="padding:1px 8px" title="Copier le code">📋</button>` : '<em style="opacity:.6">aucun</em>'}
+        <button class="modal-btn" data-code-gen style="padding:1px 8px" title="${camp?.invite_code ? 'Régénérer (l’ancien code cesse de fonctionner)' : 'Générer un code'}">${camp?.invite_code ? '♻' : '➕'}</button>
+      </div>
       ${members
         .map(
           (m) => `
@@ -244,6 +268,24 @@ export function openCampaignManager() {
              </div>`
           : ''
       }`;
+
+    panel.querySelector('[data-code-copy]')?.addEventListener('click', async (e) => {
+      try {
+        await navigator.clipboard.writeText(e.currentTarget.dataset.codeCopy);
+        showToast('Code copié.', { type: 'info', icon: '📋', timeout: 1500 });
+      } catch {
+        showToast('Copie impossible — sélectionne le code à la main.', { type: 'warn', icon: '⚠️' });
+      }
+    });
+    panel.querySelector('[data-code-gen]')?.addEventListener('click', async () => {
+      try {
+        await setInviteCode(cid, generateInviteCode());
+        panel.style.display = 'none';
+        toggleMembers(cid); // ré-affiche avec le nouveau code
+      } catch (e) {
+        showToast('Génération impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
+      }
+    });
 
     panel.querySelector('[data-add-btn]')?.addEventListener('click', async () => {
       const userId = panel.querySelector('[data-add-user]')?.value;

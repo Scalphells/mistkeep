@@ -516,6 +516,65 @@ func TestMigrations(t *testing.T) {
 	}
 }
 
+func TestJoinCampaignRPC(t *testing.T) {
+	h := newHarness(t)
+	// p1 runs a second campaign with an invite code; p2 is not a member.
+	h.exec(`INSERT INTO campaigns(id, name, invite_code) VALUES ('c2','Second','ABCD-2345')`)
+	h.exec(`INSERT INTO campaign_members(campaign_id, user_id, role) VALUES ('c2', ?, 'dm')`, h.p1ID)
+
+	// The RPC route is not /api/{table}, so drive the handler directly.
+	rpc := func(tok string, body any) *httptest.ResponseRecorder {
+		var rdr io.Reader
+		if body != nil {
+			b, _ := json.Marshal(body)
+			rdr = bytes.NewReader(b)
+		}
+		r := httptest.NewRequest(http.MethodPost, "/rpc/join_campaign", rdr)
+		if tok != "" {
+			r.AddCookie(&http.Cookie{Name: "mk_session", Value: tok})
+		}
+		w := httptest.NewRecorder()
+		h.srv.rpcJoinCampaign(w, r)
+		return w
+	}
+
+	if w := rpc("", map[string]any{"code": "ABCD-2345"}); w.Code != 401 {
+		t.Fatalf("anonymous join must be rejected: got %d", w.Code)
+	}
+	if w := rpc(h.p2Tok, map[string]any{"code": ""}); w.Code != 400 {
+		t.Fatalf("empty code: got %d", w.Code)
+	}
+	if w := rpc(h.p2Tok, map[string]any{"code": "ZZZZ-9999"}); w.Code != 404 {
+		t.Fatalf("unknown code: got %d", w.Code)
+	}
+
+	// Codes are normalized (case + surrounding whitespace) before lookup.
+	w := rpc(h.p2Tok, map[string]any{"code": "  abcd-2345 "})
+	if w.Code != 200 {
+		t.Fatalf("join with valid code: got %d (%s)", w.Code, w.Body.String())
+	}
+	var got string
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || got != "c2" {
+		t.Fatalf("join must return the campaign id, got %q (err=%v)", w.Body.String(), err)
+	}
+	var role string
+	if err := h.srv.store.db.QueryRow(`SELECT role FROM campaign_members WHERE campaign_id='c2' AND user_id=?`, h.p2ID).Scan(&role); err != nil || role != "player" {
+		t.Fatalf("membership row: role=%q err=%v, want player", role, err)
+	}
+
+	// Re-joining is idempotent and must not escalate an existing role.
+	if w := rpc(h.p1Tok, map[string]any{"code": "ABCD-2345"}); w.Code != 200 {
+		t.Fatalf("re-join by existing member: got %d (%s)", w.Code, w.Body.String())
+	}
+	if err := h.srv.store.db.QueryRow(`SELECT role FROM campaign_members WHERE campaign_id='c2' AND user_id=?`, h.p1ID).Scan(&role); err != nil || role != "dm" {
+		t.Fatalf("existing DM role must be preserved: role=%q err=%v", role, err)
+	}
+	var n int
+	if err := h.srv.store.db.QueryRow(`SELECT COUNT(*) FROM campaign_members WHERE campaign_id='c2'`).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("memberships in c2: n=%d err=%v, want 2", n, err)
+	}
+}
+
 func TestLoginThrottle(t *testing.T) {
 	th := newLoginThrottle()
 	const ip = "10.0.0.1"

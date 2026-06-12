@@ -123,7 +123,7 @@ var tables = map[string]Policy{
 	"character_private": {Columns: []string{"char_id", "notes", "updated_at", "updated_by"}, PK: "char_id", Write: "char_owner"},
 	// Multi-campaign: anyone may create their own campaign (they become its
 	// owner + GM); the member list is managed by that campaign's GM/owner.
-	"campaigns":        {Columns: []string{"id", "name", "system", "owner_id", "created_at", "updated_at"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
+	"campaigns":        {Columns: []string{"id", "name", "system", "owner_id", "invite_code", "created_at", "updated_at"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
 	"campaign_members": {Columns: []string{"campaign_id", "user_id", "role", "character_id", "created_at"}, PK: "campaign_id", Write: "campaign_dm"},
 }
 
@@ -1015,6 +1015,43 @@ func (s *Server) mayWrite(u *User, table string, p Policy, where string, wargs [
 		return matched
 	}
 	return false
+}
+
+// rpcJoinCampaign lets a signed-in player join a campaign with an invite
+// code (mirror of the Supabase SECURITY DEFINER function join_campaign):
+// the lookup runs server-side because a non-member cannot read the campaign
+// through the regular read scoping. Returns the campaign id, like the RPC.
+func (s *Server) rpcJoinCampaign(w http.ResponseWriter, r *http.Request) {
+	u := s.userFrom(r)
+	if u == nil {
+		httpErr(w, 401, "unauthenticated")
+		return
+	}
+	var in struct {
+		Code string `json:"code"`
+	}
+	if json.NewDecoder(r.Body).Decode(&in) != nil {
+		httpErr(w, 400, "bad request")
+		return
+	}
+	code := strings.ToUpper(strings.TrimSpace(in.Code))
+	if code == "" {
+		httpErr(w, 400, "code requis")
+		return
+	}
+	var cid string
+	err := s.store.db.QueryRow(`SELECT id FROM campaigns WHERE invite_code = ?`, code).Scan(&cid)
+	if err != nil {
+		httpErr(w, 404, "Code d'invitation inconnu.")
+		return
+	}
+	if _, err := s.store.db.Exec(
+		`INSERT INTO campaign_members(campaign_id, user_id, role) VALUES(?,?,'player')
+		 ON CONFLICT(campaign_id, user_id) DO NOTHING`, cid, u.ID); err != nil {
+		httpErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, cid)
 }
 
 // charOwner returns the owner_id of a character, or "" if unknown/unowned.

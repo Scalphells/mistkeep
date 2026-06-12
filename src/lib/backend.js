@@ -4,7 +4,7 @@ import { goAdapter } from './backend/go-adapter.js';
 /**
  * Data-access seam.
  *
- * Feature code talks to `backend.db / .realtime / .auth / .storage` instead of a
+ * Feature code talks to `backend.db / .rpc / .realtime / .auth / .storage` instead of a
  * specific backend. The adapter is chosen at build time:
  *   - default            -> Supabase (the hosted edition)
  *   - VITE_BACKEND=go     -> the self-hosted Go server (poc/go-backend)

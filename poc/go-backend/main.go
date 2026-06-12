@@ -244,6 +244,11 @@ var migrations = []string{
 	// 0027 migration): scale, theme, contrast, VTT rail… localStorage stays a
 	// local cache; the account is the durable source across devices.
 	`ALTER TABLE profiles ADD COLUMN prefs TEXT;`,
+	// v6 — campaign invite codes (mirror of the Supabase 0028 migration):
+	// a player joins a campaign autonomously through POST /rpc/join_campaign.
+	// SQLite UNIQUE indexes allow multiple NULLs, so codeless campaigns are fine.
+	`ALTER TABLE campaigns ADD COLUMN invite_code TEXT;
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_invite ON campaigns(invite_code);`,
 }
 
 // migrate applies every pending migration in its own transaction, then stamps
@@ -825,6 +830,8 @@ func main() {
 	mux.HandleFunc("POST /api/{table}", s.apiInsert)
 	mux.HandleFunc("PATCH /api/{table}", s.apiUpdate)
 	mux.HandleFunc("DELETE /api/{table}", s.apiDelete)
+	// Procedures named after their Supabase RPC counterparts (backend.rpc).
+	mux.HandleFunc("POST /rpc/join_campaign", s.rpcJoinCampaign)
 
 	mux.HandleFunc("GET /realtime", s.ws)
 

@@ -11,6 +11,7 @@
  *   POST   /api/:table            (insert; ?on_conflict=<col> for upsert)
  *   PATCH  /api/:table?<col>=eq.<val>
  *   DELETE /api/:table?<col>=eq.<val>
+ * RPC:     POST /rpc/:name (JSON args -> JSON result)
  * Auth:    POST /auth/signup|login|logout, GET /auth/me  (cookie session)
  * Storage: POST /storage/:bucket (multipart), GET /storage/:bucket/:path?token,
  *          DELETE /storage/:bucket/:path
@@ -230,6 +231,16 @@ function storageBucket(bucket) {
 export const goAdapter = {
   db: {
     from: (table) => new Query(table),
+  },
+  async rpc(name, args) {
+    try {
+      const res = await req('POST', `/rpc/${encodeURIComponent(name)}`, { body: args || {} });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) return { data: null, error: { message: json?.error || `HTTP ${res.status}` } };
+      return { data: json, error: null };
+    } catch (e) {
+      return { data: null, error: { message: e.message } };
+    }
   },
   realtime: {
     channel: (name, opts) => new Channel(name, opts),

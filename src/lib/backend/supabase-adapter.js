@@ -9,6 +9,8 @@ export const supabaseAdapter = {
     from: (table) => supabase.from(table),
   },
 
+  rpc: (name, args) => supabase.rpc(name, args),
+
   realtime: {
     channel: (name, opts) => supabase.channel(name, opts),
     removeChannel: (ch) => supabase.removeChannel(ch),

@@ -103,6 +103,39 @@ export async function deleteCampaign(id) {
   store.set({ campaigns: (store.get().campaigns || []).filter((c) => c.id !== id) });
 }
 
+/* ── Invitations par code ───────────────────────────────────── */
+
+// Alphabet sans caractères ambigus (pas de O/0, I/1/L…).
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** Génère un code d'invitation lisible (XXXX-XXXX). */
+export function generateInviteCode() {
+  const buf = new Uint32Array(8);
+  crypto.getRandomValues(buf);
+  const chars = [...buf].map((n) => CODE_ALPHABET[n % CODE_ALPHABET.length]);
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4).join('')}`;
+}
+
+/** Pose (ou régénère) le code d'invitation d'une campagne dirigée. */
+export async function setInviteCode(campaignId_, code) {
+  const { error } = await backend.db.from('campaigns').update({ invite_code: code }).eq('id', campaignId_);
+  if (error) throw new Error(error.message);
+  store.set({
+    campaigns: (store.get().campaigns || []).map((c) => (c.id === campaignId_ ? { ...c, invite_code: code } : c)),
+  });
+  return code;
+}
+
+/** Rejoint une campagne avec un code (devient membre 'player') et y bascule.
+ *  La résolution passe par le RPC `join_campaign` (fonction SECURITY DEFINER
+ *  côté Supabase, endpoint dédié côté Go) : un non-membre ne peut pas lire la
+ *  campagne directement. */
+export async function joinCampaignByCode(code) {
+  const { data, error } = await backend.rpc('join_campaign', { code: String(code || '').trim() });
+  if (error) throw new Error(error.message);
+  await switchCampaign(data);
+}
+
 /* ── Helpers de scoping ─────────────────────────────────────── */
 
 /**
