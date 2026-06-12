@@ -5,6 +5,7 @@ import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAM
 import { listSystems } from '../lib/systems/index.js';
 import { ABILITIES as CUSTOM_ABILITIES, SKILLS as CUSTOM_SKILLS, slugKey, normalizeConfig } from '../lib/systems/custom.js';
 import { loadSystemConfig, saveSystemConfig } from '../lib/systems/config.js';
+import { downloadActiveCampaign, importCampaignPayload } from '../lib/campaign-transfer.js';
 import { modalConfirm } from '../lib/modal.js';
 import { showToast } from '../lib/toast.js';
 
@@ -61,6 +62,7 @@ export function openCampaignManager() {
               ${c.id !== active ? `<button class="modal-btn" data-switch="${c.id}">Activer</button>` : ''}
               ${managesCampaign(c) ? `<button class="modal-btn" data-members="${c.id}" title="Gérer les membres">👥</button>` : ''}
               ${c.id === active && c.system === 'custom' && managesCampaign(c) ? `<button class="modal-btn" data-syscfg title="Configurer le système (caractéristiques / compétences)">🎲</button>` : ''}
+              ${c.id === active && managesCampaign(c) ? `<button class="modal-btn" data-export-camp title="Exporter cette campagne (sauvegarde JSON complète)">💾</button>` : ''}
               ${c.owner_id === store.get().user?.id && c.id !== active && c.id !== DEFAULT_CAMPAIGN_ID ? `<button class="modal-btn" data-del="${c.id}" title="Supprimer la campagne (définitif)">🗑</button>` : ''}
             </div>
             <div class="camp-members" data-members-panel="${c.id}" style="display:none;padding:6px 6px 10px;font-size:12px"></div>`
@@ -78,7 +80,13 @@ export function openCampaignManager() {
                    </select>
                    <button class="modal-btn modal-ok" id="camp-create">Créer</button>
                  </div>
-                 <div style="font-size:11px;opacity:.7;margin-top:6px">⚠ Avant de jouer sur une 2ᵉ campagne, applique la migration des clés composites (Supabase 0025 / SQLite v4).</div>
+                 <div style="font-size:11px;opacity:.7;margin-top:6px">⚠ Avant de jouer sur une 2ᵉ campagne, applique la migration des clés composites (Supabase 0025 / SQLite v4 — automatique sur le binaire).</div>
+                 <div style="display:flex;gap:8px;margin-top:8px">
+                   <label class="modal-btn" style="cursor:pointer">📥 Importer une campagne (.json)…
+                     <input type="file" id="camp-import" accept="application/json,.json" hidden />
+                   </label>
+                   <span id="camp-import-status" style="font-size:11px;opacity:.75;align-self:center"></span>
+                 </div>
                </div>`
             : ''
         }
@@ -112,6 +120,46 @@ export function openCampaignManager() {
     ov.querySelector('[data-syscfg]')?.addEventListener('click', () => {
       close();
       openSystemEditor();
+    });
+
+    ov.querySelector('[data-export-camp]')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        await downloadActiveCampaign();
+        showToast('Campagne exportée (fichier téléchargé).', { type: 'info', icon: '💾' });
+      } catch (err) {
+        showToast('Export impossible : ' + err.message, { type: 'warn', icon: '⚠️' });
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    ov.querySelector('#camp-import')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      const status = ov.querySelector('#camp-import-status');
+      let payload;
+      try {
+        payload = JSON.parse(await file.text());
+      } catch {
+        showToast('Fichier illisible (JSON attendu).', { type: 'warn', icon: '⚠️' });
+        return;
+      }
+      const ok = await modalConfirm(
+        `Importer « ${payload?.campaign?.name || '?'} » dans une NOUVELLE campagne ? Les fiches seront à réattribuer aux joueurs.`,
+        { title: 'Importer une campagne', okLabel: 'Importer' }
+      );
+      if (!ok) return;
+      try {
+        await importCampaignPayload(payload, (table, done, total) => {
+          if (status) status.textContent = `${table} ${done}/${total}…`;
+        }); // bascule + reload en cas de succès
+      } catch (err) {
+        if (status) status.textContent = '';
+        showToast('Import échoué : ' + err.message + ' — supprime la campagne partielle avant de réessayer.', { type: 'warn', icon: '⚠️', timeout: 8000 });
+      }
     });
 
     ov.querySelectorAll('[data-del]').forEach((b) =>
