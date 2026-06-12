@@ -6,6 +6,8 @@ import { sendMessage } from './chat.js';
 import { sendRoll, sendD20Check } from './dice.js';
 import { ABILITIES, abilityMod, fmtMod, updateCharacter, portraitUrl, characterNameForUser } from './characters.js';
 import { sendPlayerRequest, combatantName } from './initiative.js';
+import { getSystem } from '../lib/systems/index.js';
+import { activeCampaign } from '../lib/campaigns.js';
 import { loadNotes, addNote } from './session-notes.js';
 import { loadCompendium, KINDS } from './compendium.js';
 import { loadCampaign, flattenCampaign, findNode } from './campaign.js';
@@ -553,6 +555,8 @@ function updateFiche() {
     return;
   }
   const d = c.data || {};
+  // Caractéristiques et calculs du système de la campagne (5e par défaut).
+  const sys = getSystem(activeCampaign()?.system || d.system);
   const url = portraitUrl(d.portrait);
   el.innerHTML = `
     <div class="dk-fiche-head">
@@ -572,7 +576,7 @@ function updateFiche() {
       <span>Vit ${escapeHtml(String(d.spd ?? '?'))}</span>
     </div>
     <div class="dk-fiche-abil">
-      ${ABILITIES.map((a) => `<button data-ab="${a.key}" title="Test de ${a.label} (Maj = avantage, Ctrl = désavantage)">${a.label}<em>${fmtMod(abilityMod(d[a.key]))}</em></button>`).join('')}
+      ${sys.abilities.map((a) => `<button data-ab="${a.key}" title="Test de ${a.label} (Maj = avantage, Ctrl = désavantage)">${a.label}<em>${sys.fmtMod(sys.abilityMod(d[a.key]))}</em></button>`).join('')}
     </div>
     <div class="dk-fiche-hint">Clic = test (Maj = avantage · Ctrl = désavantage)</div>
     ${dockActions(c)}
@@ -621,8 +625,8 @@ function updateFiche() {
     b.addEventListener('click', (e) => {
       const k = b.dataset.ab;
       const mode = e.shiftKey ? 'adv' : e.ctrlKey || e.metaKey ? 'dis' : 'normal';
-      const lbl = ABILITIES.find((a) => a.key === k)?.label || k;
-      sendD20Check(abilityMod(d[k]), `${c.name} — Test de ${lbl}`, { mode });
+      const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
+      sendD20Check(sys.abilityMod(d[k]), `${c.name} — Test de ${lbl}`, { mode });
     })
   );
   el.querySelectorAll('[data-slot]').forEach((b) =>
