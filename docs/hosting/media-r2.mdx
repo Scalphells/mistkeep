@@ -1,0 +1,68 @@
+---
+title: "Médias sur Cloudflare R2"
+description: "Édition Supabase : servir cartes, jetons et audio depuis R2 pour sortir du quota egress — gratuitement."
+---
+
+<Info>
+  Cette page concerne **l'édition Supabase** uniquement. Le binaire Go sert
+  ses fichiers localement (`DATA_DIR/storage`) : aucun quota, rien à faire.
+</Info>
+
+Le plan gratuit de Supabase plafonne l'**egress** (trafic sortant) à 5 GB par
+mois — et les médias d'une table de JdR (fonds de carte, jetons, pistes
+audio) en sont le gros poste : chaque joueur les télécharge. Cloudflare R2 ne
+facture **pas** l'egress ; en y déplaçant les médias, le quota Supabase ne
+sert plus qu'aux données de jeu.
+
+C'est **opt-in** : sans configuration, Mistkeep continue d'utiliser le
+Storage Supabase comme avant.
+
+## Mise en place (~10 min)
+
+<Steps>
+  <Step title="Bucket R2">
+    Sur [dash.cloudflare.com](https://dash.cloudflare.com) : *R2 Object
+    Storage* → activer (une carte est demandée pour vérification ; le palier
+    gratuit — 10 GB de stockage, egress illimité — coûte 0 €) → *Create
+    bucket*, par exemple `mistkeep-media`.
+  </Step>
+  <Step title="Worker">
+    *Workers & Pages* → *Create Worker* (ex. `mistkeep-media`) → *Edit code*
+    → collez le contenu de
+    [`workers/media-worker.js`](https://github.com/Scalphells/mistkeep/blob/main/workers/media-worker.js)
+    → *Deploy*.
+  </Step>
+  <Step title="Liaisons du Worker">
+    Dans *Settings* du Worker : un **binding R2** nommé `MEDIA` vers votre
+    bucket, et deux **variables** : `SUPABASE_URL` (l'URL du projet) et
+    `SUPABASE_ANON_KEY` (la clé anon).
+  </Step>
+  <Step title="Côté front">
+    Ajoutez au `.env` du front :
+    ```bash
+    VITE_MEDIA_URL=https://mistkeep-media.<votre-compte>.workers.dev
+    ```
+    puis redéployez. C'est tout.
+  </Step>
+</Steps>
+
+## Ce que fait le Worker
+
+- **`GET /<bucket>/<clé>`** : sert le fichier avec un cache navigateur **et**
+  edge d'un an (les clés sont uniques et jamais réécrites) — un média n'est lu
+  dans R2 qu'une fois par point de présence Cloudflare ;
+- **`PUT /<bucket>/<clé>`** : téléversement, authentifié en vérifiant le jeton
+  de session Supabase auprès de l'API d'authentification — même cercle de
+  confiance que la table de jeu.
+
+## Comportement
+
+Les **nouveaux** téléversements partent sur R2 (référencés par URL absolue) ;
+les fichiers déjà présents sur le Storage Supabase restent où ils sont et
+continuent de fonctionner. La lecture R2 est publique mais les noms de
+fichiers sont horodatés et non devinables.
+
+<Tip>
+  Pour vérifier que c'est actif : téléversez un fond de carte — son URL doit
+  commencer par l'adresse de votre Worker.
+</Tip>

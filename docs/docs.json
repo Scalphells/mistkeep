@@ -18,6 +18,7 @@
       {
         "group": "Guide du MJ",
         "pages": [
+          "dm/campaigns",
           "dm/map",
           "dm/scenes",
           "dm/combat",
@@ -33,7 +34,7 @@
       },
       {
         "group": "Hébergement",
-        "pages": ["hosting/configuration", "hosting/internet"]
+        "pages": ["hosting/configuration", "hosting/internet", "hosting/media-r2"]
       }
     ]
   },
