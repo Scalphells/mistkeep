@@ -1,4 +1,5 @@
 import { escapeHtml } from './utils.js';
+import { characterNameForUser } from '../features/characters.js';
 import { colorFor, initials } from './profile.js';
 
 /**
@@ -72,11 +73,12 @@ export function rollCardHtml(r, { isDM, user }) {
       ? `[${rolls.join(', ')}]${mod ? (mod > 0 ? ` +${mod}` : ` ${mod}`) : ''}`
       : '';
 
+  const rollerWho = characterNameForUser(r.roller_id) || r.roller_name || 'Anonyme';
   const head = `
     <div class="rc-head">
-      <div class="rc-av" style="background:${color}">${escapeHtml(initials(r.roller_name))}</div>
+      <div class="rc-av" style="background:${color}">${escapeHtml(initials(rollerWho))}</div>
       <div class="rc-who">
-        <strong style="color:${color}">${escapeHtml(r.roller_name || 'Anonyme')}</strong>
+        <strong style="color:${color}">${escapeHtml(rollerWho)}</strong>
         ${r.roll_name ? `<span class="rc-label">${escapeHtml(r.roll_name)}</span>` : ''}
       </div>
       ${time ? `<span class="rc-time">${time}</span>` : ''}
@@ -104,11 +106,12 @@ export function rollCardHtml(r, { isDM, user }) {
 /** En-tête commun (avatar + auteur + heure) pour les cartes riches d'un message. */
 function msgHead(m, subtitle) {
   const color = colorFor(m.sender_id, m.sender_name);
+  const who = characterNameForUser(m.sender_id) || m.sender_name || 'Anonyme';
   const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
   return `<div class="rc-head">
-      <div class="rc-av" style="background:${color}">${escapeHtml(initials(m.sender_name))}</div>
+      <div class="rc-av" style="background:${color}">${escapeHtml(initials(who))}</div>
       <div class="rc-who">
-        <strong style="color:${color}">${escapeHtml(m.sender_name || 'Anonyme')}</strong>
+        <strong style="color:${color}">${escapeHtml(who)}</strong>
         ${subtitle ? `<span class="rc-label">${escapeHtml(subtitle)}</span>` : ''}
       </div>
       ${time ? `<span class="rc-time">${time}</span>` : ''}

@@ -112,6 +112,19 @@ export async function loadInitiative() {
 
 /* ── Combattants ──────────────────────────────────────────── */
 
+/**
+ * Nom affiché d'un combattant : si le combattant est lié à une fiche, on
+ * utilise toujours le nom courant de la fiche (et non le `name` figé à l'ajout,
+ * qui peut être l'initiale du jeton). Sinon, le `name` du combattant.
+ */
+export function combatantName(c) {
+  if (c?.char_id) {
+    const ch = store.get().characters.find((x) => x.id === c.char_id);
+    if (ch?.name) return ch.name;
+  }
+  return c?.name || 'Combattant';
+}
+
 /** Ajoute un combattant (MJ). */
 export async function addCombatant({ name, initiative, hp, hpMax, hpTemp, charId }) {
   if (!store.get().isDM) return;

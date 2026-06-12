@@ -29,6 +29,7 @@ import {
   resolveGroupSave,
   setManualOrder,
   setCombatantStatus,
+  combatantName,
 } from './initiative.js';
 import { ABILITIES } from './characters.js';
 import { loadCompendium } from './compendium.js';
@@ -226,7 +227,7 @@ function actionBar(mine) {
   const active = initiative[initTurn];
   if (!active) return '';
   return `<div class="init-actionbar ${mine ? 'mine' : ''}">
-      <div class="iab-head">${mine ? '🎯 <strong>À toi de jouer !</strong>' : `🎯 Au tour de <strong>${escapeHtml(active.name)}</strong>`}</div>
+      <div class="iab-head">${mine ? '🎯 <strong>À toi de jouer !</strong>' : `🎯 Au tour de <strong>${escapeHtml(combatantName(active))}</strong>`}</div>
       <div class="iab-acts">
         ${TURN_ACTIONS.map(([a, ic]) => `<button class="iab-btn" data-action="${escapeHtml(a)}">${ic} ${a}</button>`).join('')}
       </div>
@@ -643,7 +644,7 @@ function combatantRow(c, i, active, isDM, round) {
         }
       </div>
       <div class="init-name">
-        <strong>${escapeHtml(c.name)}</strong>
+        <strong>${escapeHtml(combatantName(c))}</strong>
         ${(() => {
           const tid = tokenIdForComb(c);
           const on = tid && (store.get().targets || []).includes(tid);

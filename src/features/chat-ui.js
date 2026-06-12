@@ -1,7 +1,7 @@
 import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
 import { modalConfirm } from '../lib/modal.js';
-import { loadPlayers } from './characters.js';
+import { loadPlayers, characterNameForUser } from './characters.js';
 import { colorFor, initials } from '../lib/profile.js';
 import { rollCardHtml, rollVisibleTo, richCardHtml } from '../lib/chatcards.js';
 import { parseCard } from '../lib/chatpost.js';
@@ -181,9 +181,11 @@ export async function mountChat(container) {
   // Le chat ne dépend pas de la carte/combat/fiches/notes… : ne pas reconstruire
   // le fil quand seules ces clés changent (sinon chaque déplacement de jeton ou
   // changement de PV reconstruit tout le chat).
+  // NB : `characters` n'est PAS ignoré — les noms de perso affichés viennent de
+  // characterNameForUser → store.characters (chargement/renommage de fiches).
   const CHAT_IGNORE = [
     'map', 'scenes', 'activeSceneId', 'targets', 'paused', 'initiative',
-    'initTurn', 'initRound', 'characters', 'activeChar', 'handouts',
+    'initTurn', 'initRound', 'activeChar', 'handouts',
     'sessionNotes', 'compendium', 'compendiumOpenId', 'unreadMessages',
     'unreadHandouts', 'vaultFiles', 'fileTree', 'openTabs', 'activeTab',
     'edits', 'ambience', 'sfxboard', 'imagebank', 'campaign', 'clock',
@@ -309,20 +311,21 @@ export async function mountChat(container) {
 
       const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       const color = colorFor(m.sender_id, m.sender_name);
+      const who = characterNameForUser(m.sender_id) || m.sender_name;
 
       html += `
         <div class="chat-msg ${mine ? 'mine' : ''} ${grouped ? 'grouped' : ''}" style="--c:${color}">
           ${
             grouped
               ? '<div class="chat-avatar-spacer"></div>'
-              : `<div class="chat-avatar" style="background:${color}">${escapeHtml(initials(m.sender_name))}</div>`
+              : `<div class="chat-avatar" style="background:${color}">${escapeHtml(initials(who))}</div>`
           }
           <div class="chat-bubble">
             ${
               grouped
                 ? ''
                 : `<div class="chat-msg-head">
-                     <strong style="color:${color}">${escapeHtml(m.sender_name)}</strong>
+                     <strong style="color:${color}">${escapeHtml(who)}</strong>
                      <span class="chat-time">${time}</span>
                    </div>`
             }

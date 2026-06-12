@@ -4,8 +4,8 @@ import { colorFor, initials } from '../lib/profile.js';
 import { condIcon, condIconHtml } from '../lib/conditions.js';
 import { sendMessage } from './chat.js';
 import { sendRoll, sendD20Check } from './dice.js';
-import { ABILITIES, abilityMod, fmtMod, updateCharacter, portraitUrl } from './characters.js';
-import { sendPlayerRequest } from './initiative.js';
+import { ABILITIES, abilityMod, fmtMod, updateCharacter, portraitUrl, characterNameForUser } from './characters.js';
+import { sendPlayerRequest, combatantName } from './initiative.js';
 import { loadNotes, addNote } from './session-notes.js';
 import { loadCompendium, KINDS } from './compendium.js';
 import { loadCampaign, flattenCampaign, findNode } from './campaign.js';
@@ -737,7 +737,7 @@ function updateCombat() {
             : '';
           return `<div class="dk-comb ${i === initTurn ? 'active' : ''}">
               <span class="dk-comb-init">${c.initiative}</span>
-              <span class="dk-comb-name">${escapeHtml(c.name)} ${conds}${dsHtml}</span>
+              <span class="dk-comb-name">${escapeHtml(combatantName(c))} ${conds}${dsHtml}</span>
               ${hpHtml}
             </div>`;
         })
@@ -793,9 +793,10 @@ function updateChat() {
           if (it.kind === 'sys') return `<div class="chat-sys ${it.ev.dm ? 'dm' : ''}">${escapeHtml(it.ev.text)}</div>`;
           const m = it.m;
           const color = colorFor(m.sender_id, m.sender_name);
+          const who = characterNameForUser(m.sender_id) || m.sender_name;
           return `<div class="dk-msg">
-            <span class="dk-av" style="background:${color}">${escapeHtml(initials(m.sender_name))}</span>
-            <span class="dk-msg-txt"><strong style="color:${color}">${escapeHtml(m.sender_name)}</strong> ${escapeHtml(m.content)}</span>
+            <span class="dk-av" style="background:${color}">${escapeHtml(initials(who))}</span>
+            <span class="dk-msg-txt"><strong style="color:${color}">${escapeHtml(who)}</strong> ${escapeHtml(m.content)}</span>
           </div>`;
         })
         .join('')

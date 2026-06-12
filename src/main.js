@@ -17,6 +17,7 @@ import { initSearch, openSearch } from './lib/search.js';
 import { initAmbience } from './lib/ambience.js';
 import { loadPartyLoot, subscribePartyLoot } from './lib/partyloot.js';
 import { loadQuests, subscribeQuests } from './lib/quests.js';
+import { loadCharacters, subscribeCharacters } from './features/characters.js';
 import { loadDirectory, colorFor, initials } from './lib/profile.js';
 import { openProfileEditor } from './features/profile-ui.js';
 import { initLive } from './lib/live.js';
@@ -94,6 +95,10 @@ async function enterApp(user) {
   subscribePartyLoot();
   loadQuests();
   subscribeQuests();
+  // Chargées globalement (et pas seulement dans l'onglet Fiches) pour résoudre le
+  // nom du personnage des joueurs dans le chat, les jets et le combat.
+  loadCharacters();
+  subscribeCharacters();
 }
 
 function renderShell() {

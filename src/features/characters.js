@@ -112,6 +112,17 @@ export function canEdit(character) {
   return isDM || character?.owner_id === user?.id;
 }
 
+/**
+ * Nom du personnage appartenant à un compte donné (pour afficher le nom du perso
+ * plutôt que le pseudo dans le chat, les jets, le combat…). Renvoie null si le
+ * compte ne possède aucune fiche (ex. le MJ) — l'appelant garde alors son pseudo.
+ */
+export function characterNameForUser(userId) {
+  if (!userId) return null;
+  const ch = store.get().characters.find((c) => c.owner_id === userId);
+  return ch?.name || null;
+}
+
 /* ── Écriture ─────────────────────────────────────────────── */
 
 /**
