@@ -10,6 +10,7 @@ import {
 } from './lib/auth.js';
 import { mountNav, navigateTo } from './features/nav.js';
 import { initCampaigns } from './lib/campaigns.js';
+import { initSystemConfig } from './lib/systems/config.js';
 import { initPWA } from './lib/pwa.js';
 import { initNotify, setNotifyNavigate } from './lib/notify.js';
 import { initSearch, openSearch } from './lib/search.js';
@@ -68,6 +69,8 @@ async function enterApp(user) {
   store.set({ user, profile, role, isDM });
   // Résout la campagne active AVANT les features : toutes les requêtes sont scopées.
   await initCampaigns();
+  // Config du système « Libre » de la campagne (no-op sinon) — avant le rendu.
+  await initSystemConfig();
   renderShell();
   setNotifyNavigate(navigateTo);
   initNotify();

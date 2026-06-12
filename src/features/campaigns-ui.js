@@ -1,8 +1,10 @@
-﻿import { store } from '../state.js';
+import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
 import { backend } from '../lib/backend.js';
 import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAMPAIGN_ID } from '../lib/campaigns.js';
 import { listSystems } from '../lib/systems/index.js';
+import { ABILITIES as CUSTOM_ABILITIES, SKILLS as CUSTOM_SKILLS, slugKey, normalizeConfig } from '../lib/systems/custom.js';
+import { loadSystemConfig, saveSystemConfig } from '../lib/systems/config.js';
 import { modalConfirm } from '../lib/modal.js';
 import { showToast } from '../lib/toast.js';
 
@@ -58,6 +60,7 @@ export function openCampaignManager() {
               </div>
               ${c.id !== active ? `<button class="modal-btn" data-switch="${c.id}">Activer</button>` : ''}
               ${managesCampaign(c) ? `<button class="modal-btn" data-members="${c.id}" title="Gérer les membres">👥</button>` : ''}
+              ${c.id === active && c.system === 'custom' && managesCampaign(c) ? `<button class="modal-btn" data-syscfg title="Configurer le système (caractéristiques / compétences)">🎲</button>` : ''}
               ${c.owner_id === store.get().user?.id && c.id !== active && c.id !== DEFAULT_CAMPAIGN_ID ? `<button class="modal-btn" data-del="${c.id}" title="Supprimer la campagne (définitif)">🗑</button>` : ''}
             </div>
             <div class="camp-members" data-members-panel="${c.id}" style="display:none;padding:6px 6px 10px;font-size:12px"></div>`
@@ -105,6 +108,11 @@ export function openCampaignManager() {
     ov.querySelectorAll('[data-members]').forEach((b) =>
       b.addEventListener('click', () => toggleMembers(b.dataset.members))
     );
+
+    ov.querySelector('[data-syscfg]')?.addEventListener('click', () => {
+      close();
+      openSystemEditor();
+    });
 
     ov.querySelectorAll('[data-del]').forEach((b) =>
       b.addEventListener('click', async () => {
@@ -213,6 +221,152 @@ export function openCampaignManager() {
         toggleMembers(cid);
       })
     );
+  }
+
+  render();
+}
+
+/**
+ * Éditeur du système « Libre » de la campagne active (MJ) : le MJ définit ses
+ * caractéristiques et compétences. Stocké dans session_state['system_config']
+ * (scopé campagne, realtime) ; appliqué immédiatement à toutes les fiches.
+ * Renommer/supprimer une caractéristique ne modifie pas les fiches existantes
+ * (les scores orphelins sont simplement ignorés).
+ */
+export async function openSystemEditor() {
+  const raw = (await loadSystemConfig()) || { abilities: CUSTOM_ABILITIES, skills: CUSTOM_SKILLS };
+  // Copie de travail éditable (compétences en tableau, reconverties à la sauvegarde).
+  const work = {
+    abilities: (raw.abilities || []).map((a) => ({ key: a.key, label: a.label })),
+    skills: Object.entries(raw.skills || {}).map(([key, s]) => ({ key, label: s.label, ability: s.ability })),
+  };
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add('show'));
+  const close = () => {
+    ov.classList.remove('show');
+    setTimeout(() => ov.remove(), 150);
+  };
+  ov.addEventListener('mousedown', (e) => {
+    if (e.target === ov) close();
+  });
+
+  function render() {
+    ov.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:560px">
+        <h3 class="modal-title">🎲 Système de la campagne</h3>
+        <p style="font-size:12px;opacity:.75;margin:4px 0 10px">Caractéristiques et compétences des fiches de CETTE campagne. Les scores des caractéristiques supprimées sont ignorés (rien n'est effacé des fiches).</p>
+
+        <label class="prof-label">Caractéristiques</label>
+        ${work.abilities
+          .map(
+            (a, i) => `
+          <div style="display:flex;gap:6px;align-items:center;padding:2px 0">
+            <input class="modal-input" data-ab-label="${i}" value="${escapeHtml(a.label)}" maxlength="12" style="flex:1" />
+            <code style="font-size:11px;opacity:.6">${escapeHtml(a.key)}</code>
+            <button class="modal-btn" data-ab-del="${i}" style="padding:1px 8px">✕</button>
+          </div>`
+          )
+          .join('')}
+        <div style="display:flex;gap:6px;margin:4px 0 12px">
+          <input class="modal-input" id="syscfg-new-ab" placeholder="Nouvelle caractéristique (ex. FOR)" maxlength="12" style="flex:1" />
+          <button class="modal-btn" id="syscfg-add-ab">Ajouter</button>
+        </div>
+
+        <label class="prof-label">Compétences</label>
+        ${work.skills
+          .map(
+            (s, i) => `
+          <div style="display:flex;gap:6px;align-items:center;padding:2px 0">
+            <input class="modal-input" data-sk-label="${i}" value="${escapeHtml(s.label)}" maxlength="30" style="flex:1" />
+            <select class="modal-input" data-sk-ab="${i}" style="width:auto">
+              ${work.abilities.map((a) => `<option value="${escapeHtml(a.key)}" ${a.key === s.ability ? 'selected' : ''}>${escapeHtml(a.label)}</option>`).join('')}
+            </select>
+            <button class="modal-btn" data-sk-del="${i}" style="padding:1px 8px">✕</button>
+          </div>`
+          )
+          .join('')}
+        <div style="display:flex;gap:6px;margin:4px 0 12px">
+          <input class="modal-input" id="syscfg-new-sk" placeholder="Nouvelle compétence" maxlength="30" style="flex:1" />
+          <button class="modal-btn" id="syscfg-add-sk">Ajouter</button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-btn modal-cancel">Annuler</button>
+          <button class="modal-btn modal-ok" id="syscfg-save">Enregistrer</button>
+        </div>
+      </div>`;
+
+    ov.querySelector('.modal-cancel').addEventListener('click', close);
+
+    ov.querySelectorAll('[data-ab-label]').forEach((inp) =>
+      inp.addEventListener('change', () => {
+        work.abilities[Number(inp.dataset.abLabel)].label = inp.value;
+      })
+    );
+    ov.querySelectorAll('[data-ab-del]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const removed = work.abilities.splice(Number(b.dataset.abDel), 1)[0];
+        // Les compétences orphelines suivent la première caractéristique restante.
+        work.skills.forEach((s) => {
+          if (s.ability === removed?.key) s.ability = work.abilities[0]?.key || '';
+        });
+        render();
+      })
+    );
+    ov.querySelector('#syscfg-add-ab').addEventListener('click', () => {
+      const label = ov.querySelector('#syscfg-new-ab').value.trim();
+      const key = slugKey(label);
+      if (!label || !key) return showToast('Libellé invalide.', { type: 'warn', icon: '⚠️' });
+      if (work.abilities.some((a) => a.key === key)) return showToast('Cette caractéristique existe déjà.', { type: 'warn', icon: '⚠️' });
+      work.abilities.push({ key, label });
+      render();
+    });
+
+    ov.querySelectorAll('[data-sk-label]').forEach((inp) =>
+      inp.addEventListener('change', () => {
+        work.skills[Number(inp.dataset.skLabel)].label = inp.value;
+      })
+    );
+    ov.querySelectorAll('[data-sk-ab]').forEach((sel) =>
+      sel.addEventListener('change', () => {
+        work.skills[Number(sel.dataset.skAb)].ability = sel.value;
+      })
+    );
+    ov.querySelectorAll('[data-sk-del]').forEach((b) =>
+      b.addEventListener('click', () => {
+        work.skills.splice(Number(b.dataset.skDel), 1);
+        render();
+      })
+    );
+    ov.querySelector('#syscfg-add-sk').addEventListener('click', () => {
+      const label = ov.querySelector('#syscfg-new-sk').value.trim();
+      const key = slugKey(label);
+      if (!label || !key) return showToast('Libellé invalide.', { type: 'warn', icon: '⚠️' });
+      if (work.skills.some((s) => s.key === key)) return showToast('Cette compétence existe déjà.', { type: 'warn', icon: '⚠️' });
+      work.skills.push({ key, label, ability: work.abilities[0]?.key || '' });
+      render();
+    });
+
+    ov.querySelector('#syscfg-save').addEventListener('click', async () => {
+      const cfg = {
+        abilities: work.abilities,
+        skills: Object.fromEntries(work.skills.map((s) => [s.key, { label: s.label, ability: s.ability }])),
+      };
+      if (!normalizeConfig(cfg)) {
+        showToast('Config invalide : il faut au moins une caractéristique.', { type: 'warn', icon: '⚠️' });
+        return;
+      }
+      try {
+        await saveSystemConfig(cfg);
+        showToast('Système de la campagne enregistré.', { type: 'info', icon: '🎲' });
+        close();
+      } catch (e) {
+        showToast('Enregistrement impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
+      }
+    });
   }
 
   render();
