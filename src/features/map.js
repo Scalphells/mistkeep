@@ -4,6 +4,7 @@ import { uploadMedia } from '../lib/media.js';
 import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
+import { createUndoStack } from '../lib/undo-stack.js';
 import { updateLayer } from '../lib/ambience.js';
 import { showToast } from '../lib/toast.js';
 
@@ -288,10 +289,35 @@ export function flushSceneSave() {
   saveDebounced.flush?.();
 }
 
+/* ── Annulation (Ctrl+Z, MJ) ──────────────────────────────── */
+
+// Historique des patchs MJ, scopé par scène (cf. lib/undo-stack). Les patchs
+// automatiques (exploration du brouillard, sync de vision, moves des joueurs)
+// passent `record:false` pour ne pas noyer les actions réelles du MJ.
+const _undo = createUndoStack(50);
+
+/** Y a-t-il quelque chose à annuler sur la scène active ? */
+export function canUndoMap() {
+  return _undo.canUndo(store.get().activeSceneId);
+}
+
+/** Annule le dernier patch MJ de la scène active (restaure les clés touchées). */
+export function undoMapPatch() {
+  if (!store.get().isDM) return false;
+  const prev = _undo.pop(store.get().activeSceneId);
+  if (!prev) return false;
+  const cur = store.get().map || { ...DEFAULT_MAP };
+  store.set({ map: { ...cur, ...prev } });
+  _savePending = true;
+  saveDebounced();
+  return true;
+}
+
 /** Applique un patch à l'état de la carte (optimiste + persistance MJ). */
-export function patchMap(patch) {
+export function patchMap(patch, { record = true } = {}) {
   if (!store.get().isDM) return;
   const cur = store.get().map || { ...DEFAULT_MAP };
+  if (record) _undo.record(store.get().activeSceneId, cur, patch);
   const next = { ...cur, ...patch };
   store.set({ map: next });
   _savePending = true;
@@ -444,7 +470,7 @@ export function syncTokenVisionFromSheets() {
     else delete nt.darkvision;
     return nt;
   });
-  if (changed) patchMap({ tokens });
+  if (changed) patchMap({ tokens }, { record: false }); // sync auto : pas dans l'historique Ctrl+Z
 }
 
 function initials(name) {
@@ -456,13 +482,13 @@ function initials(name) {
     .join('');
 }
 
-export function moveToken(id, x, y) {
+export function moveToken(id, x, y, opts) {
   if (!store.get().isDM) return;
   const m = store.get().map;
   if (!m) return;
   patchMap({
     tokens: m.tokens.map((t) => (t.id === id ? { ...t, x, y } : t)),
-  });
+  }, opts);
 }
 
 export function updateToken(id, patch) {
@@ -688,7 +714,7 @@ export function accumulateExplored(cells) {
       changed = true;
     }
   }
-  if (changed) patchMap({ fog: { ...m.fog, explored: [...set] } });
+  if (changed) patchMap({ fog: { ...m.fog, explored: [...set] } }, { record: false }); // auto-exploration : pas dans l'historique Ctrl+Z
 }
 
 export function clearExplored() {

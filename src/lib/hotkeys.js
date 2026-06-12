@@ -37,6 +37,7 @@ function toggleHelp() {
     ['Ctrl / ⌘ + K', 'Recherche globale'],
     [']', 'Combat : tour suivant (MJ)'],
     ['[', 'Combat : tour précédent (MJ)'],
+    ['Ctrl / ⌘ + Z', 'Carte : annuler la dernière modification (MJ)'],
     ['Échap', 'Fermer fenêtre / cible'],
     ['?', 'Afficher cette aide'],
   ];

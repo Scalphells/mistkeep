@@ -76,6 +76,7 @@ import {
   applyTokenMoveLocal,
   metersToCells,
   syncTokenVisionFromSheets,
+  undoMapPatch,
 } from './map.js';
 import { colorFor } from '../lib/profile.js';
 
@@ -3460,12 +3461,21 @@ export async function mountMap(container) {
     setTimeout(() => document.addEventListener('pointerdown', onClose, true), 0);
   }
 
-  // Raccourcis carte : Échap (gabarit/sélection), Suppr (sélection).
+  // Raccourcis carte : Échap (gabarit/sélection), Suppr (sélection), Ctrl+Z (annuler, MJ).
   const onKey = async (e) => {
     // Ne pas intercepter quand on tape dans un champ.
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-    if (e.key === 'Escape') {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && !e.altKey) {
+      if (!isDM) return;
+      e.preventDefault();
+      if (undoMapPatch()) {
+        renderAll();
+        showToast('↩ Dernière modification annulée.', { timeout: 1400 });
+      } else {
+        showToast('Rien à annuler sur cette scène.', { timeout: 1400 });
+      }
+    } else if (e.key === 'Escape') {
       if (template) clearTemplate();
       if (rulerPts.length) clearRuler();
       if (wallChain.length) clearWallChain();
@@ -3628,7 +3638,7 @@ export async function mountMap(container) {
     onPing: (p) => spawnPing(p.x, p.y, p.name),
     onTokenMove: (p) => {
       if (!p?.id) return;
-      if (isDM) moveToken(p.id, p.x, p.y); // persiste
+      if (isDM) moveToken(p.id, p.x, p.y, { record: false }); // persiste (move d'un joueur : pas dans l'historique Ctrl+Z du MJ)
       else applyTokenMoveLocal(p.id, p.x, p.y);
     },
     onView: (p) => {
