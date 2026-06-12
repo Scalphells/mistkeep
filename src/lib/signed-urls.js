@@ -49,6 +49,8 @@ function persist() {
  */
 export async function cachedSignedUrl(bucket, path) {
   if (!path) return null;
+  // Média R2 / URL externe : déjà publique, immuable et cachée — telle quelle.
+  if (/^https?:\/\//i.test(path)) return path;
   const key = path.startsWith(`${bucket}/`) ? path.slice(bucket.length + 1) : path;
   const c = load();
   const id = `${bucket}/${key}`;

@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
-import { cachedSignedUrl, IMMUTABLE_CACHE } from './signed-urls.js';
+import { cachedSignedUrl } from './signed-urls.js';
+import { uploadMedia } from './media.js';
 import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
@@ -106,10 +107,9 @@ async function onUpload(e) {
   try {
     const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
     const key = `audio/sfx_${Date.now()}.${ext}`;
-    const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg', cacheControl: IMMUTABLE_CACHE });
-    if (error) throw new Error(error.message);
+    const ref = await uploadMedia(BUCKET, key, file, file.type || 'audio/mpeg');
     const name = file.name.replace(/\.[^.]+$/, '');
-    persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name, url: `${BUCKET}/${key}` }]);
+    persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name, url: ref }]);
   } catch (err) {
     const { modalAlert } = await import('./modal.js');
     await modalAlert('Import impossible : ' + err.message, { title: 'Son' });

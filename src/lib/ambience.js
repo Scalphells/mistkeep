@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
-import { cachedSignedUrl, IMMUTABLE_CACHE } from './signed-urls.js';
+import { cachedSignedUrl } from './signed-urls.js';
+import { uploadMedia } from './media.js';
 import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { debounce } from './utils.js';
@@ -294,9 +295,8 @@ export async function uploadAmbience(file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
   const key = `audio/${Date.now()}.${ext}`;
-  const { error } = await backend.storage.from(BUCKET).upload(key, file, { upsert: true, contentType: file.type || 'audio/mpeg', cacheControl: IMMUTABLE_CACHE });
-  if (error) throw new Error(error.message);
-  addLayer({ url: `${BUCKET}/${key}`, name: file.name.replace(/\.[^.]+$/, '') });
+  const ref = await uploadMedia(BUCKET, key, file, file.type || 'audio/mpeg');
+  addLayer({ url: ref, name: file.name.replace(/\.[^.]+$/, '') });
 }
 
 /* ── Catalogue Tabletop Audio (inchangé) ── */

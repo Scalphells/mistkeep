@@ -73,6 +73,7 @@ import {
   deriveProficiencies,
 } from '../lib/srd5e.js';
 import { getSystem } from '../lib/systems/index.js';
+import { activeCampaign } from '../lib/campaigns.js';
 
 /**
  * UI des fiches de personnage : liste à gauche, fiche détaillée à droite.
@@ -972,7 +973,9 @@ function renderSheet(scrollTop = false) {
   }
 
   const d = c.data || {};
-  const sys = getSystem(d.system); // descripteur du système de jeu (5e-2014 par défaut)
+  // Une campagne = un système : le descripteur vient de la campagne active,
+  // avec repli sur celui posé sur la fiche (créations antérieures), puis 5e.
+  const sys = getSystem(activeCampaign()?.system || d.system);
   const ed = canEdit(c);
   const ro = ed ? '' : 'readonly disabled';
 
@@ -1271,7 +1274,7 @@ function saveRow(a, d, ed) {
 }
 
 function skillRow(k, d, ed) {
-  const sys = getSystem(d.system);
+  const sys = getSystem(activeCampaign()?.system || d.system);
   const sk = sys.skills[k];
   if (!sk) return '';
   const prof = (d.profs || []).includes(k);

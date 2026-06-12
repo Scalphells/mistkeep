@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
-import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
+import { cachedSignedUrl } from '../lib/signed-urls.js';
+import { uploadMedia } from '../lib/media.js';
 import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
@@ -304,17 +305,15 @@ export async function uploadBackground(file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const key = `${Date.now()}.${ext}`;
-  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
-    upsert: true,
-    contentType: file.type || 'image/jpeg',
-    cacheControl: IMMUTABLE_CACHE,
-  });
-  if (error) {
-    console.error('[map] upload échoué:', error.message);
-    throw new Error(error.message);
+  let ref;
+  try {
+    ref = await uploadMedia(BG_BUCKET, key, file, file.type || 'image/jpeg');
+  } catch (e) {
+    console.error('[map] upload échoué:', e.message);
+    throw e;
   }
   const dims = await imageDimensions(file);
-  patchMap({ bg: `${BG_BUCKET}/${key}`, bgW: dims.w, bgH: dims.h });
+  patchMap({ bg: ref, bgW: dims.w, bgH: dims.h });
   _bgUrlForPath = null;
   await refreshBgUrl();
 }
@@ -771,13 +770,7 @@ export async function uploadTokenAsset(file) {
   if (!store.get().isDM) return null;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `tokens/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
-    upsert: true,
-    contentType: file.type || 'image/png',
-    cacheControl: IMMUTABLE_CACHE,
-  });
-  if (error) throw new Error(error.message);
-  return `${BG_BUCKET}/${key}`;
+  return uploadMedia(BG_BUCKET, key, file, file.type || 'image/png');
 }
 
 /** Téléverse une image dans la bibliothèque de jetons (MJ). */
@@ -785,13 +778,7 @@ export async function uploadLibraryImage(file) {
   if (!store.get().isDM) return null;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `tokens/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
-    upsert: true,
-    contentType: file.type || 'image/png',
-    cacheControl: IMMUTABLE_CACHE,
-  });
-  if (error) throw new Error(error.message);
-  const path = `${BG_BUCKET}/${key}`;
+  const path = await uploadMedia(BG_BUCKET, key, file, file.type || 'image/png');
   const m = store.get().map || { ...DEFAULT_MAP };
   patchMap({ tokenLib: [...(m.tokenLib || []), path] });
   await resolveTokenUrls();
@@ -811,13 +798,7 @@ export async function uploadTokenImage(file, tokenId) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `tokens/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const { error } = await backend.storage.from(BG_BUCKET).upload(key, file, {
-    upsert: true,
-    contentType: file.type || 'image/png',
-    cacheControl: IMMUTABLE_CACHE,
-  });
-  if (error) throw new Error(error.message);
-  const path = `${BG_BUCKET}/${key}`;
+  const path = await uploadMedia(BG_BUCKET, key, file, file.type || 'image/png');
   updateToken(tokenId, { img: path });
   await resolveTokenUrls();
 }

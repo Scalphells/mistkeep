@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
-import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
+import { cachedSignedUrl } from '../lib/signed-urls.js';
+import { uploadMedia } from '../lib/media.js';
 import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { showToast } from '../lib/toast.js';
@@ -79,18 +80,13 @@ export async function uploadHandout(file, { title, description, target_player })
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const key = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error: upErr } = await backend.storage.from(HBUCKET).upload(key, file, {
-    upsert: true,
-    contentType: file.type || 'image/jpeg',
-    cacheControl: IMMUTABLE_CACHE,
-  });
-  if (upErr) throw new Error(upErr.message);
+  const ref = await uploadMedia(HBUCKET, key, file, file.type || 'image/jpeg');
 
   const row = {
     title: String(title).trim() || file.name,
     description: description?.trim() || null,
     content_type: 'image',
-    image_url: `${HBUCKET}/${key}`,
+    image_url: ref,
     target_player: target_player || null,
     pushed_by: store.get().user?.id ?? null,
     campaign_id: campaignId(),
@@ -110,12 +106,16 @@ export async function deleteHandout(id) {
     return;
   }
   if (h?.image_url) {
-    const key = h.image_url.startsWith(`${HBUCKET}/`)
-      ? h.image_url.slice(HBUCKET.length + 1)
-      : h.image_url;
-    backend.storage.from(HBUCKET).remove([key]).then(({ error: e }) => {
-      if (e) console.warn('[handouts] image non supprimée:', e.message);
-    });
+    // Fichier du storage backend : on le supprime. Fichier R2 (URL absolue) :
+    // laissé en place (orphelin inoffensif — pas d'API delete côté Worker).
+    if (!/^https?:\/\//i.test(h.image_url)) {
+      const key = h.image_url.startsWith(`${HBUCKET}/`)
+        ? h.image_url.slice(HBUCKET.length + 1)
+        : h.image_url;
+      backend.storage.from(HBUCKET).remove([key]).then(({ error: e }) => {
+        if (e) console.warn('[handouts] image non supprimée:', e.message);
+      });
+    }
     _urlCache.delete(h.image_url);
   }
   store.set({ handouts: store.get().handouts.filter((x) => x.id !== id) });

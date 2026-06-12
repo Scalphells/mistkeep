@@ -1,6 +1,7 @@
 import { backend } from '../lib/backend.js';
-import { cachedSignedUrl, IMMUTABLE_CACHE } from '../lib/signed-urls.js';
-import { campaignId, sameCampaign } from '../lib/campaigns.js';
+import { cachedSignedUrl } from '../lib/signed-urls.js';
+import { uploadMedia } from '../lib/media.js';
+import { campaignId, activeCampaign, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
@@ -98,13 +99,7 @@ export async function uploadPortrait(id, file) {
   if (!store.get().isDM) return;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const key = `portraits/${id}_${Date.now()}.${ext}`;
-  const { error } = await backend.storage.from(PORTRAIT_BUCKET).upload(key, file, {
-    upsert: true,
-    contentType: file.type || 'image/png',
-    cacheControl: IMMUTABLE_CACHE,
-  });
-  if (error) throw new Error(error.message);
-  const path = `${PORTRAIT_BUCKET}/${key}`;
+  const path = await uploadMedia(PORTRAIT_BUCKET, key, file, file.type || 'image/png');
   updateCharacter(id, { portrait: path });
   await resolvePortraitUrls();
 }
@@ -193,6 +188,7 @@ export async function createCharacter(name) {
   if (!store.get().isDM) return null;
   const id = `c_${crypto.randomUUID().slice(0, 8)}`;
   const data = createDefaults(); // blob initial fourni par le système (5e-2014)
+  data.system = activeCampaign()?.system || data.system; // une campagne = un système
   const { error } = await backend.db.from('characters').insert({ id, name, data, campaign_id: campaignId() });
   if (error) {
     console.error('[characters] création échouée:', error.message);
