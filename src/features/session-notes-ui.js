@@ -1,8 +1,12 @@
 import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
-import { modalConfirm } from '../lib/modal.js';
+import { modalConfirm, modalPrompt } from '../lib/modal.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { colorFor } from '../lib/profile.js';
+import { buildSessionRecap } from '../lib/recap.js';
+import { loadCombatLog } from './initiative.js';
+import { loadMessages } from './chat.js';
+import { loadRecentRolls } from './dice.js';
 import {
   loadNotes,
   addNote,
@@ -36,6 +40,7 @@ export function mountSessionNotes(container) {
         <div class="sn-composer-actions">
           <label class="sn-share"><input type="checkbox" id="sn-shared"> Partager avec la table</label>
           <span class="sn-hint">Sinon, visible de toi seul (et du MJ).</span>
+          ${store.get().isDM ? '<button class="btn" id="sn-recap" title="Pré-remplit la note avec un brouillon de résumé (journal de combat, jets marquants)">🪄 Résumé auto</button>' : ''}
           <button class="btn" id="sn-add">Ajouter</button>
         </div>
         <div class="sn-err" id="sn-err"></div>
@@ -58,6 +63,21 @@ export function mountSessionNotes(container) {
     } catch (e) {
       err.textContent = e.message || "Échec de l'ajout.";
     }
+  });
+
+  // Brouillon de résumé (MJ) : pré-remplit le composeur, rien n'est posté
+  // automatiquement — le MJ relit, complète, puis ajoute/partage.
+  container.querySelector('#sn-recap')?.addEventListener('click', async () => {
+    const h = await modalPrompt('Reprendre les événements des dernières heures :', {
+      title: '🪄 Résumé de séance', defaultValue: '4', placeholder: '4',
+    });
+    if (h === null) return;
+    const hours = Math.max(1, Math.min(24, Number(h) || 4));
+    // Recharge les sources au cas où ces onglets n'ont pas été ouverts.
+    await Promise.allSettled([loadCombatLog(), loadMessages(), loadRecentRolls()]);
+    const { combatLog = [], messages = [], diceHist = [] } = store.get();
+    input.value = buildSessionRecap({ combatLog, messages, rolls: diceHist, sinceMs: Date.now() - hours * 3600e3 });
+    input.focus();
   });
 
   loadNotes();
