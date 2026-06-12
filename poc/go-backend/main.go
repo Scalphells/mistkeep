@@ -240,6 +240,10 @@ var migrations = []string{
 	DROP TABLE vault_notes;
 	ALTER TABLE vault_notes_v4 RENAME TO vault_notes;
 	CREATE INDEX IF NOT EXISTS idx_vault_notes_campaign ON vault_notes(campaign_id);`,
+	// v5 — display preferences carried by the account (mirror of the Supabase
+	// 0027 migration): scale, theme, contrast, VTT rail… localStorage stays a
+	// local cache; the account is the durable source across devices.
+	`ALTER TABLE profiles ADD COLUMN prefs TEXT;`,
 }
 
 // migrate applies every pending migration in its own transaction, then stamps

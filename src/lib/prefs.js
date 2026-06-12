@@ -1,9 +1,13 @@
 import { escapeHtml } from './utils.js';
+import { backend } from './backend.js';
+import { store } from '../state.js';
 
 /**
- * Préférences d'affichage (par appareil, localStorage). Thème & lisibilité :
- * échelle (zoom), contraste élevé, réduction des animations.
+ * Préférences d'affichage. Thème & lisibilité : échelle (zoom), contraste
+ * élevé, réduction des animations, accent, disposition VTT.
  *
+ * Persistance : localStorage (cache local immédiat) + profiles.prefs (source
+ * durable, suit le compte entre appareils — cf. syncPrefsFromProfile).
  * Appliquées sur <html> : `style.zoom`, `data-contrast`, `data-motion`.
  * Le CSS réagit via les sélecteurs `html[data-contrast="high"]` et
  * `html[data-motion="reduce"]` (voir base.css).
@@ -45,6 +49,47 @@ function apply() {
 export function initPrefs() {
   prefs = load();
   apply();
+}
+
+/* ── Synchronisation avec le profil ─────────────────────────────
+ * localStorage = cache local rapide (appliqué dès le boot, avant le réseau) ;
+ * la source durable est profiles.prefs : les réglages suivent le compte entre
+ * appareils et survivent aux nettoyages du navigateur. */
+
+function pushPrefsToProfile() {
+  const uid = store.get().user?.id;
+  if (!uid) return;
+  backend.db
+    .from('profiles')
+    .update({ prefs })
+    .eq('id', uid)
+    .then(({ error }) => {
+      if (error) console.warn('[prefs] sync profil impossible:', error.message);
+    });
+}
+
+/** À appeler après le chargement du profil, avant le rendu du shell :
+ *  applique les réglages du compte, ou y pousse les réglages locaux la
+ *  première fois (compte sans prefs enregistrées). */
+export function syncPrefsFromProfile() {
+  const p = store.get().profile;
+  if (!p) return;
+  let remote = p.prefs;
+  if (typeof remote === 'string') {
+    // Le backend Go renvoie le jsonb SQLite sous forme de chaîne.
+    try {
+      remote = JSON.parse(remote);
+    } catch {
+      remote = null;
+    }
+  }
+  if (remote && typeof remote === 'object') {
+    prefs = { ...DEFAULTS, ...remote };
+    save(prefs); // rafraîchit le cache local
+    apply();
+  } else {
+    pushPrefsToProfile();
+  }
 }
 
 /* ── Modale de réglages ─────────────────────────────────────── */
@@ -149,6 +194,7 @@ export function openPrefs() {
     save(prefs);
     apply();
     sync();
+    pushPrefsToProfile(); // réglages portés par le compte (multi-appareils)
   };
 
   overlay.querySelectorAll('#pref-scale button').forEach((b) =>

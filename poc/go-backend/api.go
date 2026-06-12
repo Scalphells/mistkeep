@@ -108,7 +108,7 @@ func (p Policy) isJSON(c string) bool {
 }
 
 var tables = map[string]Policy{
-	"profiles":      {Columns: []string{"id", "email", "display_name", "role", "character_id", "color", "active_campaign_id", "created_at", "updated_at"}, PK: "id", OwnerCol: "id", Write: "owner"},
+	"profiles":      {Columns: []string{"id", "email", "display_name", "role", "character_id", "color", "active_campaign_id", "prefs", "created_at", "updated_at"}, JSONCols: []string{"prefs"}, PK: "id", OwnerCol: "id", Write: "owner"},
 	"characters":    {Columns: []string{"id", "owner_id", "name", "data", "campaign_id", "updated_at", "updated_by"}, JSONCols: []string{"data"}, PK: "id", OwnerCol: "owner_id", Write: "owner"},
 	"initiative":    {Columns: []string{"entity_id", "name", "initiative", "hp", "hp_max", "hp_temp", "sort_order", "conditions", "effects", "death_saves", "status", "char_id", "campaign_id", "updated_at", "updated_by"}, JSONCols: []string{"conditions", "effects", "death_saves"}, PK: "entity_id", Write: "dm"},
 	"scenes":        {Columns: []string{"id", "name", "state", "sort", "created_by", "campaign_id", "created_at", "updated_at"}, JSONCols: []string{"state"}, PK: "id", Write: "dm"},

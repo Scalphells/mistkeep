@@ -24,7 +24,7 @@ import { mountDock } from './features/dock.js';
 import { exportData } from './lib/export.js';
 import { initSpotlight } from './lib/spotlight.js';
 import { initDiceAnim } from './lib/diceanim.js';
-import { initPrefs, openPrefs } from './lib/prefs.js';
+import { initPrefs, openPrefs, syncPrefsFromProfile } from './lib/prefs.js';
 import { initHotkeys } from './lib/hotkeys.js';
 import { initRollRequests } from './lib/rollrequest.js';
 import { initPause, togglePause } from './lib/pause.js';
@@ -71,6 +71,8 @@ async function enterApp(user) {
   await initCampaigns();
   // Config du système « Libre » de la campagne (no-op sinon) — avant le rendu.
   await initSystemConfig();
+  // Réglages d'affichage portés par le compte (avant le rendu : rail VTT…).
+  syncPrefsFromProfile();
   renderShell();
   setNotifyNavigate(navigateTo);
   initNotify();
