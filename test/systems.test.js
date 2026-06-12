@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getSystem, listSystems, DEFAULT_SYSTEM } from '../src/lib/systems/index.js';
 import { dnd5e2014 } from '../src/lib/systems/dnd5e2014.js';
+import { custom } from '../src/lib/systems/custom.js';
 
 describe('registre de systèmes', () => {
   it('expose D&D 5e 2014 comme système par défaut', () => {
@@ -11,6 +12,11 @@ describe('registre de systèmes', () => {
   it('retombe sur le système par défaut si inconnu ou vide', () => {
     expect(getSystem(undefined)).toBe(dnd5e2014);
     expect(getSystem('pf2e')).toBe(dnd5e2014); // pas encore implémenté
+  });
+
+  it('expose le système Libre (custom)', () => {
+    expect(getSystem('custom')).toBe(custom);
+    expect(listSystems().map((s) => s.id)).toContain('custom');
   });
 
   it('listSystems renvoie { id, label }', () => {
@@ -46,11 +52,37 @@ describe('descripteur dnd5e-2014', () => {
   it('createDefaults : fiche 5e neuve cohérente', () => {
     const d = dnd5e2014.createDefaults();
     expect(d.lvl).toBe(1);
+    expect(d.system).toBe('dnd5e-2014');
     expect(d.hdSize).toBe(8);
     expect(d.size).toBe('M');
     expect(d.str).toBe(10);
     expect(Array.isArray(d.saves)).toBe(true);
     // Instances indépendantes (pas de partage de référence entre fiches).
     expect(dnd5e2014.createDefaults()).not.toBe(d);
+  });
+});
+
+describe('descripteur custom (Libre)', () => {
+  it('déclare une fiche générique : pas de sorts, pas de dés de vie, identité libre', () => {
+    expect(custom.sheet.tabs).not.toContain('spells');
+    expect(custom.sheet.tabs).toContain('stats');
+    expect(custom.sheet.rail).not.toContain('hitdice');
+    expect(custom.sheet.identity).toBe('free');
+  });
+
+  it('createDefaults : blob Libre cohérent (sans bagage 5e)', () => {
+    const d = custom.createDefaults();
+    expect(d.system).toBe('custom');
+    expect(d.phy).toBe(10);
+    expect(d.slots).toBeUndefined();
+    expect(d.sc).toBeUndefined();
+  });
+
+  it('calculs dérivés sur ses propres caractéristiques/compétences', () => {
+    expect(custom.abilityMod(14)).toBe(2);
+    expect(custom.saveBonus({ vol: 12, prof: 3, saves: ['vol'] }, 'vol')).toBe(4);
+    expect(custom.skillBonus({ agi: 14, prof: 2, profs: ['discretion'] }, 'discretion')).toBe(4);
+    expect(custom.skillBonus({ per: 14, prof: 2, exp: ['observation'], profs: [] }, 'observation')).toBe(6);
+    expect(custom.skillBonus({}, 'stealth')).toBe(0); // compétence 5e inconnue ici
   });
 });

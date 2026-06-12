@@ -5,7 +5,7 @@ import { campaignId, activeCampaign, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
-import { createDefaults } from '../lib/systems/dnd5e2014.js';
+import { getSystem } from '../lib/systems/index.js';
 import { showToast } from '../lib/toast.js';
 
 // Réexport pour conserver l'API publique historique (de nombreux modules
@@ -187,8 +187,9 @@ function syncHpToInitiative(charId, patch) {
 export async function createCharacter(name) {
   if (!store.get().isDM) return null;
   const id = `c_${crypto.randomUUID().slice(0, 8)}`;
-  const data = createDefaults(); // blob initial fourni par le système (5e-2014)
-  data.system = activeCampaign()?.system || data.system; // une campagne = un système
+  // Une campagne = un système : le blob initial vient du descripteur de la
+  // campagne active (qui estampille lui-même data.system).
+  const data = getSystem(activeCampaign()?.system).createDefaults();
   const { error } = await backend.db.from('characters').insert({ id, name, data, campaign_id: campaignId() });
   if (error) {
     console.error('[characters] création échouée:', error.message);

@@ -1104,7 +1104,7 @@ function railBlock(id, sys, d, ed, ro) {
     case 'saves':
       return `<section class="sheet-block rail-block">
           <h3>Jets de sauvegarde</h3>
-          ${sys.abilities.map((a) => saveRow(a, d, ed)).join('')}
+          ${sys.abilities.map((a) => saveRow(a, d, ed, sys)).join('')}
         </section>`;
   }
   return '';
@@ -1182,7 +1182,7 @@ function paneContent(id, sys, sheet, c, d, ed, ro) {
     case 'stats':
       return `${identityBlock(sheet, d, ed, ro)}
         <section class="sheet-abilities">
-          ${sys.abilities.map((a) => abilityBox(a, d, ro)).join('')}
+          ${sys.abilities.map((a) => abilityBox(a, d, ro, sys)).join('')}
         </section>
         <section class="sheet-block">
           <h3>Compétences</h3>
@@ -1282,22 +1282,22 @@ function sizeStat(val, ro) {
     </div>`;
 }
 
-function abilityBox(a, d, ro) {
-  const mod = abilityMod(d[a.key]);
+function abilityBox(a, d, ro, sys) {
+  const mod = sys.abilityMod(d[a.key]);
   return `
     <div class="ability-box">
       <div class="ab-label">${a.label}</div>
-      <div class="ab-mod rollable" data-roll="ability" data-key="${a.key}" title="Lancer un test de ${a.label}">${fmtMod(mod)}</div>
+      <div class="ab-mod rollable" data-roll="ability" data-key="${a.key}" title="Lancer un test de ${a.label}">${sys.fmtMod(mod)}</div>
       <input type="number" class="ab-score" value="${num(d[a.key])}" data-d="${a.key}" ${ro}/>
     </div>`;
 }
 
-function saveRow(a, d, ed) {
+function saveRow(a, d, ed, sys) {
   const has = (d.saves || []).includes(a.key);
   return `
     <label class="prof-row">
       <input type="checkbox" data-save="${a.key}" ${has ? 'checked' : ''} ${ed ? '' : 'disabled'}/>
-      <span class="prof-bonus rollable" data-roll="save" data-key="${a.key}" title="Jet de sauvegarde de ${a.label}">${fmtMod(saveBonus(d, a.key))}</span>
+      <span class="prof-bonus rollable" data-roll="save" data-key="${a.key}" title="Jet de sauvegarde de ${a.label}">${sys.fmtMod(sys.saveBonus(d, a.key))}</span>
       <span class="prof-name">${a.label}</span>
     </label>`;
 }
@@ -1312,7 +1312,7 @@ function skillRow(k, d, ed) {
   return `
     <label class="prof-row">
       <input type="checkbox" data-skill="${k}" ${prof ? 'checked' : ''} ${ed ? '' : 'disabled'}/>
-      <span class="prof-bonus rollable" data-roll="skill" data-key="${k}" title="Test de ${sk.label}">${fmtMod(skillBonus(d, k))}</span>
+      <span class="prof-bonus rollable" data-roll="skill" data-key="${k}" title="Test de ${sk.label}">${sys.fmtMod(sys.skillBonus(d, k))}</span>
       <span class="prof-name">${sk.label} <em>(${ab})</em></span>
       ${ed ? `<button class="exp-toggle ${exp ? 'on' : ''}" data-exp="${k}" title="Expertise">E</button>` : exp ? '<span class="exp-badge">E</span>' : ''}
     </label>`;
@@ -1880,16 +1880,18 @@ function bindSheet(el, id, ed) {
       const who = cur.name || 'PJ';
       const t = node.dataset.roll;
       const k = node.dataset.key;
+      // Les bonus viennent du descripteur du système de la campagne (cf. systems/).
+      const sys = getSystem(activeCampaign()?.system || dd.system);
       // Maj = avantage, Ctrl/Cmd = désavantage.
       const mode = e.shiftKey ? 'adv' : e.ctrlKey || e.metaKey ? 'dis' : 'normal';
       if (t === 'ability') {
-        const lbl = ABILITIES.find((a) => a.key === k)?.label || k;
-        sendD20Check(abilityMod(dd[k]), `${who} — Test de ${lbl}`, { mode });
+        const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
+        sendD20Check(sys.abilityMod(dd[k]), `${who} — Test de ${lbl}`, { mode });
       } else if (t === 'save') {
-        const lbl = ABILITIES.find((a) => a.key === k)?.label || k;
-        sendD20Check(saveBonus(dd, k), `${who} — Sauvegarde de ${lbl}`, { mode });
+        const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
+        sendD20Check(sys.saveBonus(dd, k), `${who} — Sauvegarde de ${lbl}`, { mode });
       } else if (t === 'skill') {
-        sendD20Check(skillBonus(dd, k), `${who} — ${SKILLS[k]?.label || k}`, { mode });
+        sendD20Check(sys.skillBonus(dd, k), `${who} — ${sys.skills[k]?.label || k}`, { mode });
       } else if (t === 'atk') {
         const a = (dd.atks || [])[Number(node.dataset.i)];
         if (!a) return;

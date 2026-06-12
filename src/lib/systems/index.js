@@ -8,9 +8,11 @@
  */
 
 import { dnd5e2014 } from './dnd5e2014.js';
+import { custom } from './custom.js';
 
 const SYSTEMS = {
   [dnd5e2014.id]: dnd5e2014,
+  [custom.id]: custom,
 };
 
 /** Identifiant du système par défaut. */
