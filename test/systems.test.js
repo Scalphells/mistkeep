@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getSystem, listSystems, DEFAULT_SYSTEM } from '../src/lib/systems/index.js';
 import { dnd5e2014 } from '../src/lib/systems/dnd5e2014.js';
-import { custom, setCustomConfig, normalizeConfig, slugKey } from '../src/lib/systems/custom.js';
+import { custom, setCustomConfig, normalizeConfig, normalizeTestDie, slugKey } from '../src/lib/systems/custom.js';
 import { dnd5e2024 } from '../src/lib/systems/dnd5e2024.js';
 import { pf2e } from '../src/lib/systems/pf2e.js';
 
@@ -192,5 +192,31 @@ describe('config par campagne du système Libre', () => {
     setCustomConfig(null); // retour aux défauts génériques
     expect(custom.abilities).toHaveLength(6);
     expect(Object.keys(custom.skills)).toContain('discretion');
+  });
+
+  it('normalizeTestDie : normalise les formules valides, rejette le reste', () => {
+    expect(normalizeTestDie('1d20')).toBe('1d20');
+    expect(normalizeTestDie('d100')).toBe('1d100'); // count implicite
+    expect(normalizeTestDie(' 2D6 ')).toBe('2d6'); // casse + espaces
+    expect(normalizeTestDie('3d6')).toBe('3d6');
+    expect(normalizeTestDie('0d6')).toBe(''); // bornes
+    expect(normalizeTestDie('11d6')).toBe('');
+    expect(normalizeTestDie('1d1')).toBe('');
+    expect(normalizeTestDie('1d2000')).toBe('');
+    expect(normalizeTestDie('1d20+5')).toBe(''); // pas de modificateur ici
+    expect(normalizeTestDie('patate')).toBe('');
+    expect(normalizeTestDie('')).toBe('');
+  });
+
+  it('testDie : configurable par campagne, d20 par défaut', () => {
+    expect(custom.testDie).toBe('1d20'); // sans config
+    setCustomConfig({ abilities: [{ key: 'force', label: 'FOR' }], skills: {}, testDie: 'd100' });
+    expect(custom.testDie).toBe('1d100');
+    setCustomConfig({ abilities: [{ key: 'force', label: 'FOR' }], skills: {}, testDie: 'n importe quoi' });
+    expect(custom.testDie).toBe('1d20'); // invalide → repli d20
+    setCustomConfig(null);
+    expect(custom.testDie).toBe('1d20');
+    // Les autres systèmes n'exposent pas de testDie : le d20 reste implicite.
+    expect(dnd5e2014.testDie).toBeUndefined();
   });
 });

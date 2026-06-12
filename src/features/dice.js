@@ -1,5 +1,6 @@
 import { backend } from '../lib/backend.js';
-import { campaignId, sameCampaign } from '../lib/campaigns.js';
+import { campaignId, activeCampaign, sameCampaign } from '../lib/campaigns.js';
+import { getSystem } from '../lib/systems/index.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
 
@@ -113,7 +114,11 @@ export async function sendRoll(notation, rollType = 'public', label = '', vis = 
 }
 
 /**
- * Test de d20 (carac/sauvegarde/compétence/attaque) avec avantage/désavantage.
+ * Test de carac/sauvegarde/compétence/attaque avec avantage/désavantage.
+ * Le dé lancé est celui du système de la campagne (`testDie` du descripteur —
+ * configurable sur le système « Libre » : 1d100, 2d6…) ; d20 partout ailleurs.
+ * Avantage/désavantage généralisés : la formule est lancée deux fois, on garde
+ * le meilleur/pire TOTAL (équivalent au d20 classique pour 1d20).
  * @param {number} modifier  bonus à ajouter
  * @param {string} label     libellé du jet
  * @param {{mode?: 'normal'|'adv'|'dis', rollType?: string}} opts
@@ -123,22 +128,29 @@ export async function sendD20Check(modifier = 0, label = '', opts = {}) {
   const rollType = opts.rollType || 'public';
   const vis = opts.vis || null;
   const m = Number(modifier) || 0;
+  const td = parseDice(getSystem(activeCampaign()?.system)?.testDie || '1d20') || { count: 1, sides: 20 };
+  const formula = normalizeNotation(td.count, td.sides, 0);
+  const rollSum = () => {
+    let s = 0;
+    for (let i = 0; i < td.count; i++) s += randomInt(1, td.sides);
+    return s;
+  };
   let rolls;
   let kept;
   if (mode === 'adv' || mode === 'dis') {
-    const a = randomInt(1, 20);
-    const b = randomInt(1, 20);
+    const a = rollSum();
+    const b = rollSum();
     kept = mode === 'adv' ? Math.max(a, b) : Math.min(a, b);
     rolls = [a, b];
   } else {
-    kept = randomInt(1, 20);
+    kept = rollSum();
     rolls = [kept];
   }
   const tag = mode === 'adv' ? ' (avantage)' : mode === 'dis' ? ' (désavantage)' : '';
   const { user, profile } = store.get();
   const row = {
-    roll_name: (label || 'd20') + tag,
-    dice: `1d20${m > 0 ? `+${m}` : m < 0 ? `${m}` : ''}`,
+    roll_name: (label || (formula === '1d20' ? 'd20' : formula)) + tag,
+    dice: `${formula}${m > 0 ? `+${m}` : m < 0 ? `${m}` : ''}`,
     result: kept + m,
     details: { rolls, kept, modifier: m, mode, vis: vis || undefined, owner: vis === 'self' ? user?.id : undefined },
     roll_type: rollType,

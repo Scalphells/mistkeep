@@ -46,10 +46,11 @@ export function rollCardHtml(r, { isDM, user }) {
   const rolls = r.details?.rolls ?? [];
   const mod = r.details?.modifier ?? 0;
 
-  // Critique fiable sur les jets de d20 (details.mode présent).
+  // Critique fiable sur les jets de d20 (details.mode présent). Les systèmes à
+  // dé de test configurable (1d100, 2d6…) n'ont pas de notion de 20 naturel.
   let critCls = '';
   let critTag = '';
-  if (!masked && r.details?.mode !== undefined) {
+  if (!masked && r.details?.mode !== undefined && /^1d20\b/.test(r.dice || '1d20')) {
     const kept = r.details?.kept ?? rolls[0];
     if (kept === 20) {
       critCls = 'crit-good';

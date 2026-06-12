@@ -16,9 +16,11 @@ function animate(r) {
     host.className = 'diceanim-host';
     document.body.appendChild(host);
   }
-  const crit = r.details?.mode && (r.details.kept === 20 || r.details.kept === 1);
+  // 20/1 naturels : uniquement sur un vrai test de d20 (pas 1d100, 2d6…).
+  const isD20 = /^1d20\b/.test(r.dice || '1d20');
+  const crit = isD20 && r.details?.mode && (r.details.kept === 20 || r.details.kept === 1);
   const el = document.createElement('div');
-  el.className = `diceanim ${r.details?.kept === 20 ? 'crit' : r.details?.kept === 1 ? 'fumble' : ''}`;
+  el.className = `diceanim ${isD20 && r.details?.kept === 20 ? 'crit' : isD20 && r.details?.kept === 1 ? 'fumble' : ''}`;
   el.innerHTML = `
     <div class="diceanim-die">🎲</div>
     <div class="diceanim-res">${r.result}</div>

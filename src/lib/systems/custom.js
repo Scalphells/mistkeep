@@ -75,7 +75,18 @@ export function slugKey(label) {
   return cleanKey(label);
 }
 
-/** Normalise une config brute { abilities, skills } ; null si inexploitable. */
+/** Normalise une formule de dé de test ("d100" → "1d100") ; '' si invalide.
+ *  Bornes volontairement serrées : c'est UN jet de test, pas un lance-dés. */
+export function normalizeTestDie(v) {
+  const m = String(v || '').trim().toLowerCase().replace(/\s+/g, '').match(/^(\d*)d(\d+)$/);
+  if (!m) return '';
+  const count = m[1] ? parseInt(m[1], 10) : 1;
+  const sides = parseInt(m[2], 10);
+  if (count < 1 || count > 10 || sides < 2 || sides > 1000) return '';
+  return `${count}d${sides}`;
+}
+
+/** Normalise une config brute { abilities, skills, testDie } ; null si inexploitable. */
 export function normalizeConfig(cfg) {
   if (!cfg || typeof cfg !== 'object') return null;
   const abilities = [];
@@ -95,7 +106,7 @@ export function normalizeConfig(cfg) {
     if (!key || !label || !seen.has(s?.ability) || skills[key]) continue;
     skills[key] = { label, ability: s.ability };
   }
-  return { abilities, skills };
+  return { abilities, skills, testDie: normalizeTestDie(cfg.testDie) || '1d20' };
 }
 
 let _config = null; // config normalisée de la campagne active (ou null = défauts)
@@ -170,6 +181,11 @@ export const custom = {
   },
   get skills() {
     return effSkills();
+  },
+  /** Formule lancée pour les tests (carac/compétence/sauvegarde) — le MJ la
+   *  configure (1d100, 2d6…) ; les systèmes sans testDie restent au d20. */
+  get testDie() {
+    return _config?.testDie || '1d20';
   },
   abilityMod,
   fmtMod,

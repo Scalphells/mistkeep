@@ -3,7 +3,7 @@ import { escapeHtml } from '../lib/utils.js';
 import { backend } from '../lib/backend.js';
 import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAMPAIGN_ID, generateInviteCode, setInviteCode, joinCampaignByCode } from '../lib/campaigns.js';
 import { listSystems } from '../lib/systems/index.js';
-import { ABILITIES as CUSTOM_ABILITIES, SKILLS as CUSTOM_SKILLS, slugKey, normalizeConfig } from '../lib/systems/custom.js';
+import { ABILITIES as CUSTOM_ABILITIES, SKILLS as CUSTOM_SKILLS, slugKey, normalizeConfig, normalizeTestDie } from '../lib/systems/custom.js';
 import { loadSystemConfig, saveSystemConfig } from '../lib/systems/config.js';
 import { downloadActiveCampaign, importCampaignPayload } from '../lib/campaign-transfer.js';
 import { modalConfirm } from '../lib/modal.js';
@@ -329,6 +329,7 @@ export async function openSystemEditor() {
   const work = {
     abilities: (raw.abilities || []).map((a) => ({ key: a.key, label: a.label })),
     skills: Object.entries(raw.skills || {}).map(([key, s]) => ({ key, label: s.label, ability: s.ability })),
+    testDie: normalizeTestDie(raw.testDie) || '1d20',
   };
 
   const ov = document.createElement('div');
@@ -365,6 +366,15 @@ export async function openSystemEditor() {
           <button class="modal-btn" id="syscfg-add-ab">Ajouter</button>
         </div>
 
+        <label class="prof-label">Dé de test</label>
+        <div style="display:flex;gap:8px;align-items:center;margin:0 0 12px">
+          <input class="modal-input" id="syscfg-die" list="syscfg-die-suggest" value="${escapeHtml(work.testDie)}" maxlength="7" style="width:110px" />
+          <datalist id="syscfg-die-suggest">
+            <option value="1d20"></option><option value="1d100"></option><option value="2d6"></option><option value="3d6"></option><option value="1d12"></option>
+          </datalist>
+          <span style="font-size:11px;opacity:.7">Formule lancée pour les tests de caractéristique / compétence (ex. 1d20, 1d100, 2d6).</span>
+        </div>
+
         <label class="prof-label">Compétences</label>
         ${work.skills
           .map(
@@ -390,6 +400,10 @@ export async function openSystemEditor() {
       </div>`;
 
     ov.querySelector('.modal-cancel').addEventListener('click', close);
+
+    ov.querySelector('#syscfg-die')?.addEventListener('change', (e) => {
+      work.testDie = e.target.value;
+    });
 
     ov.querySelectorAll('[data-ab-label]').forEach((inp) =>
       inp.addEventListener('change', () => {
@@ -441,9 +455,15 @@ export async function openSystemEditor() {
     });
 
     ov.querySelector('#syscfg-save').addEventListener('click', async () => {
+      const die = normalizeTestDie(ov.querySelector('#syscfg-die')?.value || work.testDie);
+      if (!die) {
+        showToast('Dé de test invalide — attendu : NdM (ex. 1d20, 1d100, 2d6).', { type: 'warn', icon: '⚠️' });
+        return;
+      }
       const cfg = {
         abilities: work.abilities,
         skills: Object.fromEntries(work.skills.map((s) => [s.key, { label: s.label, ability: s.ability }])),
+        testDie: die,
       };
       if (!normalizeConfig(cfg)) {
         showToast('Config invalide : il faut au moins une caractéristique.', { type: 'warn', icon: '⚠️' });
