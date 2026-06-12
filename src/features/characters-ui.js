@@ -996,15 +996,10 @@ function renderSheet(scrollTop = false) {
        </div>`
     : '';
 
-  const TABS = [
-    { id: 'stats', label: '📊 Caractéristiques' },
-    { id: 'combat', label: '⚔ Combat' },
-    { id: 'spells', label: '✨ Sorts' },
-    { id: 'feats', label: '🎴 Aptitudes' },
-    { id: 'inv', label: '🎒 Inventaire' },
-    { id: 'story', label: '📖 Histoire' },
-    { id: 'notes', label: '📝 Notes' },
-  ];
+  // Le descripteur déclare les sections de SA fiche (cf. systems/dnd5e2014.js).
+  const sheet = sys.sheet || { tabs: Object.keys(TAB_DEFS), rail: ['hp', 'hitdice', 'stats', 'extras', 'saves'], identity: 'srd5e' };
+  if (!sheet.tabs.includes(sheetTab)) sheetTab = sheet.tabs[0];
+  const TABS = sheet.tabs.map((id) => ({ id, label: TAB_DEFS[id] || id }));
   const subline = `${escapeHtml(d.cls || 'Classe')}${d.sub ? ` (${escapeHtml(d.sub)})` : ''} · Niv. ${num(d.lvl) || 1}`;
 
   el.innerHTML = `
@@ -1016,83 +1011,7 @@ function renderSheet(scrollTop = false) {
         </label>
         <input class="sheet-name" value="${escapeHtml(c.name)}" data-field="__name" ${ro} />
         <div class="rail-sub">${subline}</div>
-
-        <div class="combat-hp rail-hp">
-          <div class="hp-label">Points de vie</div>
-          <div class="hp-row">
-            ${ed ? `<button class="hp-btn" data-hp="-1">−</button>` : ''}
-            <input type="number" class="hp-cur" value="${num(d.hp)}" data-d="hp" ${ro}/>
-            <span class="hp-sep">/</span>
-            <input type="number" class="hp-max" value="${num(d.hpMax)}" data-d="hpMax" ${ro}/>
-            ${ed ? `<button class="hp-btn" data-hp="1">+</button>` : ''}
-          </div>
-          ${(() => {
-            const max = Number(d.hpMax) || 0;
-            const cur = Math.max(0, Number(d.hp) || 0);
-            const pct = max ? Math.max(0, Math.min(100, (cur / max) * 100)) : 0;
-            const col = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--yellow)' : 'var(--red)';
-            const fill = `linear-gradient(90deg, color-mix(in srgb, ${col} 72%, #000), ${col})`;
-            return `<div class="hpbar"><span style="width:${pct}%; background:${fill}"></span></div>`;
-          })()}
-          <div class="hp-tmp">PV temp <input type="number" value="${num(d.hpTmp)}" data-d="hpTmp" ${ro}/></div>
-          ${
-            Number(d.hp) === 0
-              ? (() => {
-                  const ds = d.ds || { s: 0, f: 0 };
-                  const status = ds.s >= 3 ? ' · Stabilisé' : ds.f >= 3 ? ' · Mort 💀' : '';
-                  const dot = (field, i, on) => `<button class="ds-dot ${on ? 'on ' + field : ''}" data-ds="${field}" data-i="${i}" ${ro}></button>`;
-                  return `<div class="death-saves">
-                    <div class="ds-label">Jets de mort${status}</div>
-                    <div class="ds-row"><span>Réussites</span>${[1, 2, 3].map((i) => dot('s', i, ds.s >= i)).join('')}</div>
-                    <div class="ds-row"><span>Échecs</span>${[1, 2, 3].map((i) => dot('f', i, ds.f >= i)).join('')}</div>
-                  </div>`;
-                })()
-              : ''
-          }
-          ${
-            ed
-              ? `<div class="rest-row">
-                   <button class="rest-btn" data-rest="short" title="Repos court : récupère les ressources « repos court »">🔥 Repos court</button>
-                   <button class="rest-btn" data-rest="long" title="Repos long : PV au max, emplacements restaurés, ½ dés de vie">🛌 Repos long</button>
-                 </div>`
-              : ''
-          }
-        </div>
-
-        <div class="hd-block">
-          <span class="hd-title">Dés de vie</span>
-          <span class="hd-line">
-            <input type="number" class="hd-cur" value="${num(d.hd ?? (d.hdMax ?? (Number(d.lvl) || 1)))}" data-d="hd" ${ro}/>
-            <span>/</span>
-            <input type="number" class="hd-max" value="${num(d.hdMax ?? (Number(d.lvl) || 1))}" data-d="hdMax" ${ro}/>
-            <span class="hd-d">d</span>
-            <input type="number" class="hd-size" value="${num(d.hdSize ?? 8)}" data-d="hdSize" min="4" max="12" step="2" ${ro}/>
-          </span>
-          ${ed ? `<button class="rest-btn hd-spend" data-hd-spend title="Dépenser un dé de vie (1dN + mod. CON)">🎲 Dépenser</button>` : ''}
-        </div>
-
-        <div class="rail-stats">
-          ${stat('CA', 'ac', d.ac, ro)}
-          ${stat('Init.', 'initB', d.initB, ro, '', true)}
-          ${stat('Vitesse', 'spd', d.spd, ro, 'm')}
-          ${stat('Vision', 'darkvision', d.darkvision, ro, 'm')}
-          ${sizeStat(d.size, ro)}
-          ${stat('Maîtrise', 'prof', d.prof, ro, '', true)}
-        </div>
-
-        <div class="rail-extras">
-          <button class="insp-btn ${d.insp ? 'on' : ''}" data-insp ${ro} title="Inspiration héroïque">✨ Inspiration</button>
-          <div class="passive-pp" title="Perception passive (10 + bonus de Perception)">👁 Perception passive <b>${10 + skillBonus(d, 'perception')}</b></div>
-          <div class="exh-block">
-            <span class="exh-lbl">Épuisement</span>
-            <div class="exh-dots">${[1, 2, 3, 4, 5, 6].map((i) => `<button class="exh-dot ${(Number(d.exh) || 0) >= i ? 'on' : ''}" data-exh="${i}" ${ro} title="Niveau ${i}"></button>`).join('')}</div>
-          </div>
-        </div>
-
-        <section class="sheet-block rail-block">
-          <h3>Jets de sauvegarde</h3>
-          ${sys.abilities.map((a) => saveRow(a, d, ed)).join('')}
-        </section>
+        ${sheet.rail.map((id) => railBlock(id, sys, d, ed, ro)).join('')}
         ${ownerRow}
       </aside>
 
@@ -1101,57 +1020,7 @@ function renderSheet(scrollTop = false) {
           ${TABS.map((t) => `<button class="sheet-tab ${t.id === sheetTab ? 'active' : ''}" data-pane="${t.id}">${t.label}</button>`).join('')}
         </nav>
         <div class="sheet-panes">
-          <section class="tab-pane ${sheetTab === 'stats' ? 'active' : ''}" data-pane="stats">
-            <div class="sheet-id-grid">
-              ${idSelect('race', 'Race', RACES, d.race, ro, ed)}
-              ${idSelect('cls', 'Classe', CLASSES, d.cls, ro, ed)}
-              ${subSelect(d, ro, ed)}
-              <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
-              ${idSelect('bg', 'Historique', BACKGROUNDS, d.bg, ro, ed)}
-              <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
-              <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
-              ${ed ? `<button class="sf-levelup" data-levelup title="Monter d'un niveau (maîtrise + dé de vie)">⬆ Niveau</button>` : ''}
-              <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
-            </div>
-            ${multiclassSection(d, ed)}
-            <section class="sheet-abilities">
-              ${sys.abilities.map((a) => abilityBox(a, d, ro)).join('')}
-            </section>
-            <section class="sheet-block">
-              <h3>Compétences</h3>
-              ${Object.keys(sys.skills).map((k) => skillRow(k, d, ed)).join('')}
-            </section>
-            ${profileSummarySection(d)}
-          </section>
-
-          <section class="tab-pane ${sheetTab === 'combat' ? 'active' : ''}" data-pane="combat">
-            <section class="sheet-block">
-              <h3>Attaques ${ed ? `<button class="mini-add" data-add="atk">+</button>` : ''}</h3>
-              <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || '<div class="char-empty">—</div>'}</div>
-            </section>
-            ${resourcesSection(d, ed)}
-          </section>
-
-          <section class="tab-pane ${sheetTab === 'spells' ? 'active' : ''}" data-pane="spells">
-            ${spellsSection(d, ed) || '<div class="char-empty">Aucun sort.</div>'}
-          </section>
-
-          <section class="tab-pane ${sheetTab === 'feats' ? 'active' : ''}" data-pane="feats">
-            ${featuresSection(d, ed)}
-          </section>
-
-          <section class="tab-pane ${sheetTab === 'inv' ? 'active' : ''}" data-pane="inv">
-            ${inventorySection(d, ed, ro)}
-          </section>
-
-          <section class="tab-pane ${sheetTab === 'story' ? 'active' : ''}" data-pane="story">
-            ${storySection(c, d, ed, ro)}
-          </section>
-
-          <section class="tab-pane ${sheetTab === 'notes' ? 'active' : ''}" data-pane="notes">
-            ${featsBlock(d.feats, ed)}
-            ${textBlock('Notes', 'notes', d.notes, ro)}
-          </section>
+          ${TABS.map((t) => `<section class="tab-pane ${t.id === sheetTab ? 'active' : ''}" data-pane="${t.id}">${paneContent(t.id, sys, sheet, c, d, ed, ro)}</section>`).join('')}
         </div>
       </main>
     </div>
@@ -1179,6 +1048,166 @@ function renderSheet(scrollTop = false) {
 
   bindSheet(el, c.id, ed);
   el.scrollTop = scrollTop ? 0 : prevScroll;
+}
+
+/* ── Moteur de sections ───────────────────────────────────────
+ * La fiche est assemblée depuis le schéma du descripteur de système
+ * (sys.sheet : tabs / rail / identity — cf. systems/dnd5e2014.js). Un système
+ * non-5e déclare le sous-ensemble qui a du sens pour lui ; les gestionnaires
+ * d'événements (bindSheet) sont tolérants aux sections absentes. */
+
+const TAB_DEFS = {
+  stats: '📊 Caractéristiques',
+  combat: '⚔ Combat',
+  spells: '✨ Sorts',
+  feats: '🎴 Aptitudes',
+  inv: '🎒 Inventaire',
+  story: '📖 Histoire',
+  notes: '📝 Notes',
+};
+
+/** Un bloc du rail gauche, par identifiant de section. */
+function railBlock(id, sys, d, ed, ro) {
+  switch (id) {
+    case 'hp':
+      return hpRailBlock(d, ed, ro);
+    case 'hitdice':
+      return `<div class="hd-block">
+          <span class="hd-title">Dés de vie</span>
+          <span class="hd-line">
+            <input type="number" class="hd-cur" value="${num(d.hd ?? (d.hdMax ?? (Number(d.lvl) || 1)))}" data-d="hd" ${ro}/>
+            <span>/</span>
+            <input type="number" class="hd-max" value="${num(d.hdMax ?? (Number(d.lvl) || 1))}" data-d="hdMax" ${ro}/>
+            <span class="hd-d">d</span>
+            <input type="number" class="hd-size" value="${num(d.hdSize ?? 8)}" data-d="hdSize" min="4" max="12" step="2" ${ro}/>
+          </span>
+          ${ed ? `<button class="rest-btn hd-spend" data-hd-spend title="Dépenser un dé de vie (1dN + mod. CON)">🎲 Dépenser</button>` : ''}
+        </div>`;
+    case 'stats':
+      return `<div class="rail-stats">
+          ${stat('CA', 'ac', d.ac, ro)}
+          ${stat('Init.', 'initB', d.initB, ro, '', true)}
+          ${stat('Vitesse', 'spd', d.spd, ro, 'm')}
+          ${stat('Vision', 'darkvision', d.darkvision, ro, 'm')}
+          ${sizeStat(d.size, ro)}
+          ${stat('Maîtrise', 'prof', d.prof, ro, '', true)}
+        </div>`;
+    case 'extras':
+      return `<div class="rail-extras">
+          <button class="insp-btn ${d.insp ? 'on' : ''}" data-insp ${ro} title="Inspiration héroïque">✨ Inspiration</button>
+          <div class="passive-pp" title="Perception passive (10 + bonus de Perception)">👁 Perception passive <b>${10 + skillBonus(d, 'perception')}</b></div>
+          <div class="exh-block">
+            <span class="exh-lbl">Épuisement</span>
+            <div class="exh-dots">${[1, 2, 3, 4, 5, 6].map((i) => `<button class="exh-dot ${(Number(d.exh) || 0) >= i ? 'on' : ''}" data-exh="${i}" ${ro} title="Niveau ${i}"></button>`).join('')}</div>
+          </div>
+        </div>`;
+    case 'saves':
+      return `<section class="sheet-block rail-block">
+          <h3>Jets de sauvegarde</h3>
+          ${sys.abilities.map((a) => saveRow(a, d, ed)).join('')}
+        </section>`;
+  }
+  return '';
+}
+
+function hpRailBlock(d, ed, ro) {
+  const max = Number(d.hpMax) || 0;
+  const cur = Math.max(0, Number(d.hp) || 0);
+  const pct = max ? Math.max(0, Math.min(100, (cur / max) * 100)) : 0;
+  const col = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--yellow)' : 'var(--red)';
+  const fill = `linear-gradient(90deg, color-mix(in srgb, ${col} 72%, #000), ${col})`;
+  const deathSaves = () => {
+    const ds = d.ds || { s: 0, f: 0 };
+    const status = ds.s >= 3 ? ' · Stabilisé' : ds.f >= 3 ? ' · Mort 💀' : '';
+    const dot = (field, i, on) => `<button class="ds-dot ${on ? 'on ' + field : ''}" data-ds="${field}" data-i="${i}" ${ro}></button>`;
+    return `<div class="death-saves">
+        <div class="ds-label">Jets de mort${status}</div>
+        <div class="ds-row"><span>Réussites</span>${[1, 2, 3].map((i) => dot('s', i, ds.s >= i)).join('')}</div>
+        <div class="ds-row"><span>Échecs</span>${[1, 2, 3].map((i) => dot('f', i, ds.f >= i)).join('')}</div>
+      </div>`;
+  };
+  return `<div class="combat-hp rail-hp">
+      <div class="hp-label">Points de vie</div>
+      <div class="hp-row">
+        ${ed ? `<button class="hp-btn" data-hp="-1">−</button>` : ''}
+        <input type="number" class="hp-cur" value="${num(d.hp)}" data-d="hp" ${ro}/>
+        <span class="hp-sep">/</span>
+        <input type="number" class="hp-max" value="${num(d.hpMax)}" data-d="hpMax" ${ro}/>
+        ${ed ? `<button class="hp-btn" data-hp="1">+</button>` : ''}
+      </div>
+      <div class="hpbar"><span style="width:${pct}%; background:${fill}"></span></div>
+      <div class="hp-tmp">PV temp <input type="number" value="${num(d.hpTmp)}" data-d="hpTmp" ${ro}/></div>
+      ${Number(d.hp) === 0 ? deathSaves() : ''}
+      ${
+        ed
+          ? `<div class="rest-row">
+               <button class="rest-btn" data-rest="short" title="Repos court : récupère les ressources « repos court »">🔥 Repos court</button>
+               <button class="rest-btn" data-rest="long" title="Repos long : PV au max, emplacements restaurés, ½ dés de vie">🛌 Repos long</button>
+             </div>`
+          : ''
+      }
+    </div>`;
+}
+
+/** Bloc d'identité : sélecteurs SRD 5e, ou champs libres (systèmes custom). */
+function identityBlock(sheet, d, ed, ro) {
+  if (sheet.identity !== 'srd5e') {
+    return `<div class="sheet-id-grid">
+        <input class="sf" value="${escapeHtml(d.cls || '')}" data-d="cls" placeholder="Classe / Archétype" ${ro}/>
+        <input class="sf" value="${escapeHtml(d.race || '')}" data-d="race" placeholder="Peuple / Origine" ${ro}/>
+        <input class="sf" value="${escapeHtml(d.bg || '')}" data-d="bg" placeholder="Historique" ${ro}/>
+        <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
+        <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
+        <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
+        <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
+      </div>`;
+  }
+  return `<div class="sheet-id-grid">
+      ${idSelect('race', 'Race', RACES, d.race, ro, ed)}
+      ${idSelect('cls', 'Classe', CLASSES, d.cls, ro, ed)}
+      ${subSelect(d, ro, ed)}
+      <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
+      ${idSelect('bg', 'Historique', BACKGROUNDS, d.bg, ro, ed)}
+      <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
+      <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
+      ${ed ? `<button class="sf-levelup" data-levelup title="Monter d'un niveau (maîtrise + dé de vie)">⬆ Niveau</button>` : ''}
+      <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
+    </div>
+    ${multiclassSection(d, ed)}`;
+}
+
+/** Contenu d'un onglet du panneau principal, par identifiant de section. */
+function paneContent(id, sys, sheet, c, d, ed, ro) {
+  switch (id) {
+    case 'stats':
+      return `${identityBlock(sheet, d, ed, ro)}
+        <section class="sheet-abilities">
+          ${sys.abilities.map((a) => abilityBox(a, d, ro)).join('')}
+        </section>
+        <section class="sheet-block">
+          <h3>Compétences</h3>
+          ${Object.keys(sys.skills).map((k) => skillRow(k, d, ed)).join('')}
+        </section>
+        ${sheet.identity === 'srd5e' ? profileSummarySection(d) : ''}`;
+    case 'combat':
+      return `<section class="sheet-block">
+          <h3>Attaques ${ed ? `<button class="mini-add" data-add="atk">+</button>` : ''}</h3>
+          <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || '<div class="char-empty">—</div>'}</div>
+        </section>
+        ${resourcesSection(d, ed)}`;
+    case 'spells':
+      return spellsSection(d, ed) || '<div class="char-empty">Aucun sort.</div>';
+    case 'feats':
+      return featuresSection(d, ed);
+    case 'inv':
+      return inventorySection(d, ed, ro);
+    case 'story':
+      return storySection(c, d, ed, ro);
+    case 'notes':
+      return `${featsBlock(d.feats, ed)}
+        ${textBlock('Notes', 'notes', d.notes, ro)}`;
+  }
+  return '';
 }
 
 /* ── Fragments ────────────────────────────────────────────── */

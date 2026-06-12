@@ -37,6 +37,12 @@ describe('descripteur dnd5e-2014', () => {
     expect(dnd5e2014.skillBonus({ dex: 14, prof: 2, exp: ['stealth'], profs: [] }, 'stealth')).toBe(6);
   });
 
+  it('déclare le schéma de sections de sa fiche', () => {
+    expect(dnd5e2014.sheet.tabs).toEqual(['stats', 'combat', 'spells', 'feats', 'inv', 'story', 'notes']);
+    expect(dnd5e2014.sheet.rail).toEqual(['hp', 'hitdice', 'stats', 'extras', 'saves']);
+    expect(dnd5e2014.sheet.identity).toBe('srd5e');
+  });
+
   it('createDefaults : fiche 5e neuve cohérente', () => {
     const d = dnd5e2014.createDefaults();
     expect(d.lvl).toBe(1);

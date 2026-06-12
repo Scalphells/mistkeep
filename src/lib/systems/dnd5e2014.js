@@ -80,6 +80,24 @@ export function createDefaults() {
   };
 }
 
+/**
+ * Schéma de la fiche : ce que l'UI assemble pour ce système. La fiche
+ * (characters-ui) possède un moteur de sections ; chaque système déclare
+ * lesquelles il utilise et dans quel ordre.
+ *   - tabs     : onglets du panneau principal, parmi
+ *                'stats' | 'combat' | 'spells' | 'feats' | 'inv' | 'story' | 'notes'
+ *   - rail     : blocs de la colonne gauche, parmi
+ *                'hp' | 'hitdice' | 'stats' | 'extras' | 'saves'
+ *   - identity : variante du bloc d'identité — 'srd5e' (sélecteurs
+ *                race/classe/historique + multiclassage + montée de niveau +
+ *                maîtrises SRD) ou 'free' (champs libres, systèmes custom).
+ */
+export const SHEET = {
+  tabs: ['stats', 'combat', 'spells', 'feats', 'inv', 'story', 'notes'],
+  rail: ['hp', 'hitdice', 'stats', 'extras', 'saves'],
+  identity: 'srd5e',
+};
+
 /** Descripteur du système D&D 5e (2014). */
 export const dnd5e2014 = {
   id: 'dnd5e-2014',
@@ -91,4 +109,5 @@ export const dnd5e2014 = {
   saveBonus,
   skillBonus,
   createDefaults,
+  sheet: SHEET,
 };
