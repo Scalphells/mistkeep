@@ -12,6 +12,7 @@
 import { backend } from './backend.js';
 import { supabase } from './supabase.js';
 import { IMMUTABLE_CACHE } from './signed-urls.js';
+import { campaignId } from './campaigns.js';
 
 const goBackend = import.meta.env && import.meta.env.VITE_BACKEND === 'go';
 const MEDIA_URL = goBackend ? '' : ((import.meta.env && import.meta.env.VITE_MEDIA_URL) || '').replace(/\/+$/, '');
@@ -26,6 +27,11 @@ export function mediaConfigured() {
  * URL absolue (R2) ou chemin `bucket/clé` (storage du backend).
  */
 export async function uploadMedia(bucket, key, file, contentType) {
+  // Clé préfixée par la campagne active : l'écriture est réservée au MJ DE
+  // CETTE CAMPAGNE (policies Supabase 0029 / authz du backend Go) ; un chemin
+  // sans préfixe (fichiers historiques) reste rattaché à la campagne par
+  // défaut.
+  key = `${campaignId()}/${key}`;
   const type = contentType || file.type || 'application/octet-stream';
   if (MEDIA_URL) {
     const { data } = await supabase.auth.getSession();

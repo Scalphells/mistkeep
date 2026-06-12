@@ -11,8 +11,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -572,6 +574,84 @@ func TestJoinCampaignRPC(t *testing.T) {
 	var n int
 	if err := h.srv.store.db.QueryRow(`SELECT COUNT(*) FROM campaign_members WHERE campaign_id='c2'`).Scan(&n); err != nil || n != 2 {
 		t.Fatalf("memberships in c2: n=%d err=%v, want 2", n, err)
+	}
+}
+
+// Storage writes are scoped per campaign: the first path segment names the
+// campaign (front-prefixed keys); unprefixed paths belong to the default
+// campaign; the global "dm" keeps its server-owner bypass.
+func TestStorageCampaignScoped(t *testing.T) {
+	h := newHarness(t)
+	t.Setenv("DATA_DIR", t.TempDir()) // uploads land in a throwaway dir
+	h.exec(`INSERT INTO campaigns(id, name) VALUES ('c2','Second')`)
+	h.exec(`INSERT INTO campaign_members(campaign_id, user_id, role) VALUES ('c2', ?, 'dm')`, h.p1ID)
+
+	upload := func(tok, path string) *httptest.ResponseRecorder {
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		_ = mw.WriteField("path", path)
+		fw, _ := mw.CreateFormFile("file", "f.bin")
+		_, _ = fw.Write([]byte("img"))
+		_ = mw.Close()
+		r := httptest.NewRequest(http.MethodPost, "/storage/battlemap", &buf)
+		r.Header.Set("Content-Type", mw.FormDataContentType())
+		r.SetPathValue("bucket", "battlemap")
+		if tok != "" {
+			r.AddCookie(&http.Cookie{Name: "mk_session", Value: tok})
+		}
+		w := httptest.NewRecorder()
+		h.srv.storageUpload(w, r)
+		return w
+	}
+	del := func(tok string, paths ...string) {
+		b, _ := json.Marshal(map[string]any{"paths": paths})
+		r := httptest.NewRequest(http.MethodDelete, "/storage/battlemap", bytes.NewReader(b))
+		r.SetPathValue("bucket", "battlemap")
+		r.AddCookie(&http.Cookie{Name: "mk_session", Value: tok})
+		w := httptest.NewRecorder()
+		h.srv.storageDelete(w, r)
+		if w.Code != 204 {
+			t.Fatalf("delete: got %d (%s)", w.Code, w.Body.String())
+		}
+	}
+	onDisk := func(parts ...string) bool {
+		_, err := os.Stat(filepath.Join(append([]string{storageRoot(), "battlemap"}, parts...)...))
+		return err == nil
+	}
+
+	if w := upload("", "c2/maps/x.png"); w.Code != 401 {
+		t.Fatalf("anonymous upload: got %d, want 401", w.Code)
+	}
+	// p2 is GM nowhere: rejected everywhere.
+	if w := upload(h.p2Tok, "c2/maps/x.png"); w.Code != 403 {
+		t.Fatalf("non-GM upload to c2: got %d, want 403", w.Code)
+	}
+	if w := upload(h.p2Tok, "maps/x.png"); w.Code != 403 {
+		t.Fatalf("non-GM unprefixed upload: got %d, want 403", w.Code)
+	}
+	// p1 is GM of c2 only: may write under c2/, not elsewhere.
+	if w := upload(h.p1Tok, "c2/maps/x.png"); w.Code != 200 {
+		t.Fatalf("c2 GM upload to c2: got %d (%s)", w.Code, w.Body.String())
+	}
+	if w := upload(h.p1Tok, "maps/x.png"); w.Code != 403 {
+		t.Fatalf("c2 GM unprefixed upload (default campaign): got %d, want 403", w.Code)
+	}
+	// A made-up prefix is NOT a campaign: falls back to the default campaign.
+	if w := upload(h.p1Tok, "not-a-campaign/maps/x.png"); w.Code != 403 {
+		t.Fatalf("c2 GM upload under unknown prefix: got %d, want 403", w.Code)
+	}
+	// The global dm (GM of the default campaign) still writes legacy paths.
+	if w := upload(h.dmTok, "maps/legacy.png"); w.Code != 200 {
+		t.Fatalf("global dm unprefixed upload: got %d (%s)", w.Code, w.Body.String())
+	}
+
+	// Delete: out-of-scope paths are skipped, in-scope ones removed.
+	del(h.p1Tok, "maps/legacy.png", "c2/maps/x.png")
+	if !onDisk("maps", "legacy.png") {
+		t.Fatal("c2 GM must not delete a default-campaign file")
+	}
+	if onDisk("c2", "maps", "x.png") {
+		t.Fatal("c2 GM delete of own campaign file must succeed")
 	}
 }
 

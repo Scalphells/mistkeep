@@ -2,13 +2,20 @@ package main
 
 // File storage (G5).
 //
-//   POST   /storage/{bucket}            multipart: path + file  (DM only)
+//   POST   /storage/{bucket}            multipart: path + file  (campaign GM)
 //   POST   /storage/{bucket}/sign       { path } -> { signedUrl }
 //   GET    /storage/{bucket}/{path...}  serve the file (authenticated only)
-//   DELETE /storage/{bucket}            { paths: [...] }        (DM only)
+//   DELETE /storage/{bucket}            { paths: [...] }        (campaign GM)
 //
 // Files are stored under ./data/storage/<bucket>/<path>. Buckets are private:
 // reads require a session. Paths are sanitized to prevent traversal.
+//
+// Writes are scoped per campaign, like table authz (api.go) and the Supabase
+// policies (migration 0029): the front prefixes every key with the active
+// campaign id, and writing requires being GM OF THAT CAMPAIGN. Unprefixed
+// paths (legacy files) belong to the default campaign. The global "dm" keeps
+// its server-owner bypass. Reads stay session-wide on purpose: campaign
+// import references files of the source campaign without copying them.
 
 import (
 	"encoding/json"
@@ -39,14 +46,33 @@ func safeStoragePath(bucket, p string) (string, bool) {
 	return full, true
 }
 
+// storageCampaignOf returns the campaign an object path belongs to: its first
+// segment when it names an existing campaign (the front prefixes every new
+// key, cf. src/lib/media.js), the default campaign otherwise (legacy files).
+// An unknown first segment falls back to the default campaign too — faking a
+// prefix can only make the check stricter, never grant access.
+func (s *Server) storageCampaignOf(p string) string {
+	seg, _, _ := strings.Cut(strings.TrimPrefix(p, "/"), "/")
+	if seg != "" {
+		var n int
+		_ = s.store.db.QueryRow(`SELECT COUNT(*) FROM campaigns WHERE id=?`, seg).Scan(&n)
+		if n > 0 {
+			return seg
+		}
+	}
+	return defaultCampaignID
+}
+
+// mayWriteStorage: GM of the path's campaign; the global "dm" keeps its
+// server-owner bypass (same philosophy as table authz, cf. api.go).
+func (s *Server) mayWriteStorage(u *User, p string) bool {
+	return u.Role == "dm" || s.isCampaignDM(u.ID, s.storageCampaignOf(p))
+}
+
 func (s *Server) storageUpload(w http.ResponseWriter, r *http.Request) {
 	u := s.userFrom(r)
 	if u == nil {
 		httpErr(w, 401, "unauthenticated")
-		return
-	}
-	if u.Role != "dm" {
-		httpErr(w, 403, "forbidden")
 		return
 	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
@@ -54,6 +80,10 @@ func (s *Server) storageUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := r.FormValue("path")
+	if !s.mayWriteStorage(u, p) {
+		httpErr(w, 403, "forbidden")
+		return
+	}
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		httpErr(w, 400, "missing file")
@@ -127,10 +157,6 @@ func (s *Server) storageDelete(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 401, "unauthenticated")
 		return
 	}
-	if u.Role != "dm" {
-		httpErr(w, 403, "forbidden")
-		return
-	}
 	var in struct {
 		Paths []string `json:"paths"`
 	}
@@ -140,6 +166,9 @@ func (s *Server) storageDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	bucket := r.PathValue("bucket")
 	for _, p := range in.Paths {
+		if !s.mayWriteStorage(u, p) {
+			continue // not GM of that path's campaign: skip, no error
+		}
 		if full, ok := safeStoragePath(bucket, p); ok {
 			_ = os.Remove(full)
 		}
