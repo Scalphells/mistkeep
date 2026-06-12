@@ -9,11 +9,13 @@
 
 import { dnd5e2014 } from './dnd5e2014.js';
 import { dnd5e2024 } from './dnd5e2024.js';
+import { pf2e } from './pf2e.js';
 import { custom } from './custom.js';
 
 const SYSTEMS = {
   [dnd5e2014.id]: dnd5e2014,
   [dnd5e2024.id]: dnd5e2024,
+  [pf2e.id]: pf2e,
   [custom.id]: custom,
 };
 

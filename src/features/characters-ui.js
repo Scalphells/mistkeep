@@ -1137,6 +1137,16 @@ function railBlock(id, sys, d, ed, ro) {
           </div>
         </div>`;
     case 'saves':
+      // Sauvegardes en LISTE NOMMÉE à rangs (pf2e : Vigueur/Réflexes/Volonté…)
+      // si le descripteur en déclare, sinon un jet par caractéristique (5e).
+      if (sys.saves && sys.profRanks) {
+        return `<section class="sheet-block rail-block">
+            <h3>Jets de sauvegarde</h3>
+            ${sys.saves
+              .map((s) => rankRow(s.key, s.label, sys.abilities.find((a) => a.key === s.ability)?.label || '', 'save', d, ed, sys))
+              .join('')}
+          </section>`;
+      }
       return `<section class="sheet-block rail-block">
           <h3>Jets de sauvegarde</h3>
           ${sys.abilities.map((a) => saveRow(a, d, ed, sys)).join('')}
@@ -1338,13 +1348,32 @@ function saveRow(a, d, ed, sys) {
     </label>`;
 }
 
+/** Ligne à rang de maîtrise (pf2e…) : un clic fait défiler les rangs. */
+function rankRow(key, label, sub, rollKind, d, ed, sys) {
+  const rank = Math.max(0, Math.min(sys.profRanks.length - 1, Number(d.ranks?.[key]) || 0));
+  const r = sys.profRanks[rank];
+  const bonus = rollKind === 'save' ? sys.saveBonus(d, key) : sys.skillBonus(d, key);
+  const btn = ed
+    ? `<button class="exp-toggle ${rank > 0 ? 'on' : ''}" data-rank="${key}" title="Rang : ${r.label} (clic pour changer)">${r.abbr}</button>`
+    : `<span class="exp-badge" title="${r.label}">${r.abbr}</span>`;
+  return `
+    <label class="prof-row">
+      ${btn}
+      <span class="prof-bonus rollable" data-roll="${rollKind}" data-key="${key}" title="${label} (${r.label})">${sys.fmtMod(bonus)}</span>
+      <span class="prof-name">${label}${sub ? ` <em>(${sub})</em>` : ''}</span>
+    </label>`;
+}
+
 function skillRow(k, d, ed) {
   const sys = getSystem(activeCampaign()?.system || d.system);
   const sk = sys.skills[k];
   if (!sk) return '';
+  const abRank = sys.abilities.find((a) => a.key === sk.ability)?.label || '';
+  // Système à rangs de maîtrise (pf2e) : widget de rang au lieu de la case 5e.
+  if (sys.profRanks) return rankRow(k, sk.label, abRank, 'skill', d, ed, sys);
   const prof = (d.profs || []).includes(k);
   const exp = (d.exp || []).includes(k);
-  const ab = sys.abilities.find((a) => a.key === sk.ability)?.label || '';
+  const ab = abRank;
   return `
     <label class="prof-row">
       <input type="checkbox" data-skill="${k}" ${prof ? 'checked' : ''} ${ed ? '' : 'disabled'}/>
@@ -1924,7 +1953,7 @@ function bindSheet(el, id, ed) {
         const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
         sendD20Check(sys.abilityMod(dd[k]), `${who} — Test de ${lbl}`, { mode });
       } else if (t === 'save') {
-        const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
+        const lbl = sys.saves?.find((s) => s.key === k)?.label || sys.abilities.find((a) => a.key === k)?.label || k;
         sendD20Check(sys.saveBonus(dd, k), `${who} — Sauvegarde de ${lbl}`, { mode });
       } else if (t === 'skill') {
         sendD20Check(sys.skillBonus(dd, k), `${who} — ${sys.skills[k]?.label || k}`, { mode });
@@ -1946,6 +1975,20 @@ function bindSheet(el, id, ed) {
   );
   el.querySelectorAll('[data-exp]').forEach((b) =>
     b.addEventListener('click', () => toggleArr(id, 'exp', b.dataset.exp))
+  );
+  // Rangs de maîtrise (pf2e) : chaque clic avance d'un rang, puis reboucle.
+  el.querySelectorAll('[data-rank]').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      const cur = store.get().characters.find((c) => c.id === id);
+      if (!cur) return;
+      const sys = getSystem(activeCampaign()?.system || cur.data?.system);
+      const steps = sys.profRanks?.length || 1;
+      const key = b.dataset.rank;
+      const ranks = { ...(cur.data?.ranks || {}) };
+      ranks[key] = ((Number(ranks[key]) || 0) + 1) % steps;
+      updateCharacter(id, { ranks });
+    })
   );
 
   // Attaques

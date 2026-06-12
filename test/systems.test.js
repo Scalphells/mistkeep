@@ -3,6 +3,7 @@ import { getSystem, listSystems, DEFAULT_SYSTEM } from '../src/lib/systems/index
 import { dnd5e2014 } from '../src/lib/systems/dnd5e2014.js';
 import { custom, setCustomConfig, normalizeConfig, slugKey } from '../src/lib/systems/custom.js';
 import { dnd5e2024 } from '../src/lib/systems/dnd5e2024.js';
+import { pf2e } from '../src/lib/systems/pf2e.js';
 
 describe('registre de systèmes', () => {
   it('expose D&D 5e 2014 comme système par défaut', () => {
@@ -12,7 +13,7 @@ describe('registre de systèmes', () => {
 
   it('retombe sur le système par défaut si inconnu ou vide', () => {
     expect(getSystem(undefined)).toBe(dnd5e2014);
-    expect(getSystem('pf2e')).toBe(dnd5e2014); // pas encore implémenté
+    expect(getSystem('systeme-inconnu')).toBe(dnd5e2014);
   });
 
   it('expose le système Libre (custom)', () => {
@@ -96,6 +97,34 @@ describe('descripteur dnd5e-2024', () => {
     const barb = dnd5e2024.srd.classes.find((c) => c.key === 'barbare');
     expect(barb.hd).toBe(12);
     expect(barb.saves).toEqual(['str', 'con']);
+  });
+});
+
+describe('descripteur pf2e', () => {
+  it('est enregistré : 16 compétences, sauvegardes nommées, 5 rangs, fiche sans sorts', () => {
+    expect(getSystem('pf2e')).toBe(pf2e);
+    expect(Object.keys(pf2e.skills)).toHaveLength(16);
+    expect(pf2e.saves.map((s) => s.key)).toEqual(['fort', 'ref', 'will', 'per']);
+    expect(pf2e.profRanks).toHaveLength(5);
+    expect(pf2e.sheet.tabs).not.toContain('spells');
+    expect(pf2e.sheet.rail).not.toContain('hitdice');
+  });
+
+  it('maîtrise pf2e : +2 par rang, plus le niveau si entraîné', () => {
+    const d = { dex: 14, lvl: 5, ranks: { acrobaties: 2 } }; // Expert
+    expect(pf2e.skillBonus(d, 'acrobaties')).toBe(2 + 4 + 5); // mod + rang + niveau
+    expect(pf2e.skillBonus({ ...d, ranks: {} }, 'acrobaties')).toBe(2); // inexpérimenté : mod seul
+    expect(pf2e.saveBonus({ con: 12, lvl: 3, ranks: { fort: 3 } }, 'fort')).toBe(1 + 6 + 3); // Maître
+    expect(pf2e.saveBonus({ wis: 10, lvl: 1, ranks: {} }, 'will')).toBe(0);
+    expect(pf2e.skillBonus({}, 'stealth')).toBe(0); // clé 5e inconnue ici
+  });
+
+  it('createDefaults : Qualifié aux sauvegardes et en Perception', () => {
+    const d = pf2e.createDefaults();
+    expect(d.system).toBe('pf2e');
+    expect(d.ranks).toEqual({ fort: 1, ref: 1, will: 1, per: 1 });
+    expect(d.slots).toBeUndefined();
+    expect(pf2e.saveBonus(d, 'fort')).toBe(0 + 2 + 1); // Qualifié niveau 1
   });
 });
 
