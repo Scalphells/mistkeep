@@ -3,6 +3,7 @@ import {
   ANCESTRIES, BACKGROUNDS_PF2E, CLASSES_PF2E,
   ancestryByLabel, classByLabelPf2e, backgroundByLabelPf2e,
   deriveAncestryPatch, deriveClassPatchPf2e, deriveBackgroundPatchPf2e, pf2eHpMax,
+  pf2eManagedLines,
 } from '../src/lib/pf2e-srd.js';
 import { pf2e } from '../src/lib/systems/pf2e.js';
 
@@ -79,6 +80,23 @@ describe('dérivations pf2e (pures)', () => {
     // CON faible : le « par niveau » ne descend pas sous 0, total au moins 1.
     expect(pf2eHpMax(6, 6, 1, 1)).toBe(6 + Math.max(0, 6 - 5)); // CON 1 → mod −5, perLvl=1
     expect(pf2eHpMax(0, 0, 1, 1)).toBe(1);
+  });
+});
+
+describe('pf2eManagedLines (bloc d’aptitudes idempotent)', () => {
+  const lk = { ancestryByLabel, classByLabel: classByLabelPf2e, backgroundByLabel: backgroundByLabelPf2e };
+
+  it('compose traits d’ascendance, aptitudes de classe, historique et boosts', () => {
+    const lines = pf2eManagedLines({ race: 'Nain', cls: 'Guerrier', bg: 'Soldat' }, lk).join('\n');
+    expect(lines).toMatch(/Vision dans le noir/); // trait du nain
+    expect(lines).toMatch(/Boosts d'ascendance : \+2 CON, SAG/);
+    expect(lines).toMatch(/Maîtrise d’arme/); // aptitude du guerrier
+    expect(lines).toMatch(/Attribut clé : FOR, DEX \(au choix\)/);
+    expect(lines).toMatch(/Historique —/);
+  });
+
+  it('ne renvoie rien pour des entrées inconnues', () => {
+    expect(pf2eManagedLines({ race: 'Inconnu', cls: 'Xyz' }, lk)).toEqual([]);
   });
 });
 

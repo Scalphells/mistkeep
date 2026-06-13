@@ -17,6 +17,7 @@ import {
   ANCESTRIES, BACKGROUNDS_PF2E, CLASSES_PF2E,
   ancestryByLabel, backgroundByLabelPf2e, classByLabelPf2e,
   deriveAncestryPatch, deriveBackgroundPatchPf2e, deriveClassPatchPf2e, pf2eHpMax,
+  pf2eManagedLines,
 } from '../pf2e-srd.js';
 
 /** Modificateur tolérant : un score absent vaut 10 (mod +0). */
@@ -114,11 +115,12 @@ export function createDefaults() {
   };
 }
 
-/** Schéma de fiche : générique, sans dés de vie ni outillage SRD 5e. */
+/** Schéma de fiche : sélecteurs d'identité pf2e (ascendance/classe/historique),
+ *  sans dés de vie ni outillage SRD 5e. */
 export const SHEET = {
   tabs: ['stats', 'combat', 'inv', 'story', 'notes'],
   rail: ['hp', 'stats', 'saves'],
-  identity: 'free',
+  identity: 'pf2e',
 };
 
 /** Descripteur du système Pathfinder 2e. `saves` (liste nommée) et
@@ -154,5 +156,6 @@ export const pf2e = {
     deriveBackgroundPatch: deriveBackgroundPatchPf2e,
     deriveClassPatch: deriveClassPatchPf2e,
     hpMax: pf2eHpMax,
+    managedLines: pf2eManagedLines,
   },
 };

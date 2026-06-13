@@ -184,3 +184,40 @@ export function pf2eHpMax(ancestryHp, classHp, level, conScore) {
   const perLvl = Math.max(0, (Number(classHp) || 0) + mod(conScore));
   return Math.max(1, (Number(ancestryHp) || 0) + perLvl * lvl);
 }
+
+// Libellés courts d'attributs (pour les recommandations de boosts).
+const AB_LABEL = { str: 'FOR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'SAG', cha: 'CHA' };
+const abList = (keys) => keys.map((k) => AB_LABEL[k] || k).join(', ');
+
+/**
+ * Bloc « aptitudes » géré d'une fiche pf2e : traits d'ascendance, aptitudes de
+ * classe, aptitude d'historique et recommandations de boosts d'attribut. Pur et
+ * idempotent (recalculé en entier depuis l'ascendance/classe/historique
+ * courants) — destiné à être inséré via mergeFeatsBlock, comme le 5e.
+ * @param {object} data fiche
+ * @param {{ancestryByLabel,classByLabel,backgroundByLabel}} lk lookups pf2e
+ */
+export function pf2eManagedLines(data, lk) {
+  const lines = [];
+  const anc = lk.ancestryByLabel(data?.race);
+  if (anc) {
+    lines.push(...(anc.traits || []).map((t) => `${t.name} — ${t.desc}`));
+    const boosts = anc.boosts || [];
+    const recs = [];
+    if (boosts.length) recs.push(`+2 ${abList(boosts)}`);
+    if (anc.free) recs.push(`${anc.free} boost(s) libre(s)`);
+    if (recs.length) lines.push(`Boosts d'ascendance : ${recs.join(' · ')}`);
+  }
+  const cls = lk.classByLabel(data?.cls);
+  if (cls) {
+    lines.push(...(cls.features || []).map((f) => `${f.name} — ${f.desc}`));
+    lines.push(`Attribut clé : ${abList(cls.keyAbility || [])}${(cls.keyAbility || []).length > 1 ? ' (au choix)' : ''} · ${cls.skills} compétence(s) entraînée(s) + mod. INT`);
+  }
+  const bg = lk.backgroundByLabel(data?.bg);
+  if (bg) {
+    const recs = [];
+    if ((bg.boosts || []).length) recs.push(`+2 ${abList(bg.boosts)}`);
+    lines.push(`Historique — ${bg.feat}${recs.length ? ` (boosts : ${recs.join(', ')})` : ''}`);
+  }
+  return lines;
+}

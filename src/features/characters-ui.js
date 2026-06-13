@@ -496,6 +496,69 @@ function confirmImportDiff({ name, oldName, oldData, newData }) {
  * debounce). Rien n'est écrit sans validation.
  */
 
+/** Application d'un gabarit d'identité pf2e (ascendance / classe / historique).
+ *  N'applique que des champs IDEMPOTENTS (taille, vitesse, vision, PV de base,
+ *  rangs de Perception/sauvegardes/compétence) + un bloc d'aptitudes géré ; les
+ *  boosts d'attribut restent à répartir à la main (cf. bloc Aptitudes). */
+async function openPf2eDerive(id, mode) {
+  const cur = store.get().characters.find((c) => c.id === id);
+  if (!cur || !canEdit(cur)) return;
+  const d = cur.data || {};
+  const content = getSystem(activeCampaign()?.system || d.system).content;
+  if (!content) return;
+  const patch = {};
+  const changes = [];
+  if (mode === 'ancestry') {
+    const r = content.deriveAncestryPatch(d, content.ancestryByLabel(d.race));
+    if (!r) return;
+    Object.assign(patch, { size: r.patch.size, spd: r.patch.spd, darkvision: r.patch.darkvision, ancHp: r.ancestryHp });
+    changes.push(`taille ${r.patch.size}`, `vitesse ${r.patch.spd} m`);
+    if (r.patch.darkvision) changes.push(`vision ${r.patch.darkvision} m`);
+    changes.push(`PV d'ascendance ${r.ancestryHp}`);
+  } else if (mode === 'class') {
+    const r = content.deriveClassPatch(d, content.classByLabel(d.cls));
+    if (!r) return;
+    patch.clsHp = r.classHp;
+    patch.ranks = { ...(d.ranks || {}), ...r.ranks };
+    changes.push(`PV de classe ${r.classHp}/niv`, 'Perception & sauvegardes au rang de la classe');
+  } else {
+    const r = content.deriveBackgroundPatch(d, content.backgroundByLabel(d.bg));
+    if (!r) return;
+    const ranks = { ...(d.ranks || {}) };
+    for (const sk of r.trainedSkills) ranks[sk] = Math.max(1, Number(ranks[sk]) || 0);
+    patch.ranks = ranks;
+    changes.push(`entraîné en ${r.trainedSkills.join(', ') || '—'}`);
+  }
+  // PV max recalculés à partir des PV d'ascendance + de classe en mémoire.
+  const ancHp = patch.ancHp ?? d.ancHp ?? 0;
+  const clsHp = patch.clsHp ?? d.clsHp ?? 0;
+  patch.hpMax = content.hpMax(ancHp, clsHp, d.lvl, d.con);
+  if (!(Number(d.hp) > 0)) patch.hp = patch.hpMax;
+  changes.push(`PV max ${patch.hpMax}`);
+  // Bloc d'aptitudes géré (recalculé en entier, idempotent via mergeFeatsBlock).
+  const lines = content.managedLines({ ...d, ...patch }, content);
+  const newFeats = mergeFeatsBlock(d.feats, lines);
+  if (newFeats !== (d.feats || '')) patch.feats = newFeats;
+  if (!(await modalConfirm(`Appliquer : ${changes.join(' · ')}. Les boosts d'attribut restent à répartir à la main (voir le bloc Aptitudes).`, { title: '⚙ Pathfinder 2e', okLabel: 'Appliquer' }))) return;
+  updateCharacter(id, patch);
+  showToast('⚙ Gabarit pf2e appliqué.', { type: 'success', timeout: 2400 });
+}
+
+/** Montée de niveau pf2e : recalcule les PV max. La maîtrise inclut déjà le
+ *  niveau (cf. descripteur pf2e), donc rien d'autre à appliquer ici. */
+async function pf2eLevelUp(id) {
+  const cur = store.get().characters.find((c) => c.id === id);
+  if (!cur || !canEdit(cur)) return;
+  const d = cur.data || {};
+  const content = getSystem(activeCampaign()?.system || d.system).content;
+  const lvl = Math.max(1, Number(d.lvl) || 1) + 1;
+  if (!(await modalConfirm(`Passer ${cur.name} au niveau ${lvl} ? (PV max recalculés)`, { title: '⬆ Montée de niveau', okLabel: `Niveau ${lvl}` }))) return;
+  const hpMax = content.hpMax(d.ancHp || 0, d.clsHp || 0, lvl, d.con);
+  const delta = Math.max(0, hpMax - (Number(d.hpMax) || 0));
+  updateCharacter(id, { lvl, hpMax, hp: Math.max(1, (Number(d.hp) || hpMax) + delta) });
+  showToast(`⬆ ${cur.name} : niveau ${lvl}, PV max ${hpMax}.`, { type: 'success', icon: '✨' });
+}
+
 /** Lignes du bloc « aptitudes » géré (aptitudes/traits + maîtrises, langues, sorts).
  *  On passe les lookups du système actif : une fiche 2024 affiche les aptitudes
  *  2024 (et non celles, subtilement différentes, du 5.1). */
@@ -1197,7 +1260,23 @@ function hpRailBlock(d, ed, ro) {
 }
 
 /** Bloc d'identité : sélecteurs SRD 5e, ou champs libres (systèmes custom). */
-function identityBlock(sheet, d, ed, ro) {
+function identityBlock(sheet, d, ed, ro, sys) {
+  // Pathfinder 2e : sélecteurs d'ascendance/classe/historique pilotés par le
+  // contenu Remaster (pf2e.content), avec application auto (PV, vitesse, rangs).
+  // Flux entièrement séparé du 5e (data-pfderive) — aucun risque côté 5e.
+  const pcontent = sheet.identity === 'pf2e' ? sys?.content : null;
+  if (pcontent) {
+    return `<div class="sheet-id-grid">
+        ${pf2eSelect('race', pcontent.ancestriesLabel || 'Ascendance', pcontent.ancestries, d.race, ro, ed)}
+        ${pf2eSelect('cls', 'Classe', pcontent.classes, d.cls, ro, ed)}
+        ${pf2eSelect('bg', 'Historique', pcontent.backgrounds, d.bg, ro, ed)}
+        <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
+        <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
+        <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
+        ${ed ? `<button class="sf-levelup" data-pflevelup title="Monter d'un niveau (PV recalculés)">⬆ Niveau</button>` : ''}
+        <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
+      </div>`;
+  }
   if (sheet.identity !== 'srd5e') {
     return `<div class="sheet-id-grid">
         <input class="sf" value="${escapeHtml(d.cls || '')}" data-d="cls" placeholder="Classe / Archétype" ${ro}/>
@@ -1228,7 +1307,7 @@ function identityBlock(sheet, d, ed, ro) {
 function paneContent(id, sys, sheet, c, d, ed, ro) {
   switch (id) {
     case 'stats':
-      return `${identityBlock(sheet, d, ed, ro)}
+      return `${identityBlock(sheet, d, ed, ro, sys)}
         <section class="sheet-abilities">
           ${sys.abilities.map((a) => abilityBox(a, d, ro, sys)).join('')}
         </section>
@@ -1312,6 +1391,21 @@ function subSelect(d, ro, ed) {
   return `<span class="sf-derive">
       <select class="sf" data-derive="sub" ${ro}>${opts.join('')}</select>
       ${ed && known ? `<button class="sf-cog" data-derive-open="sub" title="Appliquer les aptitudes de sous-classe débloquées par le niveau">⚙</button>` : ''}
+    </span>`;
+}
+
+/** Sélecteur d'identité pf2e (ascendance/classe/historique) : pilote
+ *  l'application du gabarit Remaster via data-pfderive (flux séparé du 5e). */
+function pf2eSelect(kind, label, entries, value, ro, ed) {
+  const cur = String(value || '');
+  const inList = entries.some((e) => e.label === cur);
+  const opts = [`<option value="">— ${label} —</option>`].concat(
+    entries.map((e) => `<option value="${escapeHtml(e.label)}" ${e.label === cur ? 'selected' : ''}>${escapeHtml(e.label)}</option>`)
+  );
+  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (perso)</option>`);
+  return `<span class="sf-derive">
+      <select class="sf" data-pfderive="${kind}" ${ro}>${opts.join('')}</select>
+      ${ed && inList ? `<button class="sf-cog" data-pfderive-open="${kind}" title="Appliquer ${escapeHtml(label.toLowerCase())} (PV, vitesse, rangs, aptitudes)">⚙</button>` : ''}
     </span>`;
 }
 
@@ -1754,6 +1848,22 @@ function bindSheet(el, id, ed) {
   el.querySelectorAll('[data-derive-open]').forEach((b) =>
     b.addEventListener('click', () => openDeriveModal(id, DERIVE_MODE[b.dataset.deriveOpen] || 'class'))
   );
+
+  // Pathfinder 2e : sélecteurs d'identité (flux séparé du 5e, data-pfderive).
+  const PF_MODE = { race: 'ancestry', cls: 'class', bg: 'background' };
+  el.querySelectorAll('[data-pfderive]').forEach((sel) =>
+    sel.addEventListener('change', () => {
+      const kind = sel.dataset.pfderive; // 'race' | 'cls' | 'bg'
+      updateCharacter(id, { [kind]: sel.value });
+      const pc = getSystem(activeCampaign()?.system)?.content;
+      const known = pc && (kind === 'race' ? pc.ancestryByLabel(sel.value) : kind === 'cls' ? pc.classByLabel(sel.value) : pc.backgroundByLabel(sel.value));
+      if (known) openPf2eDerive(id, PF_MODE[kind]);
+    })
+  );
+  el.querySelectorAll('[data-pfderive-open]').forEach((b) =>
+    b.addEventListener('click', () => openPf2eDerive(id, PF_MODE[b.dataset.pfderiveOpen] || 'ancestry'))
+  );
+  el.querySelector('[data-pflevelup]')?.addEventListener('click', () => pf2eLevelUp(id));
   el.querySelector('[data-startkit]')?.addEventListener('click', () => openStartingEquipment(id));
 
   // Multiclassage : édition des classes secondaires (data.mc) + application.
