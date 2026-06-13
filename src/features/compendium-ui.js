@@ -1,5 +1,5 @@
 import { store } from '../state.js';
-import { escapeHtml } from '../lib/utils.js';
+import { escapeHtml, debounce } from '../lib/utils.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { modalPrompt, modalConfirm, modalAlert } from '../lib/modal.js';
 import {
@@ -85,9 +85,12 @@ export async function mountCompendium(container) {
     </div>
   `;
 
+  // Recherche débouncée : évite de reconstruire toute la liste à chaque frappe
+  // (un compendium importé peut compter des centaines d'entrées).
+  const debouncedList = debounce(() => renderList(container), 120);
   container.querySelector('#cmp-search').addEventListener('input', (e) => {
     query = e.target.value.trim().toLowerCase();
-    renderList(container);
+    debouncedList();
   });
 
   const sortBtn = container.querySelector('#cmp-sort');
@@ -689,9 +692,12 @@ function renderList(container) {
     .join('');
   el.querySelectorAll('[data-id]').forEach((b) => {
     b.addEventListener('click', () => {
+      if (b.dataset.id === activeId && !editMode) return; // déjà sélectionnée
       activeId = b.dataset.id;
       editMode = false;
-      renderList(container);
+      // Bascule la surbrillance sans reconstruire toute la liste (perf).
+      el.querySelector('.cmp-item.active')?.classList.remove('active');
+      b.classList.add('active');
       renderDetail(container);
     });
     // Glisser une entrée → carte (jeton) ou fiche (sort/objet).
