@@ -9,6 +9,7 @@ import { getSystem } from '../lib/systems/index.js';
 import { activeCampaign } from '../lib/campaigns.js';
 import { addHotbarMacro } from '../lib/hotbar.js';
 import { showToast } from '../lib/toast.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * UI des dés partagés : boutons rapides, macros, jet personnalisé, flux temps réel.
@@ -45,28 +46,28 @@ export async function mountDice(container) {
         </div>
         <div class="dice-macros" id="dice-macros"></div>
         <div class="dice-custom">
-          <input id="dice-input" type="text" placeholder="ex: 2d6+3" autocomplete="off" />
-          <select id="dice-mode" class="dice-mode" title="Visibilité du jet">
-            <option value="public">👁 Public</option>
-            <option value="blind">🙈 Aveugle</option>
-            <option value="self">🔒 Privé</option>
-            ${isDM ? '<option value="dm">🎭 MJ</option>' : ''}
+          <input id="dice-input" type="text" placeholder="${t('dice.placeholder')}" autocomplete="off" />
+          <select id="dice-mode" class="dice-mode" title="${t('dice.vis')}">
+            <option value="public">${t('dice.vis.public')}</option>
+            <option value="blind">${t('dice.vis.blind')}</option>
+            <option value="self">${t('dice.vis.self')}</option>
+            ${isDM ? `<option value="dm">${t('dice.vis.dm')}</option>` : ''}
           </select>
-          <button class="btn" id="dice-roll">Lancer</button>
+          <button class="btn" id="dice-roll">${t('dice.roll')}</button>
         </div>
         <div class="dice-err" id="dice-err"></div>
         ${
           isDM
             ? `<div class="dice-request">
-                 <span class="dice-request-lbl">📣 Demander un jet</span>
+                 <span class="dice-request-lbl">${t('dice.request')}</span>
                  <select id="rr-kind">
-                   <option value="save">Sauvegarde</option>
-                   <option value="ability">Caractéristique</option>
-                   <option value="skill">Compétence</option>
+                   <option value="save">${t('dice.kind.save')}</option>
+                   <option value="ability">${t('dice.kind.ability')}</option>
+                   <option value="skill">${t('dice.kind.skill')}</option>
                  </select>
                  <select id="rr-key"></select>
-                 <input id="rr-dc" type="number" placeholder="DD" style="width:60px"/>
-                 <button class="btn" id="rr-go">Demander</button>
+                 <input id="rr-dc" type="number" placeholder="${t('dice.dc')}" style="width:60px"/>
+                 <button class="btn" id="rr-go">${t('dice.request.go')}</button>
                </div>`
             : ''
         }
@@ -114,7 +115,7 @@ export async function mountDice(container) {
       await sendRoll(notation, rollType, '', vis);
       input.value = '';
     } catch (e) {
-      err.textContent = e.message || 'Erreur de jet.';
+      err.textContent = e.message || t('dice.err');
     }
   };
 
@@ -134,9 +135,9 @@ export async function mountDice(container) {
       macros
         .map(
           (mac) =>
-            `<span class="macro-chip"><button class="macro-btn" data-macro="${escapeHtml(mac.notation)}" title="${escapeHtml(mac.notation)}">${escapeHtml(mac.label)}</button><button class="macro-bar" data-macro-bar="${mac.id}" title="Ajouter à la barre de raccourcis">⤓</button><button class="macro-x" data-macro-del="${mac.id}" title="Retirer">×</button></span>`
+            `<span class="macro-chip"><button class="macro-btn" data-macro="${escapeHtml(mac.notation)}" title="${escapeHtml(mac.notation)}">${escapeHtml(mac.label)}</button><button class="macro-bar" data-macro-bar="${mac.id}" title="${t('dice.macro.bar')}">⤓</button><button class="macro-x" data-macro-del="${mac.id}" title="${t('dice.macro.del')}">×</button></span>`
         )
-        .join('') + `<button class="macro-add" id="macro-add" title="Ajouter une macro">＋ Macro</button>`;
+        .join('') + `<button class="macro-add" id="macro-add" title="${t('dice.macro.addTitle')}">${t('dice.macro.add')}</button>`;
     el.querySelectorAll('[data-macro]').forEach((b) =>
       b.addEventListener('click', () => doRoll(b.dataset.macro))
     );
@@ -151,13 +152,13 @@ export async function mountDice(container) {
         const mac = loadMacros().find((m) => m.id === b.dataset.macroBar);
         if (!mac) return;
         const ok = addHotbarMacro({ label: mac.label, notation: mac.notation });
-        showToast(ok !== false ? `⤓ « ${mac.label} » ajouté à la barre.` : 'Barre pleine (10 emplacements).', { timeout: 2200 });
+        showToast(ok !== false ? t('dice.macro.added', { label: mac.label }) : t('dice.macro.barFull'), { timeout: 2200 });
       })
     );
     el.querySelector('#macro-add')?.addEventListener('click', async () => {
-      const label = await modalPrompt('Nom de la macro :', { title: 'Nouvelle macro', placeholder: 'Ex. Épée longue' });
+      const label = await modalPrompt(t('dice.macro.name'), { title: t('dice.macro.new'), placeholder: t('dice.macro.namePh') });
       if (!label || !label.trim()) return;
-      const notation = await modalPrompt('Notation de dés :', { title: 'Nouvelle macro', placeholder: 'Ex. 1d20+5' });
+      const notation = await modalPrompt(t('dice.macro.notation'), { title: t('dice.macro.new'), placeholder: t('dice.macro.notationPh') });
       if (!notation || !notation.trim()) return;
       const list = loadMacros();
       list.push({ id: crypto.randomUUID().slice(0, 8), label: label.trim(), notation: notation.trim() });
@@ -194,7 +195,7 @@ function renderFeed() {
   const { diceHist, isDM, user } = store.get();
 
   if (!diceHist.length) {
-    el.innerHTML = `<div class="dice-empty">Aucun jet pour l'instant. Lancez un dé !</div>`;
+    el.innerHTML = `<div class="dice-empty">${t('dice.empty')}</div>`;
     return;
   }
 
