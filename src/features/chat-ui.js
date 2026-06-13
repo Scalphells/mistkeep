@@ -14,6 +14,7 @@ import {
   subscribeMessages,
   clearChannel,
 } from './chat.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * UI du chat partagé : canal Public + canal Privé (MJ ↔ joueur).
@@ -33,22 +34,22 @@ export async function mountChat(container) {
     <div class="chat-wrap">
       <header class="chat-bar">
         <div class="chat-channels">
-          <button class="chat-chan active" data-chan="public">💬 Public</button>
-          <button class="chat-chan" data-chan="dm">${isDM ? '🎭 Privés' : '🎭 MJ'}</button>
+          <button class="chat-chan active" data-chan="public">${t('chat.public')}</button>
+          <button class="chat-chan" data-chan="dm">${isDM ? t('chat.dm.asDM') : t('chat.dm.asPlayer')}</button>
         </div>
-        ${isDM ? `<button class="chat-clear" id="chat-clear" title="Effacer la conversation">🗑 Effacer</button>` : ''}
+        ${isDM ? `<button class="chat-clear" id="chat-clear" title="${t('chat.clear.title')}">${t('chat.clear')}</button>` : ''}
       </header>
       <div class="chat-filters" id="chat-filters">
-        <button class="chat-filter active" data-filter="all">Tout</button>
-        <button class="chat-filter" data-filter="chat">💬 Discussion</button>
-        <button class="chat-filter" data-filter="roll">🎲 Dés</button>
-        <button class="chat-filter" data-filter="sys">⚔ Combat</button>
+        <button class="chat-filter active" data-filter="all">${t('chat.filter.all')}</button>
+        <button class="chat-filter" data-filter="chat">${t('chat.filter.chat')}</button>
+        <button class="chat-filter" data-filter="roll">${t('chat.filter.roll')}</button>
+        <button class="chat-filter" data-filter="sys">${t('chat.filter.sys')}</button>
       </div>
       ${isDM ? `<div class="chat-peers" id="chat-peers" hidden></div>` : ''}
       <section class="chat-feed" id="chat-feed"></section>
       <form class="chat-form" id="chat-form">
-        <input id="chat-input" type="text" placeholder="Votre message…" autocomplete="off" maxlength="2000" />
-        <button class="btn chat-send" type="submit">Envoyer</button>
+        <input id="chat-input" type="text" placeholder="${t('chat.placeholder')}" autocomplete="off" maxlength="2000" />
+        <button class="btn chat-send" type="submit">${t('chat.send')}</button>
       </form>
       <div class="chat-err" id="chat-err"></div>
     </div>
@@ -90,8 +91,8 @@ export async function mountChat(container) {
 
   container.querySelector('#chat-clear')?.addEventListener('click', async () => {
     const chan = store.get().chatTab;
-    const label = chan === 'dm' ? 'des messages privés' : 'publique';
-    if (await modalConfirm(`Effacer toute la conversation ${label} ? Cette action est irréversible.`, { title: 'Effacer le chat', danger: true, okLabel: 'Effacer' })) {
+    const msg = chan === 'dm' ? t('chat.clear.confirm.dm') : t('chat.clear.confirm.public');
+    if (await modalConfirm(msg, { title: t('chat.clear.modalTitle'), danger: true, okLabel: t('chat.clear.ok') })) {
       clearChannel(chan);
     }
   });
@@ -100,13 +101,13 @@ export async function mountChat(container) {
     const chan = store.get().chatTab;
     if (isDM && chan === 'dm' && !store.get().dmPeer) {
       input.disabled = true;
-      input.placeholder = 'Choisissez un joueur ci-dessus…';
+      input.placeholder = t('chat.input.pickPeer');
     } else {
       input.disabled = false;
       input.placeholder =
         chan === 'dm'
-          ? isDM ? 'Réponse privée au joueur…' : 'Message privé au MJ…'
-          : 'Votre message…';
+          ? isDM ? t('chat.input.dmReply') : t('chat.input.toDM')
+          : t('chat.placeholder');
     }
   }
 
@@ -115,12 +116,12 @@ export async function mountChat(container) {
     const players = store.get().players.filter((p) => p.role !== 'dm');
     const peer = store.get().dmPeer;
     if (!players.length) {
-      peersBar.innerHTML = `<span class="chat-peers-empty">Aucun joueur.</span>`;
+      peersBar.innerHTML = `<span class="chat-peers-empty">${t('chat.peers.empty')}</span>`;
       return;
     }
     peersBar.innerHTML = players
       .map((p) => {
-        const name = p.display_name || p.email || 'Joueur';
+        const name = p.display_name || p.email || t('chat.player');
         return `<button class="chat-peer ${p.id === peer ? 'active' : ''}" data-peer="${p.id}"
                   style="--peer:${colorFor(p.id, name)}">${escapeHtml(name)}</button>`;
       })
@@ -143,7 +144,7 @@ export async function mountChat(container) {
     const chan = store.get().chatTab;
     const recipient = isDM && chan === 'dm' ? store.get().dmPeer : null;
     if (isDM && chan === 'dm' && !recipient) {
-      err.textContent = 'Sélectionnez un joueur destinataire.';
+      err.textContent = t('chat.err.pickPeer');
       return;
     }
     err.textContent = '';
@@ -151,7 +152,7 @@ export async function mountChat(container) {
       await sendMessage(text, chan, recipient);
       input.value = '';
     } catch (ex) {
-      err.textContent = ex.message || "Échec de l'envoi.";
+      err.textContent = ex.message || t('chat.err.send');
     }
   });
 
@@ -178,20 +179,17 @@ export async function mountChat(container) {
   const unsubRealtime = subscribeMessages();
   subscribeRolls();
   subscribeInitiative();
-  // Le chat ne dépend pas de la carte/combat/fiches/notes… : ne pas reconstruire
-  // le fil quand seules ces clés changent (sinon chaque déplacement de jeton ou
-  // changement de PV reconstruit tout le chat).
-  // NB : `characters` n'est PAS ignoré — les noms de perso affichés viennent de
-  // characterNameForUser → store.characters (chargement/renommage de fiches).
+  // Le chat ne dépend pas de la carte/combat/notes… : ne pas reconstruire le fil
+  // quand seules ces clés changent. NB : `characters` reste actif (les noms de
+  // perso affichés viennent de characterNameForUser → store.characters), idem
+  // `combatLog`/`players`. Coalesce aussi les rafales en un rendu par frame.
   const CHAT_IGNORE = [
     'map', 'scenes', 'activeSceneId', 'targets', 'paused', 'initiative',
-    'initTurn', 'initRound', 'activeChar', 'handouts',
-    'sessionNotes', 'compendium', 'compendiumOpenId', 'unreadMessages',
-    'unreadHandouts', 'vaultFiles', 'fileTree', 'openTabs', 'activeTab',
-    'edits', 'ambience', 'sfxboard', 'imagebank', 'campaign', 'clock',
-    'sideTab', 'toolTab',
+    'initTurn', 'initRound', 'activeChar', 'handouts', 'sessionNotes',
+    'compendium', 'compendiumOpenId', 'unreadMessages', 'unreadHandouts',
+    'vaultFiles', 'fileTree', 'openTabs', 'activeTab', 'edits', 'ambience',
+    'sfxboard', 'imagebank', 'campaign', 'clock', 'sideTab', 'toolTab',
   ];
-  // Coalesce les rafales (lots de messages/jets en temps réel) en un rendu par frame.
   let _feedRaf = 0;
   const unsubStore = store.subscribe(() => {
     if (_feedRaf) return;
@@ -268,9 +266,9 @@ export async function mountChat(container) {
       el.innerHTML = `<div class="chat-empty">${
         chatTab === 'dm'
           ? isDM
-            ? '🎭 Aucun message privé avec ce joueur.'
-            : '🎭 Aucun message privé. Écrivez au MJ !'
-          : '💬 Aucun message ni jet pour l’instant. Lancez la conversation !'
+            ? t('chat.empty.dm.asDM')
+            : t('chat.empty.dm.asPlayer')
+          : t('chat.empty.public')
       }</div>`;
       return;
     }
@@ -309,7 +307,7 @@ export async function mountChat(container) {
       const grouped = lastSender === m.sender_id;
       lastSender = m.sender_id;
 
-      const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const time = date.toLocaleTimeString(t('locale.bcp47'), { hour: '2-digit', minute: '2-digit' });
       const color = colorFor(m.sender_id, m.sender_name);
       const who = characterNameForUser(m.sender_id) || m.sender_name;
 
@@ -347,7 +345,7 @@ function dayLabel(d) {
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
-  if (sameDay(d, today)) return "Aujourd'hui";
-  if (sameDay(d, yest)) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' });
+  if (sameDay(d, today)) return t('date.today');
+  if (sameDay(d, yest)) return t('date.yesterday');
+  return d.toLocaleDateString(t('locale.bcp47'), { day: '2-digit', month: 'long' });
 }
