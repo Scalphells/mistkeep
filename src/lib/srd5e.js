@@ -714,8 +714,10 @@ export function spellSlotsForLevel(classKey, level) {
  *   `featureLines` = aptitudes débloquées (niveau ≤ data.lvl), au format
  *   « Nom (niv.X) — desc » ; `upcoming` = aptitudes à venir (niveau > data.lvl).
  */
-export function deriveSubclassPatch(data) {
-  const sc = subclassByLabel(data?.sub);
+export function deriveSubclassPatch(data, sub) {
+  // `sub` (entrée de sous-classe déjà résolue) permet de router par système ;
+  // sans elle, repli sur le SRD 5.1 (comportement historique).
+  const sc = typeof sub === 'object' && sub ? sub : subclassByLabel(data?.sub);
   if (!sc) return null;
   const lvl = Math.max(1, Number(data?.lvl) || 1);
   const avail = sc.features.filter((f) => (f.level || 1) <= lvl);
@@ -735,10 +737,10 @@ export function deriveSubclassPatch(data) {
  * @returns {{armor, weapons, tools:string[], languages:string[],
  *            casterClass:string, cantrips:number, spellLine:string}}
  */
-export function deriveProficiencies(data) {
-  const c = classByLabel(data?.cls);
-  const r = raceByLabel(data?.race);
-  const b = backgroundByLabel(data?.bg);
+export function deriveProficiencies(data, lk = {}) {
+  const c = (lk.classByLabel || classByLabel)(data?.cls);
+  const r = (lk.raceByLabel || raceByLabel)(data?.race);
+  const b = (lk.backgroundByLabel || backgroundByLabel)(data?.bg);
   const tools = [];
   if (c && CLASS_TOOLS[c.key]) tools.push(CLASS_TOOLS[c.key]);
   if (b && b.tools) tools.push(b.tools);
@@ -847,22 +849,30 @@ export function hitDiceSummary(data) {
  * synthèse des MAÎTRISES (armures/armes/outils), des LANGUES et des SORTS de
  * départ. Pur (lit `cls/sub/mc/race/bg/lvl` de `data`).
  */
-export function srdManagedLines(data) {
+export function srdManagedLines(data, lk = {}) {
+  // lk = lookups par système ({classByLabel, raceByLabel, backgroundByLabel,
+  // subclassByLabel}) : permet d'afficher le contenu du système de la campagne
+  // (ex. aptitudes 2024). Sans eux, repli sur le SRD 5.1 (comportement
+  // historique strictement identique).
+  const cls = lk.classByLabel || classByLabel;
+  const race = lk.raceByLabel || raceByLabel;
+  const bg = lk.backgroundByLabel || backgroundByLabel;
+  const subL = lk.subclassByLabel || subclassByLabel;
   const lines = [];
-  const c = classByLabel(data?.cls);
-  const r = raceByLabel(data?.race);
-  const b = backgroundByLabel(data?.bg);
+  const c = cls(data?.cls);
+  const r = race(data?.race);
+  const b = bg(data?.bg);
   if (c) lines.push(...featuresToLines(c.features));
-  const ds = deriveSubclassPatch(data);
+  const ds = deriveSubclassPatch(data, subL(data?.sub));
   if (ds) lines.push(...ds.featureLines);
   // Classes secondaires (multiclassage) : aptitudes + sous-classe, par classe.
   for (const e of data?.mc || []) {
-    const mc = classByLabel(e?.cls);
+    const mc = cls(e?.cls);
     if (!mc) continue;
     const lvl = Math.max(1, Number(e?.lvl) || 1);
     lines.push(`Multiclasse : ${mc.label} (niv.${lvl})`);
     lines.push(...featuresToLines(mc.features));
-    const dsm = deriveSubclassPatch({ sub: e?.sub, lvl });
+    const dsm = deriveSubclassPatch({ sub: e?.sub, lvl }, subL(e?.sub));
     if (dsm) lines.push(...dsm.featureLines);
   }
   if (r) lines.push(...featuresToLines(r.traits));

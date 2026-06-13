@@ -28,6 +28,7 @@ import {
   SRD_OPEN,
   SRD_CLOSE,
 } from '../src/lib/srd5e.js';
+import { dnd5e2024 } from '../src/lib/systems/dnd5e2024.js';
 
 describe('classByLabel / raceByLabel', () => {
   it('reconnaît les noms FR du seed (accents inclus)', () => {
@@ -458,5 +459,52 @@ describe('deriveProficiencies', () => {
     expect(p.armor).toBe('');
     expect(p.tools).toEqual([]);
     expect(p.languages).toEqual([]);
+  });
+});
+
+describe('routage du contenu par système (lookups)', () => {
+  // Reconstruit les lookups d'un SRD comme le font les wrappers de characters-ui.
+  const lkOf = (srd) => ({
+    classByLabel: (l) => srd.classes.find((x) => x.label === l) || null,
+    raceByLabel: (l) => srd.races.find((x) => x.label === l) || null,
+    backgroundByLabel: (l) => srd.backgrounds.find((x) => x.label === l) || null,
+    subclassByLabel: (l) => (l && srd.subclasses[l] ? { label: l, ...srd.subclasses[l] } : null),
+  });
+
+  it('lookups factices : route classe et espèce vers le contenu fourni', () => {
+    const lk = {
+      classByLabel: (l) => (l === 'Mage' ? { label: 'Mage', features: [{ name: 'Sort rare', desc: 'magie' }] } : null),
+      raceByLabel: (l) => (l === 'Fée' ? { traits: [{ name: 'Vol féerique', desc: 'ailes' }] } : null),
+      backgroundByLabel: () => null,
+      subclassByLabel: () => null,
+    };
+    const lines = srdManagedLines({ cls: 'Mage', race: 'Fée' }, lk).join('\n');
+    expect(lines).toContain('Sort rare');
+    expect(lines).toContain('Vol féerique');
+  });
+
+  it('sans lookups : le SRD 5.1 reste la source (non-régression)', () => {
+    expect(srdManagedLines({ cls: 'Barbare' }).join('\n')).toContain('Rage');
+  });
+
+  it('SRD 2024 : une fiche affiche le contenu 2024, pas celui du 5.1', () => {
+    const lk = lkOf(dnd5e2024.srd);
+    const lines = srdManagedLines({ cls: 'Barbare', race: 'Goliath', bg: 'Soldat', lvl: 1 }, lk).join('\n');
+    expect(lines).toContain('Ascendance de géant'); // trait d'espèce 2024 (absent du 5.1)
+    expect(lines).toContain('Origine 2024'); // don d'origine porté par l'historique 2024
+    expect(lines).toContain('Maîtrise d’armes'); // aptitude de classe 2024 (absente en 2014)
+  });
+
+  it('SRD 2024 : aptitude de sous-classe débloquée selon le niveau', () => {
+    const lk = lkOf(dnd5e2024.srd);
+    const l2 = srdManagedLines({ cls: 'Guerrier', sub: 'Champion', lvl: 2 }, lk).join('\n');
+    const l3 = srdManagedLines({ cls: 'Guerrier', sub: 'Champion', lvl: 3 }, lk).join('\n');
+    expect(l2).not.toContain('Critique amélioré'); // sous-classe 2024 : rien avant le niveau 3
+    expect(l3).toContain('Critique amélioré');
+  });
+
+  it('deriveProficiencies route aussi par le SRD fourni', () => {
+    const lk = lkOf(dnd5e2024.srd);
+    expect(deriveProficiencies({ cls: 'Magicien' }, lk).casterClass).toBe('Magicien');
   });
 });

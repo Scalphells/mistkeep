@@ -98,6 +98,30 @@ describe('descripteur dnd5e-2024', () => {
     expect(barb.hd).toBe(12);
     expect(barb.saves).toEqual(['str', 'con']);
   });
+
+  it('aptitudes de classe 2024 : niveau 1 rempli, dont les nouveautés 2024', () => {
+    const byKey = Object.fromEntries(dnd5e2024.srd.classes.map((c) => [c.key, c]));
+    // Toutes les classes ont des aptitudes de niveau 1.
+    expect(dnd5e2024.srd.classes.every((c) => c.features.length > 0)).toBe(true);
+    // Maîtrise d'armes : nouveauté 2024 des classes martiales.
+    const names = (k) => byKey[k].features.map((f) => f.name).join(' | ');
+    expect(names('barbare')).toMatch(/Maîtrise d’armes/);
+    expect(names('guerrier')).toMatch(/Maîtrise d’armes/);
+    // Incantation avancée au niveau 1 en 2024 pour paladin et rôdeur.
+    expect(names('paladin')).toMatch(/Incantation/);
+    expect(names('rodeur')).toMatch(/Incantation/);
+    // Un non-martial n'a pas la Maîtrise d'armes.
+    expect(names('magicien')).not.toMatch(/Maîtrise d’armes/);
+  });
+
+  it('aptitudes de sous-classe 2024 : remplies, débloquées au niveau 3', () => {
+    const subs = Object.values(dnd5e2024.srd.subclasses);
+    expect(subs.every((s) => s.features.length > 0)).toBe(true);
+    // Toutes les sous-classes 2024 ouvrent au niveau 3.
+    expect(subs.every((s) => s.features.some((f) => f.level === 3))).toBe(true);
+    expect(subs.every((s) => s.features.every((f) => f.level >= 3))).toBe(true);
+    expect(dnd5e2024.srd.subclasses['Champion'].features.find((f) => f.name === 'Critique amélioré').level).toBe(3);
+  });
 });
 
 describe('descripteur pf2e', () => {

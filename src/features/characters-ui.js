@@ -496,9 +496,11 @@ function confirmImportDiff({ name, oldName, oldData, newData }) {
  * debounce). Rien n'est écrit sans validation.
  */
 
-/** Lignes du bloc « aptitudes » géré (aptitudes/traits + maîtrises, langues, sorts). */
+/** Lignes du bloc « aptitudes » géré (aptitudes/traits + maîtrises, langues, sorts).
+ *  On passe les lookups du système actif : une fiche 2024 affiche les aptitudes
+ *  2024 (et non celles, subtilement différentes, du 5.1). */
 function srdFeatLines(data) {
-  return srdManagedLines(data);
+  return srdManagedLines(data, { classByLabel, raceByLabel, backgroundByLabel, subclassByLabel });
 }
 
 /** Synthèse courte d'un jeu d'emplacements de sorts (« Niv.1 ×2 · Niv.2 ×3 »). */
@@ -840,7 +842,7 @@ async function openMulticlassApply(id) {
  * depuis la classe / race / historique (toujours à jour, sans application).
  */
 function profileSummarySection(d) {
-  const p = deriveProficiencies(d);
+  const p = deriveProficiencies(d, { classByLabel, raceByLabel, backgroundByLabel });
   const tools = p.tools.join(' ; ');
   const langs = p.languages.join(' ; ');
   const sorts = p.casterClass && p.spellLine
