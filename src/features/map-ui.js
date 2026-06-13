@@ -7,6 +7,7 @@ import { loadCharacters, updateCharacter, saveBonus } from './characters.js';
 import { loadInitiative, subscribeInitiative, adjustHp, toggleCondition, logCombat, addCombatant, sendPlayerRequest } from './initiative.js';
 import { rollDice } from './dice.js';
 import { condIcon, condIconHtml } from '../lib/conditions.js';
+import { t } from '../lib/i18n.js';
 import { openAttackResolver } from '../lib/attack.js';
 import { openActionCard } from '../lib/actioncard.js';
 import {
@@ -196,46 +197,46 @@ export async function mountMap(container) {
   container.innerHTML = `
     <div class="map-root">
       <div class="map-toolbar" id="map-tools">
-        <div class="map-tool-group" data-label="Navigation">
-          <button class="map-tool active" data-tool="move" title="Déplacer">✋</button>
-          <button class="map-tool" data-tool="ruler" title="Mesurer (clic = étape, double-clic / clic droit = fin)">📏</button>
-          ${isDM ? `<button class="map-tool" data-tool="select" title="Sélection multiple (glisser un cadre ; Suppr = supprimer)">⬚</button>` : ''}
+        <div class="map-tool-group" data-label="${t('map.grp.nav')}">
+          <button class="map-tool active" data-tool="move" title="${t('map.move.title')}">✋</button>
+          <button class="map-tool" data-tool="ruler" title="${t('map.ruler.title')}">📏</button>
+          ${isDM ? `<button class="map-tool" data-tool="select" title="${t('map.select.title')}">⬚</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="Marqueurs">
-          <button class="map-tool" data-tool="ping" title="Ping (clic)">📍</button>
-          <button class="map-tool" data-tool="pin" title="Marqueur / note (clic pour poser)">📌</button>
-          ${isDM ? `<button class="map-tool" data-tool="label" title="Étiquette de zone (clic pour poser un libellé)">🏷</button>` : ''}
+        <div class="map-tool-group" data-label="${t('map.grp.markers')}">
+          <button class="map-tool" data-tool="ping" title="${t('map.ping.title')}">📍</button>
+          <button class="map-tool" data-tool="pin" title="${t('map.pin.title')}">📌</button>
+          ${isDM ? `<button class="map-tool" data-tool="label" title="${t('map.label.title')}">🏷</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="Gabarit de sort">
-          <button class="map-tool" data-tool="tmpl" title="Gabarit de sort (glisser depuis l'origine)">🎯</button>
-          <select id="map-tmpl-shape" class="map-sel" title="Forme du gabarit">
-            <option value="circle">● Cercle</option>
-            <option value="cone">▲ Cône</option>
-            <option value="line">▬ Ligne</option>
+        <div class="map-tool-group" data-label="${t('map.grp.template')}">
+          <button class="map-tool" data-tool="tmpl" title="${t('map.tmpl.title')}">🎯</button>
+          <select id="map-tmpl-shape" class="map-sel" title="${t('map.tmpl.shapeTitle')}">
+            <option value="circle">${t('map.tmpl.circle')}</option>
+            <option value="cone">${t('map.tmpl.cone')}</option>
+            <option value="line">${t('map.tmpl.line')}</option>
           </select>
-          <label class="map-num" title="Distance du gabarit (rayon/longueur) — vide = libre au glisser">Dist.<input type="number" id="map-tmpl-dist" min="0" step="5" placeholder="∞"></label>
-          ${isDM ? `<button class="map-btn" data-act="zone-save" title="Sauvegarde de zone : pose un gabarit puis résous les jets">💥</button>` : ''}
+          <label class="map-num" title="${t('map.tmpl.distTitle')}">${t('map.tmpl.dist')}<input type="number" id="map-tmpl-dist" min="0" step="5" placeholder="∞"></label>
+          ${isDM ? `<button class="map-btn" data-act="zone-save" title="${t('map.zonesave.title')}">💥</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="Vue">
-          <button class="map-btn" data-act="zoom-out" title="Dézoomer">－</button>
+        <div class="map-tool-group" data-label="${t('map.grp.view')}">
+          <button class="map-btn" data-act="zoom-out" title="${t('map.zoomout')}">－</button>
           <span class="map-zoom" id="map-zoom">50%</span>
-          <button class="map-btn" data-act="zoom-in" title="Zoomer">＋</button>
-          <button class="map-btn" data-act="fit" title="Ajuster">⤢</button>
-          <button class="map-btn" data-act="immersive" title="Plein écran immersif">⛶</button>
-          ${isDM ? `<button class="map-btn" data-act="push-view" title="Recadrer la vue de tous les joueurs ici">👁</button>` : ''}
+          <button class="map-btn" data-act="zoom-in" title="${t('map.zoomin')}">＋</button>
+          <button class="map-btn" data-act="fit" title="${t('map.fit')}">⤢</button>
+          <button class="map-btn" data-act="immersive" title="${t('map.immersive')}">⛶</button>
+          ${isDM ? `<button class="map-btn" data-act="push-view" title="${t('map.pushview')}">👁</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="Dessin">
-          <button class="map-tool" data-tool="draw" title="Dessiner / annoter${isDM ? '' : ' (éphémère)'}">✏</button>
-          <select id="map-draw-shape" class="map-sel" title="Forme de dessin">
-            <option value="free">✎ Libre</option>
-            <option value="rect">▭ Rectangle</option>
-            <option value="circle">○ Cercle</option>
-            <option value="arrow">➤ Flèche</option>
-            ${isDM ? '<option value="text">🅣 Texte</option>' : ''}
+        <div class="map-tool-group" data-label="${t('map.grp.draw')}">
+          <button class="map-tool" data-tool="draw" title="${t('map.draw.title')}${isDM ? '' : t('map.draw.ephemeral')}">✏</button>
+          <select id="map-draw-shape" class="map-sel" title="${t('map.draw.shapeTitle')}">
+            <option value="free">${t('map.draw.free')}</option>
+            <option value="rect">${t('map.draw.rect')}</option>
+            <option value="circle">${t('map.draw.circle')}</option>
+            <option value="arrow">${t('map.draw.arrow')}</option>
+            ${isDM ? `<option value="text">${t('map.draw.text')}</option>` : ''}
           </select>
-          <input type="color" id="map-draw-color" class="map-color" value="#e06c75" title="Couleur de dessin">
-          ${isDM ? `<button class="map-btn" data-act="draw-undo" title="Annuler le dernier dessin">↶✏</button>
-                    <button class="map-btn" data-act="draw-clear" title="Effacer tous les dessins">🧹✏</button>` : ''}
+          <input type="color" id="map-draw-color" class="map-color" value="#e06c75" title="${t('map.draw.colorTitle')}">
+          ${isDM ? `<button class="map-btn" data-act="draw-undo" title="${t('map.draw.undo')}">↶✏</button>
+                    <button class="map-btn" data-act="draw-clear" title="${t('map.draw.clear')}">🧹✏</button>` : ''}
         </div>
         ${
           isDM
@@ -871,7 +872,7 @@ export async function mountMap(container) {
         }
         const rpx = g.r * cell;
         const delay = ((i * 0.37) % 2).toFixed(2);
-        return `<span class="map-glow" style="left:${g.x}px; top:${g.y}px; width:${rpx * 2}px; height:${rpx * 2}px; --glow:${g.color}; animation-delay:${delay}s"></span>`;
+        return `<span class="map-glow" style="left:${g.x}px; top:${g.y}px; width:${rpx * 2}px; height:${rpx * 2}px; --glow:${safeColor(g.color, '#ffb86b')}; animation-delay:${delay}s"></span>`;
       })
       .join('');
   }
@@ -890,7 +891,7 @@ export async function mountMap(container) {
     labelsEl.innerHTML = list
       .map(
         (l) =>
-          `<div class="map-label ${isDM ? 'clickable' : ''} ${l.revealed ? '' : 'hidden-dm'}" data-label-id="${l.id}" style="left:${l.x}px; top:${l.y}px; color:${l.color || '#e5c07b'}">${escapeHtml(l.text)}</div>`
+          `<div class="map-label ${isDM ? 'clickable' : ''} ${l.revealed ? '' : 'hidden-dm'}" data-label-id="${l.id}" style="left:${l.x}px; top:${l.y}px; color:${safeColor(l.color, '#e5c07b')}">${escapeHtml(l.text)}</div>`
       )
       .join('');
   }
@@ -969,7 +970,7 @@ export async function mountMap(container) {
   /** SVG d'une annotation (libre / rect / cercle / flèche / texte). */
   function drawingSvg(d) {
     const w = d.w || 4;
-    const c = d.color || '#e06c75';
+    const c = safeColor(d.color, '#e06c75');
     if (d.type === 'free') {
       const pts = (d.pts || []).map((p) => `${p.x},${p.y}`).join(' ');
       return `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -1245,7 +1246,7 @@ export async function mountMap(container) {
     for (const t of remoteTemplates.values()) {
       html += tmplShapesSvg(t.shape, t.a, t.b, t.color);
       if (t.name) {
-        html += `<text x="${t.a.x + 6}" y="${t.a.y - 6}" fill="${t.color}" font-size="13" font-weight="700" paint-order="stroke" stroke="#000" stroke-width="2">${escapeHtml(t.name)}</text>`;
+        html += `<text x="${t.a.x + 6}" y="${t.a.y - 6}" fill="${safeColor(t.color, '#e5c07b')}" font-size="13" font-weight="700" paint-order="stroke" stroke="#000" stroke-width="2">${escapeHtml(t.name)}</text>`;
       }
     }
     remoteTmplEl.innerHTML = html;
@@ -2569,7 +2570,9 @@ export async function mountMap(container) {
             }
             const ch = cur?.charId ? store.get().characters.find((c) => c.id === cur.charId) : null;
             const eid = await addCombatant({
-              name: cur?.label || ch?.name || 'Combattant',
+              // Pour un jeton lié à une fiche, on prend le nom du perso (le label
+              // du jeton est souvent une simple initiale).
+              name: ch?.name || cur?.label || 'Combattant',
               initiative: 0,
               hp: ch ? ch.data?.hp : cur?.hp,
               hpMax: ch ? ch.data?.hpMax : cur?.hpMax,
@@ -3121,7 +3124,6 @@ export async function mountMap(container) {
       setThumb();
     });
 
-    // Lien turn order / fiche : pilote l'activation des champs PV.
     // Vision dans le noir : auto depuis la fiche, sauf si réglée à la main.
     // `dvManual` gèle l'auto-synchro ; le bouton « ↺ Fiche » la réactive.
     let dvManual = !!existing?.dvManual;
@@ -3146,6 +3148,7 @@ export async function mountMap(container) {
       dvManual = false; // ré-active l'auto-synchro depuis la fiche
     });
 
+    // Lien turn order / fiche : pilote l'activation des champs PV.
     const linkSel = overlay.querySelector('#te-link');
     const linkMsg = overlay.querySelector('#te-linkmsg');
     const updateLinkUI = () => {
@@ -3726,16 +3729,15 @@ export async function mountMap(container) {
   const unsubInit = subscribeInitiative();
   const unsubRealtime = subscribeMap();
   // La carte ne dépend pas du chat/dés/notes/compendium/vault/badges : inutile de
-  // tout redessiner quand seules ces clés changent (gros gain en session live).
+  // tout redessiner quand seules ces clés changent. Et on coalesce les rafales de
+  // changements (temps réel groupé, lots de patchMap) en un seul rendu par frame ;
+  // seul le rendu piloté par le store est groupé.
   const MAP_IGNORE = [
     'messages', 'diceHist', 'combatLog', 'unreadMessages', 'unreadHandouts',
     'handouts', 'sessionNotes', 'compendium', 'compendiumOpenId', 'chatTab',
     'dmPeer', 'vaultFiles', 'fileTree', 'openTabs', 'activeTab', 'edits',
     'sfxboard', 'imagebank', 'campaign', 'sideTab', 'toolTab',
   ];
-  // Coalesce les rafales de changements (événements temps réel groupés, lots de
-  // patchMap) en un seul rendu par frame. Ne concerne que le rendu piloté par le
-  // store ; les appels directs à renderAll() (interactions locales) restent synchrones.
   let _storeRaf = 0;
   const unsubStore = store.subscribe(() => {
     if (suppressRender || _storeRaf) return;
