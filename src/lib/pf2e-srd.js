@@ -11,6 +11,12 @@
  *
  * Les textes d'aptitudes sont des RÉSUMÉS (le joueur garde le Player Core pour
  * le détail) ; ascendances/classes couvrent le Player Core 1.
+ *
+ * Source de référence : Archives of Nethys (2e.aonprd.com), entrées Remaster
+ * (Player Core) — chassis vérifié contre AoN (PV, taille, vitesse, vision,
+ * boosts d'ascendance ; attribut clé, PV, rangs de Perception/sauvegardes et
+ * compétences de classe). NB : le Remaster a supprimé les défauts d'attribut
+ * (les « flaws » encore visibles sur AoN sont l'héritage legacy).
  */
 
 // Conversion pieds → mètres utilisée par l'app (25 ft ≈ 7,5 m).
@@ -72,7 +78,7 @@ export const ANCESTRIES = [
   },
   {
     key: 'orc', label: 'Orc', hp: 10, size: 'M', speed: FT[25], darkvision: 18,
-    boosts: ['str'], free: 1, traits: [
+    boosts: [], free: 2, traits: [ // Player Core : deux boosts libres, aucun fixe
       { name: 'Vision dans le noir', desc: 'Tu vois dans l’obscurité totale.' },
       { name: 'Endurance', desc: 'PV d’ascendance élevés (10).' },
     ],

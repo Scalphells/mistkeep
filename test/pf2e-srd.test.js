@@ -22,9 +22,11 @@ describe('contenu pf2e (Player Core)', () => {
     expect(nain.speed).toBe(6); // 20 ft
     expect(nain.darkvision).toBe(18);
     expect(nain.boosts).toEqual(['con', 'wis']);
-    // Humain : deux boosts libres, aucun fixe.
+    // Humain et Orc (Player Core) : deux boosts libres, aucun fixe.
     expect(ancestryByLabel('Humain').boosts).toEqual([]);
     expect(ancestryByLabel('Humain').free).toBe(2);
+    expect(ancestryByLabel('Orc').boosts).toEqual([]);
+    expect(ancestryByLabel('Orc').free).toBe(2);
   });
 
   it('12 classes avec attribut clé, PV et rangs de départ', () => {
