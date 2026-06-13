@@ -36,6 +36,7 @@ import { activeCampaign } from '../lib/campaigns.js';
 import { loadCompendium } from './compendium.js';
 import { openStatblock, parseStatblockActions } from '../lib/statblock.js';
 import { hpTierLabel } from '../lib/hptiers.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * UI du tracker d'initiative. Le MJ pilote (ajout, PV, tour) ; les joueurs
@@ -102,26 +103,26 @@ function render(arg) {
   container.innerHTML = `
     <div class="init-wrap">
       <div class="init-header">
-        <div class="init-round">Round <strong id="init-round">${store.get().initRound}</strong></div>
+        <div class="init-round">${t('combat.round')} <strong id="init-round">${store.get().initRound}</strong></div>
         ${
           isDM
             ? `<div class="init-controls">
-                 <button class="btn init-ctrl" id="init-prev">◀ Préc.</button>
-                 <button class="btn init-ctrl" id="init-next">Suiv. ▶</button>
-                 <button class="dice-btn" id="init-party">+ Importer PJ</button>
-                 <button class="dice-btn" id="init-roll" title="Lancer l'initiative (d20 + Dex pour les PJ)">🎲 Initiative</button>
-                 <button class="dice-btn" id="init-encounter" title="Constructeur de rencontre">🐉 Rencontre</button>
-                 <button class="dice-btn" id="init-groupsave" title="Jet de sauvegarde de groupe (boule de feu, souffle…)">💥 Sauvegarde</button>
-                 <button class="dice-btn" id="init-clear">Reset</button>
+                 <button class="btn init-ctrl" id="init-prev">${t('combat.prev')}</button>
+                 <button class="btn init-ctrl" id="init-next">${t('combat.next')}</button>
+                 <button class="dice-btn" id="init-party">${t('combat.importParty')}</button>
+                 <button class="dice-btn" id="init-roll" title="${t('combat.rollInit.title')}">${t('combat.rollInit')}</button>
+                 <button class="dice-btn" id="init-encounter" title="${t('combat.encounter.title')}">${t('combat.encounter')}</button>
+                 <button class="dice-btn" id="init-groupsave" title="${t('combat.groupsave.title')}">${t('combat.groupsave')}</button>
+                 <button class="dice-btn" id="init-clear">${t('combat.reset')}</button>
                </div>`
-            : `<div class="init-readonly">👁 Suivi du combat</div>`
+            : `<div class="init-readonly">${t('combat.readonly')}</div>`
         }
       </div>
       ${isDM ? actionBar(false) : isMyTurn() ? actionBar(true) : ''}
       ${isDM ? addForm() : playerCombatPanel()}
       <div class="init-list" id="init-list"></div>
       <details class="init-log">
-        <summary>📜 Journal de combat ${isDM ? '<button class="init-log-clear" id="init-log-clear" title="Vider le journal">🧹</button>' : ''}</summary>
+        <summary>${t('combat.log')} ${isDM ? `<button class="init-log-clear" id="init-log-clear" title="${t('combat.log.clear')}">🧹</button>` : ''}</summary>
         <div class="init-log-list" id="init-log-list"></div>
       </details>
     </div>
@@ -138,7 +139,7 @@ function render(arg) {
     container.querySelector('#init-encounter').addEventListener('click', openEncounterBuilder);
     container.querySelector('#init-groupsave').addEventListener('click', openGroupSave);
     container.querySelector('#init-clear').addEventListener('click', async () => {
-      if (await modalConfirm('Vider le combat ?', { title: 'Combat', danger: true, okLabel: 'Vider' }))
+      if (await modalConfirm(t('combat.clear.confirm'), { title: t('combat.clear.title'), danger: true, okLabel: t('combat.clear.ok') }))
         clearCombat();
     });
     container.querySelector('#init-log-clear')?.addEventListener('click', (e) => {
@@ -155,7 +156,7 @@ function render(arg) {
       if (isDM) nextTurn();
       else {
         sendEndTurn();
-        showToast('⏳ Fin de tour signalée au MJ.', { timeout: 1800 });
+        showToast(t('combat.toast.endTurn'), { timeout: 1800 });
       }
     });
     container.querySelectorAll('[data-action]').forEach((b) =>
@@ -166,7 +167,7 @@ function render(arg) {
         if (isDM) logCombat(text, !active.char_id); // action d'un monstre = MJ only
         else {
           sendTurnAction(text);
-          showToast(`Action annoncée : ${b.dataset.action}`, { timeout: 1500 });
+          showToast(t('combat.toast.action', { action: b.dataset.action }), { timeout: 1500 });
         }
       })
     );
@@ -179,12 +180,12 @@ function render(arg) {
       const charId = panel.dataset.char;
       panel.querySelector('[data-pp="join"]')?.addEventListener('click', () => {
         sendPlayerRequest({ kind: 'join', charId });
-        showToast('➕ Demande envoyée au MJ.', { timeout: 1600 });
+        showToast(t('combat.toast.joinReq'), { timeout: 1600 });
       });
       panel.querySelector('[data-pp="leave"]')?.addEventListener('click', () => sendPlayerRequest({ kind: 'leave', charId }));
       panel.querySelector('[data-pp="rollinit"]')?.addEventListener('click', () => {
         sendPlayerRequest({ kind: 'rollinit', charId });
-        showToast('🎲 Initiative envoyée au MJ.', { timeout: 1600 });
+        showToast(t('combat.toast.initSent'), { timeout: 1600 });
       });
       panel.querySelectorAll('.ipp-cond').forEach((b) =>
         b.addEventListener('click', () => {
@@ -220,20 +221,20 @@ function renderLog(container) {
 
 /** Barre d'action du combattant dont c'est le tour (MJ). */
 const TURN_ACTIONS = [
-  ['Attaque', '⚔'], ['Sort', '✨'], ['Pointe', '🏃'], ['Esquive', '🛡'],
-  ['Désengagement', '💨'], ['Aide', '🤝'], ['Se cacher', '🫥'], ['Préparer', '⏳'],
+  ['combat.action.attack', '⚔'], ['combat.action.spell', '✨'], ['combat.action.dash', '🏃'], ['combat.action.dodge', '🛡'],
+  ['combat.action.disengage', '💨'], ['combat.action.help', '🤝'], ['combat.action.hide', '🫥'], ['combat.action.ready', '⏳'],
 ];
 function actionBar(mine) {
   const { initiative, initTurn } = store.get();
   const active = initiative[initTurn];
   if (!active) return '';
   return `<div class="init-actionbar ${mine ? 'mine' : ''}">
-      <div class="iab-head">${mine ? '🎯 <strong>À toi de jouer !</strong>' : `🎯 Au tour de <strong>${escapeHtml(combatantName(active))}</strong>`}</div>
+      <div class="iab-head">${mine ? `🎯 <strong>${t('combat.yourTurn')}</strong>` : `${t('combat.turnOf')} <strong>${escapeHtml(combatantName(active))}</strong>`}</div>
       <div class="iab-acts">
-        ${TURN_ACTIONS.map(([a, ic]) => `<button class="iab-btn" data-action="${escapeHtml(a)}">${ic} ${a}</button>`).join('')}
+        ${TURN_ACTIONS.map(([k, ic]) => { const a = t(k); return `<button class="iab-btn" data-action="${escapeHtml(a)}">${ic} ${a}</button>`; }).join('')}
       </div>
-      <button class="btn iab-end" id="iab-end">${mine ? 'Fin de mon tour ▶' : 'Fin du tour ▶'}</button>
-      ${mine ? '<div class="iab-hint">Actions et fin de tour signalées au MJ.</div>' : ''}
+      <button class="btn iab-end" id="iab-end">${mine ? t('combat.endMyTurn') : t('combat.endTurnBtn')}</button>
+      ${mine ? `<div class="iab-hint">${t('combat.actionHint')}</div>` : ''}
     </div>`;
 }
 
@@ -280,12 +281,12 @@ function isMyTurn() {
 function addForm() {
   return `
     <form class="init-add" id="init-add">
-      <input id="ia-name" placeholder="Nom du combattant" required />
-      <input id="ia-init" type="number" placeholder="Init" style="width:64px" />
-      <input id="ia-hp" type="number" placeholder="PV" style="width:64px" />
-      <input id="ia-hpmax" type="number" placeholder="PV max" style="width:72px" />
-      <input id="ia-qty" type="number" min="1" value="1" title="Nombre d'exemplaires (groupe de monstres)" style="width:52px" />
-      <button class="btn" type="submit">Ajouter</button>
+      <input id="ia-name" placeholder="${t('combat.add.name')}" required />
+      <input id="ia-init" type="number" placeholder="${t('combat.add.init')}" style="width:64px" />
+      <input id="ia-hp" type="number" placeholder="${t('combat.add.hp')}" style="width:64px" />
+      <input id="ia-hpmax" type="number" placeholder="${t('combat.add.hpmax')}" style="width:72px" />
+      <input id="ia-qty" type="number" min="1" value="1" title="${t('combat.add.qtyTitle')}" style="width:52px" />
+      <button class="btn" type="submit">${t('combat.add.submit')}</button>
     </form>`;
 }
 
@@ -312,7 +313,7 @@ function bindAddForm(container) {
 function openGroupSave() {
   const list = store.get().initiative;
   if (!list.length) {
-    showToast('Aucun combattant pour un jet de groupe.', { timeout: 2400 });
+    showToast(t('combat.toast.noCombatants'), { timeout: 2400 });
     return;
   }
   // Entrées de sauvegarde du système ; défaut sur la sauvegarde « d'esquive »
@@ -323,34 +324,34 @@ function openGroupSave() {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card gsave-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">💥 Jet de sauvegarde de groupe</h3>
+      <h3 class="modal-title">${t('combat.gs.title')}</h3>
       <div class="gsave-row">
-        <label>Sauvegarde
+        <label>${t('combat.gs.save')}
           <select id="gs-ab">${sopts.map((a) => `<option value="${escapeHtml(a.key)}" ${a.key === sdef ? 'selected' : ''}>${escapeHtml(a.label)}</option>`).join('')}</select>
         </label>
-        <label>DD <input type="number" id="gs-dc" value="15" min="1" style="width:64px"/></label>
+        <label>${t('combat.gs.dc')} <input type="number" id="gs-dc" value="15" min="1" style="width:64px"/></label>
       </div>
       <div class="gsave-row">
-        <label>Dégâts <input type="number" id="gs-dmg" value="0" min="0" style="width:74px" title="Total des dégâts déjà lancés"/></label>
-        <label>Type <input type="text" id="gs-type" placeholder="feu, foudre…" style="width:110px"/></label>
+        <label>${t('combat.gs.dmg')} <input type="number" id="gs-dmg" value="0" min="0" style="width:74px" title="${t('combat.gs.dmgTitle')}"/></label>
+        <label>${t('combat.gs.type')} <input type="text" id="gs-type" placeholder="${t('combat.gs.typePh')}" style="width:110px"/></label>
       </div>
       <div class="gsave-row">
-        <label class="gsave-chk"><input type="radio" name="gs-half" value="half" checked/> ½ dégâts si réussite</label>
-        <label class="gsave-chk"><input type="radio" name="gs-half" value="none"/> Aucun si réussite</label>
+        <label class="gsave-chk"><input type="radio" name="gs-half" value="half" checked/> ${t('combat.gs.half')}</label>
+        <label class="gsave-chk"><input type="radio" name="gs-half" value="none"/> ${t('combat.gs.none')}</label>
       </div>
       <div class="gsave-targets">
-        <div class="gsave-targets-h">Combattants concernés <button class="gsave-toggle" id="gs-toggle">Tout (dé)cocher</button></div>
+        <div class="gsave-targets-h">${t('combat.gs.targets')} <button class="gsave-toggle" id="gs-toggle">${t('combat.gs.toggle')}</button></div>
         <div class="gsave-list" id="gs-list">
           ${list
             .map(
-              (c) => `<label class="gsave-t"><input type="checkbox" value="${c.entity_id}" checked/> ${escapeHtml(c.name)}${c.hp === 0 ? ' <em>(0 PV)</em>' : ''}</label>`
+              (c) => `<label class="gsave-t"><input type="checkbox" value="${c.entity_id}" checked/> ${escapeHtml(c.name)}${c.hp === 0 ? ` <em>${t('combat.gs.zerohp')}</em>` : ''}</label>`
             )
             .join('')}
         </div>
       </div>
       <div class="modal-actions">
-        <button class="modal-btn" id="gs-cancel">Annuler</button>
-        <button class="modal-btn primary" id="gs-go">Lancer &amp; résoudre</button>
+        <button class="modal-btn" id="gs-cancel">${t('combat.gs.cancel')}</button>
+        <button class="modal-btn primary" id="gs-go">${t('combat.gs.go')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -383,7 +384,7 @@ function openGroupSave() {
     const type = ov.querySelector('#gs-type').value.trim();
     const entityIds = [...ov.querySelectorAll('#gs-list input:checked')].map((b) => b.value);
     if (!entityIds.length) {
-      showToast('Sélectionne au moins un combattant.', { timeout: 2200 });
+      showToast(t('combat.toast.pickOne'), { timeout: 2200 });
       return;
     }
     resolveGroupSave({ ability, dc, amount, halfOnSuccess, type, entityIds });
