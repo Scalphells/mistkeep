@@ -13,6 +13,11 @@
  */
 
 import { abilityMod as rawMod } from '../rules.js';
+import {
+  ANCESTRIES, BACKGROUNDS_PF2E, CLASSES_PF2E,
+  ancestryByLabel, backgroundByLabelPf2e, classByLabelPf2e,
+  deriveAncestryPatch, deriveBackgroundPatchPf2e, deriveClassPatchPf2e, pf2eHpMax,
+} from '../pf2e-srd.js';
 
 /** Modificateur tolérant : un score absent vaut 10 (mod +0). */
 function abilityMod(score) {
@@ -134,4 +139,20 @@ export const pf2e = {
   // pas d'encounterBudget : le budget pf2e (par niveau) diffère du modèle XP 5e.
   createDefaults,
   sheet: SHEET,
+  // Contenu d'identité Remaster (ascendances/historiques/classes) + dérivations
+  // pures, consommé par le moteur de fiche pf2e (sheet.identity === 'pf2e').
+  // Volontairement hors `srd` pour ne pas activer la machinerie SRD 5e.
+  content: {
+    ancestriesLabel: 'Ascendance',
+    ancestries: ANCESTRIES,
+    backgrounds: BACKGROUNDS_PF2E,
+    classes: CLASSES_PF2E,
+    ancestryByLabel,
+    backgroundByLabel: backgroundByLabelPf2e,
+    classByLabel: classByLabelPf2e,
+    deriveAncestryPatch,
+    deriveBackgroundPatch: deriveBackgroundPatchPf2e,
+    deriveClassPatch: deriveClassPatchPf2e,
+    hpMax: pf2eHpMax,
+  },
 };
