@@ -1,10 +1,10 @@
 import { backend } from './backend.js';
-import { campaignId } from './campaigns.js';
+import { campaignId, activeCampaign } from './campaigns.js';
+import { getSystem } from './systems/index.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { showToast } from './toast.js';
 import { sendD20Check } from '../features/dice.js';
-import { abilityMod, saveBonus, skillBonus, ABILITIES, SKILLS } from '../features/characters.js';
 
 /**
  * Demande de jet aux joueurs (façon Foundry).
@@ -13,7 +13,17 @@ import { abilityMod, saveBonus, skillBonus, ABILITIES, SKILLS } from '../feature
  * un canal Realtime *broadcast* (éphémère). Chaque joueur reçoit une fenêtre
  * « Lancer », qui calcule le bonus depuis sa fiche et publie le jet dans le flux
  * des dés (partagé) — chacun voit la réussite/échec vs DD.
+ *
+ * Labels et bonus passent par le descripteur du système de la campagne (MJ et
+ * joueurs sont dans la même campagne, donc le même système) : compétences,
+ * caractéristiques et sauvegardes sont celles du système — 5e, pf2e
+ * (sauvegardes nommées) ou Libre (listes configurées par le MJ).
  */
+
+/** Descripteur du système de la campagne active. */
+function sys() {
+  return getSystem(activeCampaign()?.system);
+}
 
 let _ch = null;
 let _modal = null;
@@ -36,16 +46,18 @@ export function requestRoll({ kind, key, dc }) {
 }
 
 function labelFor(kind, key) {
-  if (kind === 'save') return `Sauvegarde de ${ABILITIES.find((a) => a.key === key)?.label || key}`;
-  if (kind === 'skill') return SKILLS[key]?.label || key;
-  if (kind === 'ability') return `Test de ${ABILITIES.find((a) => a.key === key)?.label || key}`;
+  const s = sys();
+  if (kind === 'save') return `Sauvegarde de ${s.saveOptions.find((a) => a.key === key)?.label || key}`;
+  if (kind === 'skill') return s.skills[key]?.label || key;
+  if (kind === 'ability') return `Test de ${s.abilities.find((a) => a.key === key)?.label || key}`;
   return 'Jet';
 }
 function bonusFor(kind, key, data) {
   if (!data) return 0;
-  if (kind === 'save') return saveBonus(data, key);
-  if (kind === 'skill') return skillBonus(data, key);
-  if (kind === 'ability') return abilityMod(data[key]);
+  const s = sys();
+  if (kind === 'save') return s.saveBonus(data, key);
+  if (kind === 'skill') return s.skillBonus(data, key);
+  if (kind === 'ability') return s.abilityMod(data[key]);
   return 0;
 }
 function myChar() {

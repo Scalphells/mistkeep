@@ -1,11 +1,17 @@
 import { store } from '../state.js';
 import { escapeHtml } from '../lib/utils.js';
 import { addCombatant } from './initiative.js';
+import { getSystem } from '../lib/systems/index.js';
+import { activeCampaign } from '../lib/campaigns.js';
 
 /**
- * Constructeur de rencontre (MJ) : pioche des monstres du compendium, calcule
- * le budget XP ajusté (multiplicateur 2014) face aux seuils du groupe, puis
- * lance les combattants dans le tracker. Règles D&D 5e (2014).
+ * Constructeur de rencontre (MJ) : pioche des monstres du compendium et lance
+ * les combattants dans le tracker.
+ *
+ * Le chiffrage du budget (XP ajusté du multiplicateur 2014 face aux seuils du
+ * groupe) est propre à D&D 5e : il ne s'affiche que si le système de la
+ * campagne le déclare (`sys.encounterBudget`). Sur pf2e / Libre, on garde la
+ * pioche et le lancement, sans barème de difficulté trompeur.
  */
 
 // CR → XP (DMG 2014). Clés numériques (gère "1/2", "0.5", 5…).
@@ -45,6 +51,7 @@ function multiplier(count) {
 
 export function openEncounterBuilder() {
   if (!store.get().isDM) return;
+  const budget = !!getSystem(activeCampaign()?.system)?.encounterBudget; // chiffrage 5e ?
   const sel = new Map(); // entryId -> count
 
   const ov = document.createElement('div');
@@ -95,10 +102,12 @@ export function openEncounterBuilder() {
     listEl.innerHTML = list.length
       ? list
           .map((m) => {
-            const xp = crToXp(m.data?.cr);
             const n = sel.get(m.id) || 0;
+            const meta = budget
+              ? ` <em>FP ${escapeHtml(String(m.data?.cr ?? '?'))} · ${crToXp(m.data?.cr)} XP</em>`
+              : '';
             return `<div class="enc-row">
-              <span class="enc-name">${escapeHtml(m.name)} <em>FP ${escapeHtml(String(m.data?.cr ?? '?'))} · ${xp} XP</em></span>
+              <span class="enc-name">${escapeHtml(m.name)}${meta}</span>
               <span class="enc-qty">
                 <button class="enc-pm" data-dec="${m.id}">−</button>
                 <span class="enc-n">${n}</span>
@@ -127,7 +136,6 @@ export function openEncounterBuilder() {
   };
 
   const renderSummary = () => {
-    const { count, t } = partyThresholds();
     const comp = store.get().compendium;
     let totalCount = 0;
     let rawXp = 0;
@@ -139,6 +147,16 @@ export function openEncounterBuilder() {
       rawXp += crToXp(m.data?.cr) * n;
       lines.push(`<div class="enc-sum-row">${n}× ${escapeHtml(m.name)}</div>`);
     }
+    // Hors 5e : pas de barème de difficulté, juste la liste à lancer.
+    if (!budget) {
+      sumEl.innerHTML = `
+        <h4>Rencontre</h4>
+        ${lines.join('') || '<div class="enc-muted">Ajoute des monstres à gauche.</div>'}
+        ${totalCount ? `<div class="enc-xp"><strong>${totalCount}</strong> créature(s) à lancer dans le combat</div>` : ''}
+      `;
+      return;
+    }
+    const { count, t } = partyThresholds();
     const adj = Math.round(rawXp * multiplier(totalCount));
     let diff = 'Triviale';
     if (adj >= t[3]) diff = 'Mortelle ☠️';

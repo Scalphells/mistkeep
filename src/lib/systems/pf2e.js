@@ -90,6 +90,11 @@ export function skillBonus(data, skillKey) {
   return abilityMod(data[sk.ability]) + rankBonus(data, data.ranks?.[skillKey]);
 }
 
+/** Bonus d'initiative : Perception (le défaut des règles de base). */
+export function initBonus(data) {
+  return saveBonus(data, 'per');
+}
+
 /** Blob `data` par défaut d'une nouvelle fiche pf2e. */
 export function createDefaults() {
   return {
@@ -119,11 +124,14 @@ export const pf2e = {
   abilities: ABILITIES,
   skills: SKILLS,
   saves: SAVES,
+  saveOptions: SAVES, // sauvegardes nommées (Vigueur/Réflexes/Volonté/Perception)
   profRanks: PROF_RANKS,
   abilityMod,
   fmtMod,
   saveBonus,
   skillBonus,
+  initBonus,
+  // pas d'encounterBudget : le budget pf2e (par niveau) diffère du modèle XP 5e.
   createDefaults,
   sheet: SHEET,
 };

@@ -220,3 +220,41 @@ describe('config par campagne du système Libre', () => {
     expect(dnd5e2014.testDie).toBeUndefined();
   });
 });
+
+describe('jets & combat multi-système (saveOptions / initBonus / encounterBudget)', () => {
+  it('saveOptions : caractéristiques en 5e/Libre, sauvegardes nommées en pf2e', () => {
+    // 5e (2014/2024) : un jet de sauvegarde par caractéristique.
+    expect(dnd5e2014.saveOptions).toBe(dnd5e2014.abilities);
+    expect(dnd5e2024.saveOptions).toBe(dnd5e2024.abilities);
+    expect(dnd5e2014.saveOptions.map((o) => o.key)).toEqual(['str', 'dex', 'con', 'int', 'wis', 'cha']);
+    // pf2e : Vigueur / Réflexes / Volonté / Perception.
+    expect(pf2e.saveOptions).toBe(pf2e.saves);
+    expect(pf2e.saveOptions.map((o) => o.key)).toEqual(['fort', 'ref', 'will', 'per']);
+    // Libre : suit les caractéristiques configurées de la campagne.
+    expect(custom.saveOptions).toHaveLength(6); // défauts
+    setCustomConfig({ abilities: [{ key: 'force', label: 'FOR' }, { key: 'ruse', label: 'RUSE' }], skills: {} });
+    expect(custom.saveOptions.map((o) => o.key)).toEqual(['force', 'ruse']);
+    setCustomConfig(null);
+  });
+
+  it('initBonus : Dex en 5e, Perception en pf2e, bonus de fiche en Libre', () => {
+    // 5e : modificateur de Dextérité ; carac absente → 0 (pas de NaN).
+    expect(dnd5e2014.initBonus({ dex: 16 })).toBe(3);
+    expect(dnd5e2014.initBonus({ dex: 7 })).toBe(-2);
+    expect(dnd5e2014.initBonus({})).toBe(0);
+    expect(dnd5e2024.initBonus({ dex: 14 })).toBe(2);
+    // pf2e : Perception (mod. de Sagesse + rang + niveau si entraîné).
+    expect(pf2e.initBonus({ wis: 14, lvl: 3, ranks: { per: 1 } })).toBe(2 + 2 + 3);
+    expect(pf2e.initBonus(pf2e.createDefaults())).toBe(0 + 2 + 1); // Qualifié niveau 1
+    // Libre : le bonus saisi sur la fiche, rien d'imposé.
+    expect(custom.initBonus({ initB: 3 })).toBe(3);
+    expect(custom.initBonus({})).toBe(0);
+  });
+
+  it('encounterBudget : chiffrage réservé à D&D 5e', () => {
+    expect(dnd5e2014.encounterBudget).toBe(true);
+    expect(dnd5e2024.encounterBudget).toBe(true);
+    expect(pf2e.encounterBudget).toBeFalsy();
+    expect(custom.encounterBudget).toBeFalsy();
+  });
+});

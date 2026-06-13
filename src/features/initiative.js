@@ -1,7 +1,9 @@
 import { backend } from '../lib/backend.js';
-import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from '../lib/campaigns.js';
+import { campaignId, activeCampaign, loadSessionValue, saveSessionValue, sameCampaign } from '../lib/campaigns.js';
+import { getSystem } from '../lib/systems/index.js';
 import { store } from '../state.js';
-import { loadCharacters, abilityMod, updateCharacter, saveBonus, ABILITIES } from './characters.js';
+import { loadCharacters, updateCharacter } from './characters.js';
+import { rollDice } from './dice.js';
 import { addPin, updatePin, updateToken, toggleDoor } from './map.js';
 import { showToast } from '../lib/toast.js';
 import { getPref } from '../lib/prefs.js';
@@ -372,7 +374,9 @@ export async function setDeathSave(entityId, kind, n) {
 export async function resolveGroupSave({ ability, dc, amount, halfOnSuccess = true, type = '', entityIds = [] }) {
   if (!store.get().isDM) return;
   const list = store.get().initiative;
-  const ablabel = (ABILITIES.find((a) => a.key === ability) || {}).label || ability;
+  const s = getSystem(activeCampaign()?.system);
+  const ablabel = (s.saveOptions.find((a) => a.key === ability) || {}).label || ability;
+  const formula = s.testDie || '1d20'; // dé de test du système (1d20, 2d6… en Libre)
   const DC = Number(dc) || 10;
   const amt = Math.max(0, Number(amount) || 0);
   let nSucc = 0;
@@ -384,15 +388,15 @@ export async function resolveGroupSave({ ability, dc, amount, halfOnSuccess = tr
     let bonus = 0;
     if (c.char_id) {
       const ch = store.get().characters.find((x) => x.id === c.char_id);
-      if (ch) bonus = saveBonus(ch.data || {}, ability);
+      if (ch) bonus = s.saveBonus(ch.data || {}, ability);
     }
-    const die = d20roll();
+    const die = rollDice(formula)?.total || 0;
     const total = die + bonus;
     const success = total >= DC;
     if (success) nSucc++;
     else nFail++;
     const bstr = bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : '';
-    logCombat(`   ${c.name} : ${total} (d20 ${die}${bstr}) → ${success ? 'réussite' : 'échec'}.`, true);
+    logCombat(`   ${c.name} : ${total} (${formula} ${die}${bstr}) → ${success ? 'réussite' : 'échec'}.`, true);
     const dmg = amt === 0 ? 0 : success ? (halfOnSuccess ? Math.floor(amt / 2) : 0) : amt;
     if (dmg > 0) await adjustHp(eid, -dmg); // adjustHp journalise le détail des PV
   }
@@ -445,12 +449,15 @@ export async function removeCombatant(entityId) {
   await resequence();
 }
 
-/** Lance l'initiative pour tous : d20 + mod. Dex (PJ liés), d20 sinon ; tri (MJ). */
+/** Lance l'initiative pour tous : d20 + bonus d'initiative du système (PJ liés),
+ *  d20 seul sinon ; tri (MJ). Le bonus dépend du système : mod. de Dex en 5e,
+ *  Perception en pf2e, bonus saisi sur la fiche en Libre (cf. sys.initBonus). */
 export async function rollAllInitiative() {
   if (!store.get().isDM) return;
   const list = store.get().initiative;
   if (!list.length) return;
   const chars = store.get().characters;
+  const sys = getSystem(activeCampaign()?.system);
   const d20 = () => {
     const b = new Uint32Array(1);
     const max = Math.floor(0xffffffff / 20) * 20;
@@ -468,7 +475,7 @@ export async function rollAllInitiative() {
     let mod = 0;
     if (c.char_id) {
       const ch = chars.find((x) => x.id === c.char_id);
-      if (ch) mod = abilityMod(ch.data?.dex);
+      if (ch) mod = sys.initBonus(ch.data || {});
     }
     if (!groupRoll.has(k)) groupRoll.set(k, d20());
     return { ...c, initiative: groupRoll.get(k) + mod };
@@ -831,7 +838,8 @@ async function applyPlayerRequest(p) {
     if (comb) await removeCombatant(comb.entity_id);
   } else if (p.kind === 'rollinit') {
     if (comb) {
-      await updateCombatant(comb.entity_id, { initiative: d20roll() + abilityMod(ch.data?.dex) });
+      const mod = getSystem(activeCampaign()?.system).initBonus(ch.data || {});
+      await updateCombatant(comb.entity_id, { initiative: d20roll() + mod });
       await reorderByInitiative();
     }
   } else if (p.kind === 'conds') {

@@ -10,7 +10,7 @@
  * depuis `sys.srd` — à défaut elle retombe sur le SRD 5.1 (2014).
  */
 
-import { ABILITIES, SKILLS, fmtMod, saveBonus, skillBonus, createDefaults as createDefaults2014, SHEET } from './dnd5e2014.js';
+import { ABILITIES, SKILLS, fmtMod, saveBonus, skillBonus, initBonus, createDefaults as createDefaults2014, SHEET } from './dnd5e2014.js';
 import { abilityMod } from '../rules.js';
 import { SPECIES, CLASSES_2024, BACKGROUNDS_2024, SUBCLASSES_2024 } from '../srd2024.js';
 
@@ -25,10 +25,13 @@ export const dnd5e2024 = {
   label: 'D&D 5e (2024)',
   abilities: ABILITIES,
   skills: SKILLS,
+  saveOptions: ABILITIES,
   abilityMod,
   fmtMod,
   saveBonus,
   skillBonus,
+  initBonus,
+  encounterBudget: true, // mêmes maths de rencontre que 2014
   createDefaults,
   sheet: SHEET, // mêmes sections de fiche que 2014
   srd: {

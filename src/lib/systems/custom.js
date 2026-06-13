@@ -149,6 +149,12 @@ export function skillBonus(data, skillKey) {
   return mod;
 }
 
+/** Bonus d'initiative : le système Libre n'impose aucune caractéristique
+ *  d'initiative — on prend le bonus saisi sur la fiche (data.initB). */
+export function initBonus(data) {
+  return Number(data?.initB) || 0;
+}
+
 /** Blob `data` par défaut d'une nouvelle fiche « Libre » (scores à 10 sur les
  *  caractéristiques EFFECTIVES — celles de la config de la campagne). */
 export function createDefaults() {
@@ -182,6 +188,10 @@ export const custom = {
   get skills() {
     return effSkills();
   },
+  /** Un jet de sauvegarde par caractéristique (configurée par le MJ). */
+  get saveOptions() {
+    return effAbilities();
+  },
   /** Formule lancée pour les tests (carac/compétence/sauvegarde) — le MJ la
    *  configure (1d100, 2d6…) ; les systèmes sans testDie restent au d20. */
   get testDie() {
@@ -191,6 +201,8 @@ export const custom = {
   fmtMod,
   saveBonus,
   skillBonus,
+  initBonus,
+  // pas d'encounterBudget : un système libre n'a pas de barème de difficulté.
   createDefaults,
   sheet: SHEET,
 };

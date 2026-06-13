@@ -5,7 +5,11 @@
  * Un descripteur de système expose le contrat dont la fiche et les jets ont besoin :
  *   - abilities : liste des caractéristiques { key, label }
  *   - skills    : { clé: { label, ability } }
+ *   - saveOptions : entrées proposables pour un jet de sauvegarde { key, label }
+ *                   (= les caractéristiques en 5e ; des sauvegardes nommées en pf2e)
  *   - abilityMod / fmtMod / saveBonus / skillBonus : calculs dérivés
+ *   - initBonus(data) : bonus d'initiative du système (mod. de Dex en 5e)
+ *   - encounterBudget : le constructeur de rencontre sait chiffrer ce système
  *   - createDefaults() : blob `data` initial d'une nouvelle fiche
  * Les futurs systèmes (pf2e, D&D 5e 2024, custom) fourniront le même contrat, ce
  * qui permettra à une campagne de choisir son système sans coder le 5e en dur.
@@ -67,6 +71,11 @@ export function skillBonus(data, skillKey) {
   return mod;
 }
 
+/** Bonus d'initiative : modificateur de Dextérité (NaN → 0 si la carac manque). */
+export function initBonus(data) {
+  return abilityMod(data?.dex) || 0;
+}
+
 /** Blob `data` par défaut d'une nouvelle fiche 5e-2014. */
 export function createDefaults() {
   return {
@@ -104,10 +113,13 @@ export const dnd5e2014 = {
   label: 'D&D 5e (2014)',
   abilities: ABILITIES,
   skills: SKILLS,
+  saveOptions: ABILITIES, // un jet de sauvegarde par caractéristique
   abilityMod,
   fmtMod,
   saveBonus,
   skillBonus,
+  initBonus,
+  encounterBudget: true, // budget XP/FP du DMG 2014
   createDefaults,
   sheet: SHEET,
 };

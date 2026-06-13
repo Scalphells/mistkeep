@@ -31,7 +31,8 @@ import {
   setCombatantStatus,
   combatantName,
 } from './initiative.js';
-import { ABILITIES } from './characters.js';
+import { getSystem } from '../lib/systems/index.js';
+import { activeCampaign } from '../lib/campaigns.js';
 import { loadCompendium } from './compendium.js';
 import { openStatblock, parseStatblockActions } from '../lib/statblock.js';
 import { hpTierLabel } from '../lib/hptiers.js';
@@ -314,14 +315,18 @@ function openGroupSave() {
     showToast('Aucun combattant pour un jet de groupe.', { timeout: 2400 });
     return;
   }
+  // Entrées de sauvegarde du système ; défaut sur la sauvegarde « d'esquive »
+  // si elle existe (Dex en 5e, Réflexes en pf2e), sinon la première.
+  const sopts = getSystem(activeCampaign()?.system).saveOptions;
+  const sdef = ['dex', 'ref'].find((k) => sopts.some((o) => o.key === k)) || sopts[0]?.key;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card gsave-card" role="dialog" aria-modal="true">
       <h3 class="modal-title">💥 Jet de sauvegarde de groupe</h3>
       <div class="gsave-row">
-        <label>Caractéristique
-          <select id="gs-ab">${ABILITIES.map((a) => `<option value="${a.key}" ${a.key === 'dex' ? 'selected' : ''}>${a.label}</option>`).join('')}</select>
+        <label>Sauvegarde
+          <select id="gs-ab">${sopts.map((a) => `<option value="${escapeHtml(a.key)}" ${a.key === sdef ? 'selected' : ''}>${escapeHtml(a.label)}</option>`).join('')}</select>
         </label>
         <label>DD <input type="number" id="gs-dc" value="15" min="1" style="width:64px"/></label>
       </div>

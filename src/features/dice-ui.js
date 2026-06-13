@@ -5,7 +5,8 @@ import { rollCardHtml, rollVisibleTo } from '../lib/chatcards.js';
 import { sendRoll, loadRecentRolls, subscribeRolls } from './dice.js';
 import { requestRoll } from '../lib/rollrequest.js';
 import { applyFromButton } from '../lib/applyroll.js';
-import { ABILITIES, SKILLS } from './characters.js';
+import { getSystem } from '../lib/systems/index.js';
+import { activeCampaign } from '../lib/campaigns.js';
 import { addHotbarMacro } from '../lib/hotbar.js';
 import { showToast } from '../lib/toast.js';
 
@@ -82,11 +83,16 @@ export async function mountDice(container) {
     const kindSel = container.querySelector('#rr-kind');
     const keySel = container.querySelector('#rr-key');
     const fillKeys = () => {
-      const opts =
+      const s = getSystem(activeCampaign()?.system);
+      const list =
         kindSel.value === 'skill'
-          ? Object.entries(SKILLS).map(([k, v]) => `<option value="${k}">${v.label}</option>`)
-          : ABILITIES.map((a) => `<option value="${a.key}">${a.label}</option>`);
-      keySel.innerHTML = opts.join('');
+          ? Object.entries(s.skills).map(([k, v]) => ({ key: k, label: v.label }))
+          : kindSel.value === 'save'
+            ? s.saveOptions // sauvegardes du système (caracs en 5e/Libre, nommées en pf2e)
+            : s.abilities;
+      keySel.innerHTML = list
+        .map((o) => `<option value="${escapeHtml(o.key)}">${escapeHtml(o.label)}</option>`)
+        .join('');
     };
     kindSel.addEventListener('change', fillKeys);
     fillKeys();
