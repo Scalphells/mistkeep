@@ -3,6 +3,9 @@ import { navigateTo } from '../features/nav.js';
 import { openSearch } from './search.js';
 import { nextTurn, prevTurn } from '../features/initiative.js';
 import { fireHotbarKey } from './hotbar.js';
+import { modalPrompt } from './modal.js';
+import { sendRoll } from '../features/dice.js';
+import { showToast } from './toast.js';
 
 /**
  * Raccourcis clavier globaux. Inactifs quand le focus est dans un champ de
@@ -10,10 +13,26 @@ import { fireHotbarKey } from './hotbar.js';
  *
  *   Alt+1..9/0  → onglet n° (selon l'ordre visible de la barre de nav)
  *   Ctrl/Cmd+K  → recherche globale
+ *   R           → jet de dés rapide (dans le chat)
  *   ]           → tour de combat suivant (MJ)
  *   [           → tour précédent (MJ)
  *   ?           → aide-mémoire des raccourcis
  */
+
+/** Jet de dés rapide : demande une notation et la publie dans le chat. */
+async function quickRoll() {
+  const notation = await modalPrompt('Notation (ex. 1d20+3, 2d6, 1d100) :', {
+    title: '🎲 Jet rapide',
+    defaultValue: '1d20',
+    okLabel: 'Lancer',
+  });
+  if (!notation) return;
+  try {
+    await sendRoll(notation.trim(), 'public');
+  } catch {
+    showToast('Notation de dés invalide.', { timeout: 2200 });
+  }
+}
 
 function inField(el) {
   if (!el) return false;
@@ -34,7 +53,9 @@ function toggleHelp() {
   }
   const rows = [
     ['Alt + 1…0', 'Changer d’onglet'],
+    ['1…0', 'Lancer un raccourci de la barre (hotbar)'],
     ['Ctrl / ⌘ + K', 'Recherche globale'],
+    ['R', 'Jet de dés rapide'],
     [']', 'Combat : tour suivant (MJ)'],
     ['[', 'Combat : tour précédent (MJ)'],
     ['Ctrl / ⌘ + Z', 'Carte : annuler la dernière modification (MJ)'],
@@ -95,6 +116,9 @@ export function initHotkeys() {
         e.preventDefault();
         prevTurn();
       }
+    } else if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault();
+      quickRoll();
     } else if (e.key === '?') {
       e.preventDefault();
       toggleHelp();
