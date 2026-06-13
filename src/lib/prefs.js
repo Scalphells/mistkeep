@@ -2,20 +2,22 @@ import { escapeHtml } from './utils.js';
 import { backend } from './backend.js';
 import { store } from '../state.js';
 import { playTurnChime } from './turnsound.js';
+import { t, setLocale, LOCALES, DEFAULT_LOCALE } from './i18n.js';
 
 /**
  * Préférences d'affichage. Thème & lisibilité : échelle (zoom), contraste
- * élevé, réduction des animations, accent, disposition VTT.
+ * élevé, réduction des animations, accent, disposition VTT, langue.
  *
  * Persistance : localStorage (cache local immédiat) + profiles.prefs (source
  * durable, suit le compte entre appareils — cf. syncPrefsFromProfile).
  * Appliquées sur <html> : `style.zoom`, `data-contrast`, `data-motion`.
  * Le CSS réagit via les sélecteurs `html[data-contrast="high"]` et
- * `html[data-motion="reduce"]` (voir base.css).
+ * `html[data-motion="reduce"]` (voir base.css). La langue pilote i18n
+ * (setLocale) ; un changement recharge l'app pour ré-évaluer tous les t().
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true, turnSound: true };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true, turnSound: true, locale: DEFAULT_LOCALE };
 
 function load() {
   try {
@@ -35,6 +37,7 @@ function save(p) {
 let prefs = load();
 
 function apply() {
+  setLocale(prefs.locale); // langue active avant tout rendu de texte
   const html = document.documentElement;
   html.style.zoom = String(prefs.scale);
   html.dataset.contrast = prefs.contrast;
@@ -120,63 +123,69 @@ export function openPrefs() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-card pref-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">⚙ Affichage</h3>
+      <h3 class="modal-title">${t('prefs.title')}</h3>
       <div class="atk-row">
-        <label>Taille de l'interface</label>
+        <label>${t('prefs.scale')}</label>
         <div class="pref-scale" id="pref-scale">
-          <button data-sd="-1" title="Réduire de 25 %">−</button>
+          <button data-sd="-1" title="${t('prefs.scale.dec')}">−</button>
           <span class="pref-scale-v" id="pref-scale-v"></span>
-          <button data-sd="1" title="Agrandir de 25 %">+</button>
+          <button data-sd="1" title="${t('prefs.scale.inc')}">+</button>
         </div>
       </div>
       <div class="atk-row">
-        <label>Contraste</label>
+        <label>${t('prefs.contrast')}</label>
         <div class="atk-modes" id="pref-contrast">
-          <button data-c="normal">Normal</button>
-          <button data-c="high">Élevé</button>
+          <button data-c="normal">${t('prefs.contrast.normal')}</button>
+          <button data-c="high">${t('prefs.contrast.high')}</button>
         </div>
       </div>
       <div class="atk-row">
-        <label>Animations</label>
+        <label>${t('prefs.motion')}</label>
         <div class="atk-modes" id="pref-motion">
-          <button data-m="system">Système</button>
-          <button data-m="full">Activées</button>
-          <button data-m="reduce">Réduites</button>
+          <button data-m="system">${t('prefs.motion.system')}</button>
+          <button data-m="full">${t('prefs.motion.full')}</button>
+          <button data-m="reduce">${t('prefs.motion.reduce')}</button>
         </div>
       </div>
       <div class="atk-row">
-        <label>Couleur d'accent</label>
+        <label>${t('prefs.accent')}</label>
         <div class="pref-accents" id="pref-accent">
-          <button data-a="violet" class="pref-acc" style="--p:#7c6af7" title="Violet"></button>
-          <button data-a="blood" class="pref-acc" style="--p:#e0566c" title="Rouge sang"></button>
-          <button data-a="poison" class="pref-acc" style="--p:#56c98a" title="Vert poison"></button>
-          <button data-a="gold" class="pref-acc" style="--p:#d9b24a" title="Or"></button>
+          <button data-a="violet" class="pref-acc" style="--p:#7c6af7" title="${t('prefs.accent.violet')}"></button>
+          <button data-a="blood" class="pref-acc" style="--p:#e0566c" title="${t('prefs.accent.blood')}"></button>
+          <button data-a="poison" class="pref-acc" style="--p:#56c98a" title="${t('prefs.accent.poison')}"></button>
+          <button data-a="gold" class="pref-acc" style="--p:#d9b24a" title="${t('prefs.accent.gold')}"></button>
         </div>
       </div>
       <div class="atk-row">
-        <label>Thème</label>
+        <label>${t('prefs.theme')}</label>
         <div class="atk-modes" id="pref-theme">
-          <button data-t="dark">🌙 Sombre</button>
-          <button data-t="light">☀ Clair</button>
+          <button data-t="dark">${t('prefs.theme.dark')}</button>
+          <button data-t="light">${t('prefs.theme.light')}</button>
         </div>
       </div>
       <div class="atk-row">
-        <label>Disposition VTT <small style="color:var(--muted)">(rail unique, expérimental)</small></label>
+        <label>${t('prefs.vtt')} <small style="color:var(--muted)">${t('prefs.vtt.note')}</small></label>
         <div class="atk-modes" id="pref-vtt">
-          <button data-v="off">Classique</button>
-          <button data-v="on">Rail VTT</button>
+          <button data-v="off">${t('prefs.vtt.off')}</button>
+          <button data-v="on">${t('prefs.vtt.on')}</button>
         </div>
       </div>
       <div class="atk-row">
-        <label>Son de tour <small style="color:var(--muted)">(carillon « À toi de jouer ! »)</small></label>
+        <label>${t('prefs.turnsound')} <small style="color:var(--muted)">${t('prefs.turnsound.note')}</small></label>
         <div class="atk-modes" id="pref-turnsound">
-          <button data-s="on">🔔 Activé</button>
-          <button data-s="off">🔕 Coupé</button>
+          <button data-s="on">${t('prefs.turnsound.on')}</button>
+          <button data-s="off">${t('prefs.turnsound.off')}</button>
+        </div>
+      </div>
+      <div class="atk-row">
+        <label>${t('prefs.lang')} <small style="color:var(--muted)">${t('prefs.lang.note')}</small></label>
+        <div class="atk-modes" id="pref-lang">
+          ${LOCALES.map((l) => `<button data-l="${l.code}">${escapeHtml(l.label)}</button>`).join('')}
         </div>
       </div>
       <div class="modal-actions">
-        <button class="modal-btn pref-reset">Réinitialiser</button>
-        <button class="modal-btn modal-ok pref-close">Fermer</button>
+        <button class="modal-btn pref-reset">${t('prefs.reset')}</button>
+        <button class="modal-btn modal-ok pref-close">${t('prefs.close')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -204,6 +213,9 @@ export function openPrefs() {
     );
     overlay.querySelectorAll('#pref-turnsound button').forEach((b) =>
       b.classList.toggle('active', (b.dataset.s === 'on') === !!prefs.turnSound)
+    );
+    overlay.querySelectorAll('#pref-lang button').forEach((b) =>
+      b.classList.toggle('active', b.dataset.l === (prefs.locale || DEFAULT_LOCALE))
     );
   };
   const commit = () => {
@@ -255,6 +267,18 @@ export function openPrefs() {
       prefs.turnSound = b.dataset.s === 'on';
       commit();
       if (prefs.turnSound) playTurnChime(); // aperçu immédiat du carillon
+    })
+  );
+  overlay.querySelectorAll('#pref-lang button').forEach((b) =>
+    b.addEventListener('click', () => {
+      const code = b.dataset.l;
+      if (code === (prefs.locale || DEFAULT_LOCALE)) return;
+      prefs.locale = code;
+      save(prefs);
+      pushPrefsToProfile(); // langue portée par le compte
+      setLocale(code);
+      // Tous les textes passent par t() au rendu : on recharge pour les ré-évaluer.
+      location.reload();
     })
   );
   overlay.querySelector('.pref-reset').addEventListener('click', () => {

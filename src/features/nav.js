@@ -1,5 +1,6 @@
 import { store } from '../state.js';
 import { openWindow } from '../lib/floatwindow.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * Routeur de vues très léger.
@@ -12,19 +13,20 @@ import { openWindow } from '../lib/floatwindow.js';
  * seulement quand on l'ouvre, pour ne pas embarquer les 12 vues au démarrage.
  */
 
+// `key` = clé i18n (cf. src/locales/*.json) résolue à l'affichage via t().
 const VIEWS = [
-  { id: 'vault', label: '🖼 Banque', dmOnly: true, load: () => import('./imagebank-ui.js').then((m) => m.mountImageBank) },
-  { id: 'campaign', label: '📖 Campagne', dmOnly: true, load: () => import('./campaign-ui.js').then((m) => m.mountCampaign) },
-  { id: 'characters', label: '🛡 Fiches', dmOnly: false, load: () => import('./characters-ui.js').then((m) => m.mountCharacters) },
-  { id: 'initiative', label: '⚔ Combat', dmOnly: false, load: () => import('./initiative-ui.js').then((m) => m.mountInitiative) },
-  { id: 'map', label: '🗺 Carte', dmOnly: false, load: () => import('./map-ui.js').then((m) => m.mountMap) },
-  { id: 'handouts', label: '🖼 Handouts', dmOnly: false, load: () => import('./handouts-ui.js').then((m) => m.mountHandouts) },
-  { id: 'notes', label: '📝 Notes', dmOnly: false, load: () => import('./session-notes-ui.js').then((m) => m.mountSessionNotes) },
-  { id: 'compendium', label: '📚 Compendium', dmOnly: false, load: () => import('./compendium-ui.js').then((m) => m.mountCompendium) },
-  { id: 'ambience', label: '🎵 Ambiance', dmOnly: true, load: () => import('./ambience-ui.js').then((m) => m.mountAmbience) },
-  { id: 'help', label: '📖 Aide', dmOnly: false, load: () => import('./help-ui.js').then((m) => m.mountHelp) },
-  { id: 'dice', label: '🎲 Dés', dmOnly: false, load: () => import('./dice-ui.js').then((m) => m.mountDice) },
-  { id: 'chat', label: '💬 Chat', dmOnly: false, load: () => import('./chat-ui.js').then((m) => m.mountChat) },
+  { id: 'vault', key: 'nav.vault', dmOnly: true, load: () => import('./imagebank-ui.js').then((m) => m.mountImageBank) },
+  { id: 'campaign', key: 'nav.campaign', dmOnly: true, load: () => import('./campaign-ui.js').then((m) => m.mountCampaign) },
+  { id: 'characters', key: 'nav.characters', dmOnly: false, load: () => import('./characters-ui.js').then((m) => m.mountCharacters) },
+  { id: 'initiative', key: 'nav.initiative', dmOnly: false, load: () => import('./initiative-ui.js').then((m) => m.mountInitiative) },
+  { id: 'map', key: 'nav.map', dmOnly: false, load: () => import('./map-ui.js').then((m) => m.mountMap) },
+  { id: 'handouts', key: 'nav.handouts', dmOnly: false, load: () => import('./handouts-ui.js').then((m) => m.mountHandouts) },
+  { id: 'notes', key: 'nav.notes', dmOnly: false, load: () => import('./session-notes-ui.js').then((m) => m.mountSessionNotes) },
+  { id: 'compendium', key: 'nav.compendium', dmOnly: false, load: () => import('./compendium-ui.js').then((m) => m.mountCompendium) },
+  { id: 'ambience', key: 'nav.ambience', dmOnly: true, load: () => import('./ambience-ui.js').then((m) => m.mountAmbience) },
+  { id: 'help', key: 'nav.help', dmOnly: false, load: () => import('./help-ui.js').then((m) => m.mountHelp) },
+  { id: 'dice', key: 'nav.dice', dmOnly: false, load: () => import('./dice-ui.js').then((m) => m.mountDice) },
+  { id: 'chat', key: 'nav.chat', dmOnly: false, load: () => import('./chat-ui.js').then((m) => m.mountChat) },
 ];
 
 let activeView = null;
@@ -77,7 +79,7 @@ export function mountNav(navEl, viewEl) {
   navEl.innerHTML = visible
     .map(
       (v) =>
-        `<button class="nav-tab" data-view="${v.id}">${v.label}</button>`
+        `<button class="nav-tab" data-view="${v.id}">${t(v.key)}</button>`
     )
     .join('');
 
@@ -98,7 +100,7 @@ function switchView(id, navEl, viewEl) {
     store.set({ sideTab: id });
     if (id === 'handouts' && store.get().unreadHandouts) store.set({ unreadHandouts: 0 });
     if (id === 'chat' && store.get().unreadMessages) store.set({ unreadMessages: 0 });
-    openWindow(id, { title: view.label, mount: (body) => view.load().then((m) => m(body)) });
+    openWindow(id, { title: t(view.key), mount: (body) => view.load().then((m) => m(body)) });
     return;
   }
   if (id === activeView) return;
