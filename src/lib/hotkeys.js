@@ -75,7 +75,9 @@ function toggleHelp() {
   document.body.appendChild(el);
   _helpEl = el;
   const close = () => toggleHelp();
-  el.querySelector('.hk-close').addEventListener('click', close);
+  const closeBtn = el.querySelector('.hk-close');
+  closeBtn.addEventListener('click', close);
+  closeBtn.focus(); // accessible au clavier dès l'ouverture
   el.addEventListener('mousedown', (e) => {
     if (e.target === el) close();
   });

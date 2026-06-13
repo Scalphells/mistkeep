@@ -81,6 +81,22 @@ function modalBase(opts, onOk) {
         if (multiline && !e.ctrlKey && !e.metaKey) return; // Entrée = nouvelle ligne
         e.preventDefault();
         confirm();
+      } else if (e.key === 'Tab') {
+        // Piège de focus : la tabulation reste dans la fenêtre (accessibilité).
+        const f = overlay.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!f.length) return;
+        const first = f[0];
+        const last = f[f.length - 1];
+        const here = document.activeElement;
+        if (e.shiftKey && (here === first || !overlay.contains(here))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && here === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     document.addEventListener('keydown', onKey, true);
