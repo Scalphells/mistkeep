@@ -1319,7 +1319,7 @@ function paneContent(id, sys, sheet, c, d, ed, ro) {
     case 'combat':
       return `<section class="sheet-block">
           <h3>Attaques ${ed ? `<button class="mini-add" data-add="atk">+</button>` : ''}</h3>
-          <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || '<div class="char-empty">—</div>'}</div>
+          <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || `<div class="char-empty">Aucune attaque.${ed ? ' Ajoute-en une avec +.' : ''}</div>`}</div>
         </section>
         ${resourcesSection(d, ed)}`;
     case 'spells':
@@ -1523,7 +1523,7 @@ function featuresSection(d, ed) {
     .join('');
   return `<section class="sheet-block">
     <h3>Aptitudes &amp; dons ${ed ? `<button class="mini-add" data-add="feat">+</button>` : ''}</h3>
-    <div class="feat-table">${rows || '<div class="char-empty">—</div>'}</div>
+    <div class="feat-table">${rows || `<div class="char-empty">Aucune aptitude.${ed ? ' Applique une classe/espèce (⚙) ou ajoute avec +.' : ''}</div>`}</div>
   </section>`;
 }
 
@@ -1767,7 +1767,7 @@ function inventorySection(d, ed, ro) {
       <h3>Inventaire ${ed ? `<button class="mini-add" data-add="inv">+</button> <button class="mini-add" data-startkit title="Ajouter l'équipement de départ (classe + historique)">🎒 Départ</button>` : ''}
         <span class="inv-weight ${over ? 'over' : ''}" title="Capacité de charge = FOR × 15">${totalW.toFixed(1)} / ${cap} lb</span>
       </h3>
-      <div class="inv-table">${items.length ? items.map((it, i) => invRow(it, i, ed)).join('') : '<div class="char-empty">—</div>'}</div>
+      <div class="inv-table">${items.length ? items.map((it, i) => invRow(it, i, ed)).join('') : `<div class="char-empty">Aucun objet.${ed ? ' Ajoute-en un avec + ou 🎒 Départ.' : ''}</div>`}</div>
     </section>
     ${textBlock("Notes d'équipement", 'equip', d.equip, ro)}
   `;
