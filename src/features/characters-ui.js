@@ -74,6 +74,7 @@ import {
 } from '../lib/srd5e.js';
 import { getSystem } from '../lib/systems/index.js';
 import { activeCampaign } from '../lib/campaigns.js';
+import { t } from '../lib/i18n.js';
 
 /* ── Contenu SRD du système actif ──────────────────────────────
  * Un système d'identité « srd5e » peut embarquer SON contenu (sys.srd :
@@ -915,7 +916,7 @@ function profileSummarySection(d) {
   const row = (label, val) =>
     val ? `<div class="ps-row"><span class="ps-k">${label}</span><span class="ps-v">${escapeHtml(val)}</span></div>` : '';
   return `<section class="sheet-block">
-      <h3>Maîtrises, langues & sorts</h3>
+      <h3>${t('sheet.h.profs')}</h3>
       ${row('Armures', p.armor)}
       ${row('Armes', p.weapons)}
       ${row('Outils', tools)}
@@ -1099,7 +1100,7 @@ function renderSheet(scrollTop = false) {
   // Le descripteur déclare les sections de SA fiche (cf. systems/dnd5e2014.js).
   const sheet = sys.sheet || { tabs: Object.keys(TAB_DEFS), rail: ['hp', 'hitdice', 'stats', 'extras', 'saves'], identity: 'srd5e' };
   if (!sheet.tabs.includes(sheetTab)) sheetTab = sheet.tabs[0];
-  const TABS = sheet.tabs.map((id) => ({ id, label: TAB_DEFS[id] || id }));
+  const TABS = sheet.tabs.map((id) => ({ id, label: t(TAB_DEFS[id] || id) }));
   const subline = `${escapeHtml(d.cls || 'Classe')}${d.sub ? ` (${escapeHtml(d.sub)})` : ''} · Niv. ${num(d.lvl) || 1}`;
 
   el.innerHTML = `
@@ -1156,14 +1157,15 @@ function renderSheet(scrollTop = false) {
  * non-5e déclare le sous-ensemble qui a du sens pour lui ; les gestionnaires
  * d'événements (bindSheet) sont tolérants aux sections absentes. */
 
+// Valeurs = clés i18n, résolues via t() au rendu (cf. construction de TABS).
 const TAB_DEFS = {
-  stats: '📊 Caractéristiques',
-  combat: '⚔ Combat',
-  spells: '✨ Sorts',
-  feats: '🎴 Aptitudes',
-  inv: '🎒 Inventaire',
-  story: '📖 Histoire',
-  notes: '📝 Notes',
+  stats: 'sheet.tab.stats',
+  combat: 'sheet.tab.combat',
+  spells: 'sheet.tab.spells',
+  feats: 'sheet.tab.feats',
+  inv: 'sheet.tab.inv',
+  story: 'sheet.tab.story',
+  notes: 'sheet.tab.notes',
 };
 
 /** Un bloc du rail gauche, par identifiant de section. */
@@ -1173,7 +1175,7 @@ function railBlock(id, sys, d, ed, ro) {
       return hpRailBlock(d, ed, ro);
     case 'hitdice':
       return `<div class="hd-block">
-          <span class="hd-title">Dés de vie</span>
+          <span class="hd-title">${t('sheet.rail.hitdice')}</span>
           <span class="hd-line">
             <input type="number" class="hd-cur" value="${num(d.hd ?? (d.hdMax ?? (Number(d.lvl) || 1)))}" data-d="hd" ${ro}/>
             <span>/</span>
@@ -1206,14 +1208,14 @@ function railBlock(id, sys, d, ed, ro) {
       // si le descripteur en déclare, sinon un jet par caractéristique (5e).
       if (sys.saves && sys.profRanks) {
         return `<section class="sheet-block rail-block">
-            <h3>Jets de sauvegarde</h3>
+            <h3>${t('sheet.h.saves')}</h3>
             ${sys.saves
               .map((s) => rankRow(s.key, s.label, sys.abilities.find((a) => a.key === s.ability)?.label || '', 'save', d, ed, sys))
               .join('')}
           </section>`;
       }
       return `<section class="sheet-block rail-block">
-          <h3>Jets de sauvegarde</h3>
+          <h3>${t('sheet.h.saves')}</h3>
           ${sys.abilities.map((a) => saveRow(a, d, ed, sys)).join('')}
         </section>`;
   }
@@ -1228,16 +1230,16 @@ function hpRailBlock(d, ed, ro) {
   const fill = `linear-gradient(90deg, color-mix(in srgb, ${col} 72%, #000), ${col})`;
   const deathSaves = () => {
     const ds = d.ds || { s: 0, f: 0 };
-    const status = ds.s >= 3 ? ' · Stabilisé' : ds.f >= 3 ? ' · Mort 💀' : '';
+    const status = ds.s >= 3 ? t('sheet.death.stable') : ds.f >= 3 ? t('sheet.death.dead') : '';
     const dot = (field, i, on) => `<button class="ds-dot ${on ? 'on ' + field : ''}" data-ds="${field}" data-i="${i}" ${ro}></button>`;
     return `<div class="death-saves">
-        <div class="ds-label">Jets de mort${status}</div>
-        <div class="ds-row"><span>Réussites</span>${[1, 2, 3].map((i) => dot('s', i, ds.s >= i)).join('')}</div>
-        <div class="ds-row"><span>Échecs</span>${[1, 2, 3].map((i) => dot('f', i, ds.f >= i)).join('')}</div>
+        <div class="ds-label">${t('sheet.death.title')}${status}</div>
+        <div class="ds-row"><span>${t('sheet.death.success')}</span>${[1, 2, 3].map((i) => dot('s', i, ds.s >= i)).join('')}</div>
+        <div class="ds-row"><span>${t('sheet.death.fail')}</span>${[1, 2, 3].map((i) => dot('f', i, ds.f >= i)).join('')}</div>
       </div>`;
   };
   return `<div class="combat-hp rail-hp">
-      <div class="hp-label">Points de vie</div>
+      <div class="hp-label">${t('sheet.hp')}</div>
       <div class="hp-row">
         ${ed ? `<button class="hp-btn" data-hp="-1">−</button>` : ''}
         <input type="number" class="hp-cur" value="${num(d.hp)}" data-d="hp" ${ro}/>
@@ -1246,13 +1248,13 @@ function hpRailBlock(d, ed, ro) {
         ${ed ? `<button class="hp-btn" data-hp="1">+</button>` : ''}
       </div>
       <div class="hpbar"><span style="width:${pct}%; background:${fill}"></span></div>
-      <div class="hp-tmp">PV temp <input type="number" value="${num(d.hpTmp)}" data-d="hpTmp" ${ro}/></div>
+      <div class="hp-tmp">${t('sheet.hp.tmp')} <input type="number" value="${num(d.hpTmp)}" data-d="hpTmp" ${ro}/></div>
       ${Number(d.hp) === 0 ? deathSaves() : ''}
       ${
         ed
           ? `<div class="rest-row">
-               <button class="rest-btn" data-rest="short" title="Repos court : récupère les ressources « repos court »">🔥 Repos court</button>
-               <button class="rest-btn" data-rest="long" title="Repos long : PV au max, emplacements restaurés, ½ dés de vie">🛌 Repos long</button>
+               <button class="rest-btn" data-rest="short" title="${t('sheet.rest.short.title')}">${t('sheet.rest.short')}</button>
+               <button class="rest-btn" data-rest="long" title="${t('sheet.rest.long.title')}">${t('sheet.rest.long')}</button>
              </div>`
           : ''
       }
@@ -1267,38 +1269,38 @@ function identityBlock(sheet, d, ed, ro, sys) {
   const pcontent = sheet.identity === 'pf2e' ? sys?.content : null;
   if (pcontent) {
     return `<div class="sheet-id-grid">
-        ${pf2eSelect('race', pcontent.ancestriesLabel || 'Ascendance', pcontent.ancestries, d.race, ro, ed)}
-        ${pf2eSelect('cls', 'Classe', pcontent.classes, d.cls, ro, ed)}
-        ${pf2eSelect('bg', 'Historique', pcontent.backgrounds, d.bg, ro, ed)}
-        <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
-        <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
-        <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
-        ${ed ? `<button class="sf-levelup" data-pflevelup title="Monter d'un niveau (PV recalculés)">⬆ Niveau</button>` : ''}
-        <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
+        ${pf2eSelect('race', pcontent.ancestriesLabel || t('sheet.id.ancestry'), pcontent.ancestries, d.race, ro, ed)}
+        ${pf2eSelect('cls', t('sheet.id.class'), pcontent.classes, d.cls, ro, ed)}
+        ${pf2eSelect('bg', t('sheet.id.bg'), pcontent.backgrounds, d.bg, ro, ed)}
+        <span class="sf-num">${t('sheet.lvl')}<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
+        <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="${t('sheet.id.align')}" ${ro}/>
+        <span class="sf-num">${t('sheet.xp')}<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
+        ${ed ? `<button class="sf-levelup" data-pflevelup title="${t('sheet.levelup.titlePf2e')}">${t('sheet.levelup')}</button>` : ''}
+        <button class="sf-levelup" data-export title="${t('sheet.export.title')}">💾 JSON</button>
       </div>`;
   }
   if (sheet.identity !== 'srd5e') {
     return `<div class="sheet-id-grid">
-        <input class="sf" value="${escapeHtml(d.cls || '')}" data-d="cls" placeholder="Classe / Archétype" ${ro}/>
-        <input class="sf" value="${escapeHtml(d.race || '')}" data-d="race" placeholder="Peuple / Origine" ${ro}/>
-        <input class="sf" value="${escapeHtml(d.bg || '')}" data-d="bg" placeholder="Historique" ${ro}/>
-        <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
-        <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
-        <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
-        <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
+        <input class="sf" value="${escapeHtml(d.cls || '')}" data-d="cls" placeholder="${t('sheet.id.cls')}" ${ro}/>
+        <input class="sf" value="${escapeHtml(d.race || '')}" data-d="race" placeholder="${t('sheet.id.race')}" ${ro}/>
+        <input class="sf" value="${escapeHtml(d.bg || '')}" data-d="bg" placeholder="${t('sheet.id.bg')}" ${ro}/>
+        <span class="sf-num">${t('sheet.lvl')}<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
+        <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="${t('sheet.id.align')}" ${ro}/>
+        <span class="sf-num">${t('sheet.xp')}<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
+        <button class="sf-levelup" data-export title="${t('sheet.export.title')}">💾 JSON</button>
       </div>`;
   }
   const srd = srdContent(); // listes du système actif (2024…), sinon SRD 5.1
   return `<div class="sheet-id-grid">
-      ${idSelect('race', srd?.racesLabel || 'Race', srd?.races || RACES, d.race, ro, ed)}
-      ${idSelect('cls', 'Classe', srd?.classes || CLASSES, d.cls, ro, ed)}
+      ${idSelect('race', srd?.racesLabel || t('sheet.id.raceLabel'), srd?.races || RACES, d.race, ro, ed)}
+      ${idSelect('cls', t('sheet.id.class'), srd?.classes || CLASSES, d.cls, ro, ed)}
       ${subSelect(d, ro, ed)}
-      <span class="sf-num">Niv.<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
-      ${idSelect('bg', 'Historique', srd?.backgrounds || BACKGROUNDS, d.bg, ro, ed)}
-      <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="Alignement" ${ro}/>
-      <span class="sf-num">XP<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
-      ${ed ? `<button class="sf-levelup" data-levelup title="Monter d'un niveau (maîtrise + dé de vie)">⬆ Niveau</button>` : ''}
-      <button class="sf-levelup" data-export title="Exporter cette fiche en JSON (sauvegarde / transfert)">💾 JSON</button>
+      <span class="sf-num">${t('sheet.lvl')}<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
+      ${idSelect('bg', t('sheet.id.bg'), srd?.backgrounds || BACKGROUNDS, d.bg, ro, ed)}
+      <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="${t('sheet.id.align')}" ${ro}/>
+      <span class="sf-num">${t('sheet.xp')}<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
+      ${ed ? `<button class="sf-levelup" data-levelup title="${t('sheet.levelup.title5e')}">${t('sheet.levelup')}</button>` : ''}
+      <button class="sf-levelup" data-export title="${t('sheet.export.title')}">💾 JSON</button>
     </div>
     ${multiclassSection(d, ed)}`;
 }
@@ -1312,13 +1314,13 @@ function paneContent(id, sys, sheet, c, d, ed, ro) {
           ${sys.abilities.map((a) => abilityBox(a, d, ro, sys)).join('')}
         </section>
         <section class="sheet-block">
-          <h3>Compétences</h3>
+          <h3>${t('sheet.h.skills')}</h3>
           ${Object.keys(sys.skills).map((k) => skillRow(k, d, ed)).join('')}
         </section>
         ${sheet.identity === 'srd5e' ? profileSummarySection(d) : ''}`;
     case 'combat':
       return `<section class="sheet-block">
-          <h3>Attaques ${ed ? `<button class="mini-add" data-add="atk">+</button>` : ''}</h3>
+          <h3>${t('sheet.h.attacks')} ${ed ? `<button class="mini-add" data-add="atk">+</button>` : ''}</h3>
           <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || `<div class="char-empty">Aucune attaque.${ed ? ' Ajoute-en une avec +.' : ''}</div>`}</div>
         </section>
         ${resourcesSection(d, ed)}`;
@@ -1522,7 +1524,7 @@ function featuresSection(d, ed) {
     })
     .join('');
   return `<section class="sheet-block">
-    <h3>Aptitudes &amp; dons ${ed ? `<button class="mini-add" data-add="feat">+</button>` : ''}</h3>
+    <h3>${t('sheet.h.feats')} ${ed ? `<button class="mini-add" data-add="feat">+</button>` : ''}</h3>
     <div class="feat-table">${rows || `<div class="char-empty">Aucune aptitude.${ed ? ' Applique une classe/espèce (⚙) ou ajoute avec +.' : ''}</div>`}</div>
   </section>`;
 }
@@ -1590,7 +1592,7 @@ function spellsSection(d, ed) {
   if (!spells.length && !hasSlots && !ed) return '';
   return `
     <section class="sheet-block">
-      <h3>Sorts ${ed ? `<button class="mini-add" data-add="spell">+</button>` : ''}</h3>
+      <h3>${t('sheet.h.spells')} ${ed ? `<button class="mini-add" data-add="spell">+</button>` : ''}</h3>
       ${slotsBlock(d, ed)}
       ${groups || (spells.length ? '' : '<div class="char-empty">Aucun sort.</div>')}
     </section>`;
@@ -1649,7 +1651,7 @@ function resourcesSection(d, ed) {
     })
     .join('');
   return `<section class="sheet-block">
-      <h3>Ressources ${ed ? `<button class="mini-add" data-add="res">+</button> <button class="mini-add" data-init-res title="Ajouter la ressource de classe (ki, rage…) selon la classe et le niveau">⚙ Classe</button>` : ''}</h3>
+      <h3>${t('sheet.h.resources')} ${ed ? `<button class="mini-add" data-add="res">+</button> <button class="mini-add" data-init-res title="${t('sheet.initres.title')}">${t('sheet.initres')}</button>` : ''}</h3>
       <div class="slots-block">${rows || '<div class="char-empty">Aucune ressource.</div>'}</div>
     </section>`;
 }
@@ -1708,7 +1710,7 @@ function featsBlock(text, ed) {
   if (ed) {
     return `
       <section class="sheet-block">
-        <h3>Capacités & traits</h3>
+        <h3>${t('sheet.h.traits')}</h3>
         ${accordion}
         <details class="feats-editor">
           <summary>Modifier</summary>
@@ -1719,7 +1721,7 @@ function featsBlock(text, ed) {
   }
   return `
     <section class="sheet-block">
-      <h3>Capacités & traits</h3>
+      <h3>${t('sheet.h.traits')}</h3>
       ${accordion}
     </section>`;
 }
@@ -1758,13 +1760,13 @@ function inventorySection(d, ed, ro) {
   const over = totalW > cap;
   return `
     <section class="sheet-block">
-      <h3>Monnaie</h3>
+      <h3>${t('sheet.h.money')}</h3>
       <div class="coins-row">
         ${COINS.map((c) => `<label class="coin" title="${c.title}"><span>${c.label}</span><input type="number" min="0" value="${num(coins[c.k])}" data-coin="${c.k}" ${ro}/></label>`).join('')}
       </div>
     </section>
     <section class="sheet-block">
-      <h3>Inventaire ${ed ? `<button class="mini-add" data-add="inv">+</button> <button class="mini-add" data-startkit title="Ajouter l'équipement de départ (classe + historique)">🎒 Départ</button>` : ''}
+      <h3>${t('sheet.h.inv')} ${ed ? `<button class="mini-add" data-add="inv">+</button> <button class="mini-add" data-startkit title="${t('sheet.startkit.title')}">${t('sheet.startkit')}</button>` : ''}
         <span class="inv-weight ${over ? 'over' : ''}" title="Capacité de charge = FOR × 15">${totalW.toFixed(1)} / ${cap} lb</span>
       </h3>
       <div class="inv-table">${items.length ? items.map((it, i) => invRow(it, i, ed)).join('') : `<div class="char-empty">Aucun objet.${ed ? ' Ajoute-en un avec + ou 🎒 Départ.' : ''}</div>`}</div>
@@ -1790,16 +1792,16 @@ function storySection(c, d, ed, ro) {
   const priv = store.get().charPrivate?.[c.id] ?? '';
   const shared = `
     <section class="sheet-block">
-      <h3>📖 Histoire partagée <span class="story-tag story-tag-shared">Visible par tout le groupe</span></h3>
-      <textarea class="sheet-text" data-d="story" ${ro} rows="8" placeholder="Le passé de ${escapeHtml(c.name)}, connu de tous…">${escapeHtml(d.story || '')}</textarea>
+      <h3>${t('sheet.story.shared')} <span class="story-tag story-tag-shared">${t('sheet.story.shared.tag')}</span></h3>
+      <textarea class="sheet-text" data-d="story" ${ro} rows="8" placeholder="${t('sheet.story.shared.ph', { name: escapeHtml(c.name) })}">${escapeHtml(d.story || '')}</textarea>
     </section>`;
   // La partie secrète n'est rendue que pour le propriétaire et le MJ. Les autres
   // joueurs ne la voient pas (et la RLS les empêche de toute façon de la lire).
   const secret = ed
     ? `
     <section class="sheet-block">
-      <h3>🔒 Histoire secrète <span class="story-tag story-tag-private">Visible par le joueur et le MJ uniquement</span></h3>
-      <textarea class="sheet-text" data-priv ${ro} rows="8" placeholder="Secrets, objectifs cachés, liens connus de toi seul et du MJ…">${escapeHtml(priv)}</textarea>
+      <h3>${t('sheet.story.secret')} <span class="story-tag story-tag-private">${t('sheet.story.secret.tag')}</span></h3>
+      <textarea class="sheet-text" data-priv ${ro} rows="8" placeholder="${t('sheet.story.secret.ph')}">${escapeHtml(priv)}</textarea>
     </section>`
     : '';
   return shared + secret;
