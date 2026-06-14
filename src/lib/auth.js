@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Couche d'authentification.
@@ -50,17 +51,17 @@ export async function signOut() {
  */
 export async function changePassword(currentPassword, newPassword) {
   const pwd = String(newPassword || '');
-  if (pwd.length < 6) throw new Error('Mot de passe trop court (min. 6 caractères).');
+  if (pwd.length < 6) throw new Error(tr('auth.err.pwShort'));
 
   const { data } = await backend.auth.getUser();
   const email = data?.user?.email;
-  if (!email) throw new Error('Session introuvable — reconnecte-toi.');
+  if (!email) throw new Error(tr('auth.err.noSession'));
 
   const { error: vErr } = await backend.auth.signInWithPassword({
     email,
     password: String(currentPassword || ''),
   });
-  if (vErr) throw new Error('Mot de passe actuel incorrect.');
+  if (vErr) throw new Error(tr('auth.err.wrongPw'));
 
   const { error } = await backend.auth.updateUser({ password: pwd });
   if (error) throw error;

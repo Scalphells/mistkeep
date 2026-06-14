@@ -13,6 +13,7 @@ import { backend } from './backend.js';
 import { supabase } from './supabase.js';
 import { IMMUTABLE_CACHE } from './signed-urls.js';
 import { campaignId } from './campaigns.js';
+import { t as tr } from './i18n.js';
 
 const goBackend = import.meta.env && import.meta.env.VITE_BACKEND === 'go';
 const MEDIA_URL = goBackend ? '' : ((import.meta.env && import.meta.env.VITE_MEDIA_URL) || '').replace(/\/+$/, '');
@@ -43,7 +44,7 @@ export async function uploadMedia(bucket, key, file, contentType) {
       },
       body: file,
     });
-    if (!res.ok) throw new Error(`téléversement R2 échoué (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(tr('media.err.r2', { status: res.status }));
     return `${MEDIA_URL}/${bucket}/${key}`;
   }
   const { error } = await backend.storage.from(bucket).upload(key, file, {

@@ -1717,5 +1717,12 @@
   "clog.verbDmg": "💥 takes {n} damage",
   "clog.verbHeal": "💚 recovers {n} HP",
   "clog.nameVerb": "{name} {verb}.",
-  "clog.condApplied": "🩹 {cond} applied to {n} target(s)."
+  "clog.condApplied": "🩹 {cond} applied to {n} target(s).",
+  "chat.err.tooLong": "Message too long (max {n} characters).",
+  "dice.err.notation": "Invalid dice notation.",
+  "vault.err.dupName": "A note with this name already exists.",
+  "auth.err.pwShort": "Password too short (min. 6 characters).",
+  "camptx.err.newerVersion": "Export from a newer version (v{v}).",
+  "campaigns.err.cantDeleteHome": "The original campaign cannot be deleted.",
+  "media.err.r2": "R2 upload failed (HTTP {status})"
 }

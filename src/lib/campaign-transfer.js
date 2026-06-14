@@ -21,7 +21,7 @@ import { t as tr } from './i18n.js';
 /** Lit toutes les données de la campagne active et construit le fichier. */
 export async function exportActiveCampaign() {
   const camp = activeCampaign();
-  if (!camp) throw new Error('Aucune campagne active.');
+  if (!camp) throw new Error(tr('camptx.err.noActive'));
   const tables = {};
   for (const name of TRANSFER_TABLES) {
     if (name === 'character_private') {
@@ -74,10 +74,10 @@ async function insertRows(table, rows, cid, onProgress) {
  */
 export async function importCampaignPayload(payload, onProgress) {
   if (payload?.type !== TRANSFER_TYPE || !payload.tables) {
-    throw new Error('Fichier invalide : ce n’est pas un export de campagne.');
+    throw new Error(tr('camptx.err.notExport'));
   }
   if (Number(payload.version) > TRANSFER_VERSION) {
-    throw new Error(`Export d’une version plus récente (v${payload.version}).`);
+    throw new Error(tr('camptx.err.newerVersion', { v: payload.version }));
   }
   const uid = store.get().user?.id;
 

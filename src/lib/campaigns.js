@@ -16,6 +16,7 @@
  */
 import { backend } from './backend.js';
 import { store } from '../state.js';
+import { t as tr } from './i18n.js';
 
 /** Campagne par défaut (uuid fixe posé par les migrations). */
 export const DEFAULT_CAMPAIGN_ID = '00000000-0000-4000-8000-000000000001';
@@ -96,8 +97,8 @@ export async function switchCampaign(id) {
  * (son uuid fixe sert encore de DEFAULT aux colonnes campaign_id).
  */
 export async function deleteCampaign(id) {
-  if (id === DEFAULT_CAMPAIGN_ID) throw new Error('La campagne d’origine ne peut pas être supprimée.');
-  if (id === campaignId()) throw new Error('Bascule d’abord sur une autre campagne.');
+  if (id === DEFAULT_CAMPAIGN_ID) throw new Error(tr('campaigns.err.cantDeleteHome'));
+  if (id === campaignId()) throw new Error(tr('campaigns.err.switchFirst'));
   const { error } = await backend.db.from('campaigns').delete().eq('id', id);
   if (error) throw new Error(error.message);
   store.set({ campaigns: (store.get().campaigns || []).filter((c) => c.id !== id) });

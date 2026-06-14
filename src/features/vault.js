@@ -3,6 +3,7 @@ import { campaignId, scopedUpsert } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { debounce } from '../lib/utils.js';
 import { showToast } from '../lib/toast.js';
+import { t as tr } from '../lib/i18n.js';
 
 /**
  * Vault privé du MJ.
@@ -110,7 +111,7 @@ export async function createNote(path) {
 /** Renomme une note (déplace path + contenu). */
 export async function renameNote(oldPath, newPath) {
   const files = { ...store.get().vaultFiles };
-  if (files[newPath] !== undefined) throw new Error('Une note porte déjà ce nom.');
+  if (files[newPath] !== undefined) throw new Error(tr('vault.err.dupName'));
   files[newPath] = files[oldPath];
   delete files[oldPath];
   writeCache(files);

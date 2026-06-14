@@ -1717,5 +1717,12 @@
   "clog.verbDmg": "💥 subit {n} dégâts",
   "clog.verbHeal": "💚 récupère {n} PV",
   "clog.nameVerb": "{name} {verb}.",
-  "clog.condApplied": "🩹 {cond} appliqué à {n} cible(s)."
+  "clog.condApplied": "🩹 {cond} appliqué à {n} cible(s).",
+  "chat.err.tooLong": "Message trop long (max {n} caractères).",
+  "dice.err.notation": "Notation de dés invalide.",
+  "vault.err.dupName": "Une note porte déjà ce nom.",
+  "auth.err.pwShort": "Mot de passe trop court (min. 6 caractères).",
+  "camptx.err.newerVersion": "Export d'une version plus récente (v{v}).",
+  "campaigns.err.cantDeleteHome": "La campagne d'origine ne peut pas être supprimée.",
+  "media.err.r2": "téléversement R2 échoué (HTTP {status})"
 }

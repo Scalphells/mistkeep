@@ -3,6 +3,7 @@ import { campaignId, activeCampaign, sameCampaign } from '../lib/campaigns.js';
 import { getSystem } from '../lib/systems/index.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
+import { t as tr } from '../lib/i18n.js';
 
 /**
  * Dés partagés temps réel.
@@ -89,7 +90,7 @@ function randomInt(min, max) {
  */
 export async function sendRoll(notation, rollType = 'public', label = '', vis = null) {
   const outcome = rollDice(notation);
-  if (!outcome) throw new Error('Notation de dés invalide.');
+  if (!outcome) throw new Error(tr('dice.err.notation'));
 
   const { user, profile } = store.get();
   const row = {

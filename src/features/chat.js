@@ -2,6 +2,7 @@ import { backend } from '../lib/backend.js';
 import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { insertWithOutbox } from '../lib/outbox.js';
+import { t as tr } from '../lib/i18n.js';
 
 /**
  * Chat partagé temps réel.
@@ -43,7 +44,7 @@ export async function sendMessage(content, channel = 'public', recipientId = nul
   const text = String(content).trim();
   if (!text) return;
   if (text.length > MAX_LEN) {
-    throw new Error(`Message trop long (max ${MAX_LEN} caractères).`);
+    throw new Error(tr('chat.err.tooLong', { n: MAX_LEN }));
   }
 
   const { user, profile } = store.get();

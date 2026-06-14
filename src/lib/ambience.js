@@ -4,6 +4,7 @@ import { uploadMedia } from './media.js';
 import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { debounce } from './utils.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Ambiance audio partagée, MULTI-PISTES. Le MJ empile plusieurs sons (ambiance,
@@ -304,7 +305,7 @@ let _catalog = null;
 export async function fetchTabletopCatalog() {
   if (_catalog) return _catalog;
   const res = await fetch('https://tabletopaudio.com/getalltracks.json');
-  if (!res.ok) throw new Error(`Catalogue indisponible (${res.status})`);
+  if (!res.ok) throw new Error(tr('amb.err.catalog', { status: res.status }));
   const data = await res.json();
   const tracks = Array.isArray(data) ? data : data.tracks || [];
   _catalog = tracks
