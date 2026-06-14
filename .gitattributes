@@ -1,4 +1,7 @@
-# Keep shell scripts LF so they run on Linux/macOS regardless of the OS that
-# committed them (Windows checkouts would otherwise rewrite them to CRLF and
-# break the shebang).
+# Normalize line endings to LF in both the repository and the working tree, so
+# Windows checkouts don't rewrite files to CRLF (autocrlf) and create noisy
+# diffs. Binary files are left untouched thanks to text=auto.
+* text=auto eol=lf
+
+# Shell scripts must stay LF so their shebang works on Linux/macOS.
 *.sh text eol=lf
