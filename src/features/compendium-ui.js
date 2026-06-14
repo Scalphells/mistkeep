@@ -67,17 +67,17 @@ export async function mountCompendium(container) {
         </div>
         ${
           isDMv
-            ? `<button class="btn cmp-new" id="cmp-new">+ Nouvelle entrée</button>
+            ? `<button class="btn cmp-new" id="cmp-new">${t('cmp.newEntry')}</button>
                <details class="cmp-tools">
-                 <summary>🛠 Outils &amp; imports</summary>
+                 <summary>${t('cmp.tools')}</summary>
                  <div class="cmp-tools-body">
-                   <button class="cmp-srd-btn" id="cmp-srd">⬇ Importer du SRD (2014)</button>
-                   <button class="cmp-srd-btn" id="cmp-paste">📋 Coller-importer</button>
+                   <button class="cmp-srd-btn" id="cmp-srd">${t('cmp.srd.btn')}</button>
+                   <button class="cmp-srd-btn" id="cmp-paste">${t('cmp.paste.btn')}</button>
                    <button class="cmp-srd-btn" id="cmp-tarokka">🃏 Tirage de cartes</button>
-                   <label class="cmp-srd-btn" id="cmp-md" title="Importer des fichiers Markdown (Obsidian)">📁 Importer .md<input type="file" accept=".md,.markdown,text/markdown" multiple hidden></label>
-                   <button class="cmp-srd-btn" id="cmp-bulkmove" title="Changer le type de plusieurs entrées à la fois">🔀 Déplacer en lot</button>
-                   <button class="cmp-srd-btn" id="cmp-dedupe" title="Supprimer les entrées en double (même type + même nom)">🧹 Dédupliquer</button>
-                   <button class="cmp-srd-btn" id="cmp-clear" title="Supprimer toutes les entrées d'un type (ex. tous les monstres)">🗑 Vider un type</button>
+                   <label class="cmp-srd-btn" id="cmp-md" title="${t('cmp.importMd.title')}">${t('cmp.importMd')}<input type="file" accept=".md,.markdown,text/markdown" multiple hidden></label>
+                   <button class="cmp-srd-btn" id="cmp-bulkmove" title="${t('cmp.bulkmove.title')}">${t('cmp.bulkmove')}</button>
+                   <button class="cmp-srd-btn" id="cmp-dedupe" title="${t('cmp.dedupe.title')}">${t('cmp.dedupe')}</button>
+                   <button class="cmp-srd-btn" id="cmp-clear" title="${t('cmp.clear.title')}">${t('cmp.clear')}</button>
                  </div>
                </details>`
             : ''
@@ -99,7 +99,7 @@ export async function mountCompendium(container) {
   const sortBtn = container.querySelector('#cmp-sort');
   if (sortBtn) {
     const SORT_CYCLE = ['az', 'za', 'level'];
-    const SORT_LABEL = { az: 'A→Z', za: 'Z→A', level: '↕ Niveau' };
+    const SORT_LABEL = { az: 'A→Z', za: 'Z→A', level: t('cmp.sort.level') };
     sortBtn.textContent = SORT_LABEL[sortDir] || 'A→Z';
     sortBtn.addEventListener('click', () => {
       sortDir = SORT_CYCLE[(SORT_CYCLE.indexOf(sortDir) + 1) % SORT_CYCLE.length];
@@ -110,9 +110,9 @@ export async function mountCompendium(container) {
 
   container.querySelector('#cmp-new')?.addEventListener('click', async () => {
     const kind = filterKind === 'all' ? 'monster' : filterKind;
-    const name = await modalPrompt(`Nom du nouvel élément (${KINDS[kind].label}) :`, {
-      title: 'Compendium',
-      placeholder: KINDS[kind].label,
+    const name = await modalPrompt(t('cmp.new.prompt', { kind: kindLabel(kind) }), {
+      title: t('compendium.modalTitle'),
+      placeholder: kindLabel(kind),
     });
     if (!name || !name.trim()) return;
     const id = await createEntry(kind, name.trim());
@@ -185,7 +185,7 @@ async function dedupeCompendium(container) {
     toDelete.push(...sorted.slice(1)); // on garde sorted[0]
   }
   if (!toDelete.length) {
-    await modalAlert('Aucun doublon détecté (type + nom identiques).', { title: '🧹 Déduplication' });
+    await modalAlert(t('cmp.dedupe.none'), { title: t('cmp.dedupe.modalTitle') });
     return;
   }
   const ok = await modalConfirm(
@@ -197,7 +197,7 @@ async function dedupeCompendium(container) {
   for (const e of toDelete) await deleteEntry(e.id);
   if (deadIds.has(activeId)) activeId = null;
   renderAll(container);
-  await modalAlert(`${toDelete.length} doublon(s) supprimé(s).`, { title: '🧹 Déduplication' });
+  await modalAlert(t('cmp.dedupe.done', { n: toDelete.length }), { title: t('cmp.dedupe.modalTitle') });
 }
 
 /**
@@ -211,7 +211,7 @@ function openClearKind(container) {
   for (const e of all) counts[e.kind] = (counts[e.kind] || 0) + 1;
   const kinds = Object.keys(KINDS).filter((k) => counts[k]);
   if (!kinds.length) {
-    modalAlert('Le compendium est vide.', { title: '🗑 Vider' });
+    modalAlert(t('cmp.clear.empty'), { title: t('cmp.clear.modalTitle') });
     return;
   }
   const ov = document.createElement('div');
@@ -219,7 +219,7 @@ function openClearKind(container) {
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:340px;max-width:92vw">
       <h3 class="modal-title">🗑 Vider un type</h3>
-      <p class="modal-msg">Supprime <strong>toutes</strong> les entrées du type choisi. Irréversible.</p>
+      <p class="modal-msg">${t('cmp.clear.msg')}</p>
       <div class="clr-list">
         ${kinds
           .map(
@@ -230,7 +230,7 @@ function openClearKind(container) {
           )
           .join('')}
       </div>
-      <div class="modal-actions"><button class="modal-btn clr-cancel">Annuler</button></div>
+      <div class="modal-actions"><button class="modal-btn clr-cancel">${t('common.cancel')}</button></div>
     </div>`;
   document.body.appendChild(ov);
   const close = () => ov.remove();
@@ -251,7 +251,7 @@ function openClearKind(container) {
       for (const e of victims) await deleteEntry(e.id);
       if (victims.some((e) => e.id === activeId)) activeId = null;
       renderAll(container);
-      await modalAlert(`${victims.length} entrée(s) supprimée(s).`, { title: '🗑 Vider' });
+      await modalAlert(t('cmp.clear.done', { n: victims.length }), { title: t('cmp.clear.modalTitle') });
     })
   );
 }
@@ -282,27 +282,27 @@ function openShareModal(entry) {
   const secs = splitSections(entry.data?.desc || '');
   const hasImg = !!entry.data?.img;
   if (!secs.length && !hasImg) {
-    modalAlert('Rien à partager (entrée vide).', { title: '📤 Partager' });
+    modalAlert(t('cmp.share.empty'), { title: t('cmp.share.modalTitle') });
     return;
   }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:420px;max-width:94vw">
-      <h3 class="modal-title">📤 Partager « ${escapeHtml(entry.name)} »</h3>
-      <p class="modal-msg">Coche ce que les joueurs reçoivent. Le reste (rôle, tactique…) ne sera pas envoyé.</p>
+      <h3 class="modal-title">${t('cmp.share.heading', { name: escapeHtml(entry.name) })}</h3>
+      <p class="modal-msg">${t('cmp.share.msg')}</p>
       <div class="share-list">
-        ${hasImg ? `<label class="share-row"><input type="checkbox" data-img checked> 🖼 Image (illustration)</label>` : ''}
+        ${hasImg ? `<label class="share-row"><input type="checkbox" data-img checked> ${t('cmp.share.img')}</label>` : ''}
         ${secs
           .map(
             (s, i) =>
-              `<label class="share-row"><input type="checkbox" data-sec="${i}" ${s.title === '(début)' || /appar|description|aspect/i.test(s.title) ? 'checked' : ''}> ${escapeHtml(s.title === '(début)' ? 'Introduction' : s.title)}</label>`
+              `<label class="share-row"><input type="checkbox" data-sec="${i}" ${s.title === '(début)' || /appar|description|aspect/i.test(s.title) ? 'checked' : ''}> ${escapeHtml(s.title === '(début)' ? t('cmp.share.intro') : s.title)}</label>`
           )
           .join('')}
       </div>
       <div class="modal-actions">
-        <button class="modal-btn share-cancel">Annuler</button>
-        <button class="modal-btn modal-ok share-ok">Partager</button>
+        <button class="modal-btn share-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok share-ok">${t('handouts.share')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -318,19 +318,19 @@ function openShareModal(entry) {
     try {
       if (chosen.length) {
         const text = chosen.map((s) => s.lines.join('\n').trim()).join('\n\n');
-        await createHandout({ title: entry.name, description: KINDS[entry.kind]?.label || '', content_type: 'text', text_content: text, target_player: null });
+        await createHandout({ title: entry.name, description: KINDS[entry.kind] ? kindLabel(entry.kind) : '', content_type: 'text', text_content: text, target_player: null });
       }
       if (wantImg && entry.data?.img) {
         const url = await signedTokenUrl(entry.data.img);
         if (url) {
           const blob = await (await fetch(url)).blob();
           const file = new File([blob], `${entry.name}.jpg`, { type: blob.type || 'image/jpeg' });
-          await uploadHandout(file, { title: entry.name, description: KINDS[entry.kind]?.label || '', target_player: null });
+          await uploadHandout(file, { title: entry.name, description: KINDS[entry.kind] ? kindLabel(entry.kind) : '', target_player: null });
         }
       }
-      await modalAlert(`« ${entry.name} » partagé aux joueurs (onglet Handouts).`, { title: '📤 Partager' });
+      await modalAlert(t('cmp.share.done', { name: entry.name }), { title: t('cmp.share.modalTitle') });
     } catch (e) {
-      await modalAlert('Envoi impossible : ' + (e.message || ''), { title: '📤 Partager' });
+      await modalAlert(t('cmp.sendErr') + (e.message || ''), { title: t('cmp.share.modalTitle') });
     }
   });
 }
@@ -343,16 +343,16 @@ async function openImagePicker(entry, container) {
   const bank = store.get().imagebank || [];
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:520px;max-width:94vw">
-      <h3 class="modal-title">🖼 Image de « ${escapeHtml(entry.name)} »</h3>
+      <h3 class="modal-title">${t('cmp.img.heading', { name: escapeHtml(entry.name) })}</h3>
       <div class="modal-actions" style="justify-content:flex-start;margin:0 0 10px">
-        <label class="modal-btn modal-ok">📂 Importer un fichier<input type="file" id="imgpick-file" accept="image/*" hidden></label>
-        ${entry.data?.img ? `<button class="modal-btn danger" id="imgpick-clear">✕ Retirer l'image</button>` : ''}
+        <label class="modal-btn modal-ok">${t('cmp.img.importFile')}<input type="file" id="imgpick-file" accept="image/*" hidden></label>
+        ${entry.data?.img ? `<button class="modal-btn danger" id="imgpick-clear">${t('cmp.img.clear')}</button>` : ''}
       </div>
-      <div class="imgpick-sub">Ou choisir dans la banque :</div>
+      <div class="imgpick-sub">${t('cmp.img.orBank')}</div>
       <div class="imgpick-grid">
-        ${bank.length ? bank.map((p) => `<span class="imgpick-cell" data-p="${encodeURIComponent(p)}"></span>`).join('') : '<div class="cmp-muted">Banque vide (onglet 🖼 Banque).</div>'}
+        ${bank.length ? bank.map((p) => `<span class="imgpick-cell" data-p="${encodeURIComponent(p)}"></span>`).join('') : `<div class="cmp-muted">${t('cmp.img.bankEmpty')}</div>`}
       </div>
-      <div class="modal-actions"><button class="modal-btn imgpick-cancel">Fermer</button></div>
+      <div class="modal-actions"><button class="modal-btn imgpick-cancel">${t('common.close')}</button></div>
     </div>`;
   document.body.appendChild(ov);
   const close = () => ov.remove();
@@ -372,7 +372,7 @@ async function openImagePicker(entry, container) {
       const path = await uploadTokenAsset(file);
       if (path) await set(path);
     } catch (ex) {
-      await modalAlert('Image impossible : ' + ex.message, { title: 'Image' });
+      await modalAlert(t('cmp.img.err') + ex.message, { title: t('cmp.img.title') });
     }
   });
   ov.querySelector('#imgpick-clear')?.addEventListener('click', () => set(null));
@@ -389,19 +389,19 @@ async function openImagePicker(entry, container) {
 function addSpellToSheet(entry) {
   const chars = store.get().characters || [];
   if (!chars.length) {
-    modalAlert('Aucune fiche disponible.', { title: 'Fiches' });
+    modalAlert(t('cmp.noSheet'), { title: t('cmp.sheets') });
     return;
   }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:340px;max-width:92vw">
-      <h3 class="modal-title">📥 Ajouter « ${escapeHtml(entry.name)} »</h3>
-      <p class="modal-msg">À quelle fiche ajouter ce sort ?</p>
-      <select class="modal-input" id="cmp-tofiche-sel">${chars.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}${c.owner_id ? '' : ' (PNJ)'}</option>`).join('')}</select>
+      <h3 class="modal-title">${t('cmp.addHeading', { name: escapeHtml(entry.name) })}</h3>
+      <p class="modal-msg">${t('cmp.tofiche.which')}</p>
+      <select class="modal-input" id="cmp-tofiche-sel">${chars.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}${c.owner_id ? '' : ` (${t('kind.npc')})`}</option>`).join('')}</select>
       <div class="modal-actions">
-        <button class="modal-btn cmp-tofiche-cancel">Annuler</button>
-        <button class="modal-btn modal-ok cmp-tofiche-ok">Ajouter</button>
+        <button class="modal-btn cmp-tofiche-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok cmp-tofiche-ok">${t('common.add')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -429,13 +429,13 @@ function addSpellToSheet(entry) {
       cur[idx] = { ...cur[idx], lvl, entryId: entry.id };
       updateCharacter(cid, { spells: cur });
       close();
-      await modalAlert(`« ${entry.name} » était déjà sur la fiche de ${c.name} — lien au compendium mis à jour.`, { title: 'Sorts' });
+      await modalAlert(t('cmp.tofiche.already', { name: entry.name, char: c.name }), { title: t('cmp.spells') });
       return;
     }
     cur.push({ nm: entry.name, lvl, entryId: entry.id });
     updateCharacter(cid, { spells: cur });
     close();
-    await modalAlert(`« ${entry.name} » ajouté à la fiche de ${c.name}. La description du compendium s'affiche en cliquant sur le sort.`, { title: 'Sorts' });
+    await modalAlert(t('cmp.tofiche.done', { name: entry.name, char: c.name }), { title: t('cmp.spells') });
   });
 }
 
@@ -507,7 +507,7 @@ async function importMarkdownFiles(fileList, container) {
     await updateEntry(id, { data });
     n++;
   }
-  await modalAlert(`${n} fichier(s) importé(s) dans le compendium.`, { title: '📁 Import Markdown' });
+  await modalAlert(t('cmp.mdImport.done', { n }), { title: t('cmp.mdImport.title') });
   renderAll(container);
 }
 
@@ -515,19 +515,19 @@ async function importMarkdownFiles(fileList, container) {
 function addItemToInventory(entry) {
   const chars = store.get().characters || [];
   if (!chars.length) {
-    modalAlert('Aucune fiche disponible.', { title: 'Fiches' });
+    modalAlert(t('cmp.noSheet'), { title: t('cmp.sheets') });
     return;
   }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:340px;max-width:92vw">
-      <h3 class="modal-title">📥 Ajouter « ${escapeHtml(entry.name)} »</h3>
-      <p class="modal-msg">À quel inventaire ?</p>
-      <select class="modal-input" id="cmp-toinv-sel">${chars.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}${c.owner_id ? '' : ' (PNJ)'}</option>`).join('')}</select>
+      <h3 class="modal-title">${t('cmp.addHeading', { name: escapeHtml(entry.name) })}</h3>
+      <p class="modal-msg">${t('cmp.toinv.which')}</p>
+      <select class="modal-input" id="cmp-toinv-sel">${chars.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}${c.owner_id ? '' : ` (${t('kind.npc')})`}</option>`).join('')}</select>
       <div class="modal-actions">
-        <button class="modal-btn cmp-toinv-cancel">Annuler</button>
-        <button class="modal-btn modal-ok cmp-toinv-ok">Ajouter</button>
+        <button class="modal-btn cmp-toinv-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok cmp-toinv-ok">${t('common.add')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -547,7 +547,7 @@ function addItemToInventory(entry) {
     const inv = [...(c.data.inv || []), { nm: entry.name, qty: 1, wt: '', note }];
     updateCharacter(cid, { inv });
     close();
-    await modalAlert(`« ${entry.name} » ajouté à l'inventaire de ${c.name}.`, { title: 'Inventaire' });
+    await modalAlert(t('cmp.toinv.done', { name: entry.name, char: c.name }), { title: t('sheet.h.inv') });
   });
 }
 
@@ -572,7 +572,7 @@ function renderSpellFilters(container) {
     <select id="cmp-flevel" class="cmp-fsel" title="${t('compendium.filter.levelTitle')}">
       <option value="">${t('compendium.filter.allLevels')}</option>
       ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        .map((n) => `<option value="${n}" ${String(spellLevel) === String(n) ? 'selected' : ''}>${n === 0 ? 'Mineur' : 'Niv. ' + n}</option>`)
+        .map((n) => `<option value="${n}" ${String(spellLevel) === String(n) ? 'selected' : ''}>${n === 0 ? t('cmp.cantrip') : t('sheet.lvl') + ' ' + n}</option>`)
         .join('')}
     </select>
     <select id="cmp-fclass" class="cmp-fsel" title="${t('compendium.filter.classTitle')}">
@@ -729,26 +729,26 @@ function openBulkMove(container) {
     (a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'fr', { numeric: true })
   );
   if (!all.length) {
-    showToast('Compendium vide.', { timeout: 2000 });
+    showToast(t('cmp.bulk.empty'), { timeout: 2000 });
     return;
   }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card bulkmove-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">🔀 Déplacer en lot</h3>
+      <h3 class="modal-title">${t('cmp.bulkmove')}</h3>
       <div class="bulk-toolbar">
-        <input class="modal-input bulk-search" placeholder="Filtrer par nom…" />
-        <label class="bulk-target">Vers
+        <input class="modal-input bulk-search" placeholder="${t('cmp.bulk.search')}" />
+        <label class="bulk-target">${t('cmp.bulk.toLabel')}
           <select class="bulk-kind">
-            ${Object.entries(KINDS).map(([k, v]) => `<option value="${k}">${v.icon} ${escapeHtml(v.label)}</option>`).join('')}
+            ${Object.keys(KINDS).map((k) => `<option value="${k}">${KINDS[k].icon} ${escapeHtml(kindLabel(k))}</option>`).join('')}
           </select>
         </label>
       </div>
       <div class="bulk-actions-row">
-        <button class="link bulk-all" type="button">Tout cocher</button>
-        <button class="link bulk-none" type="button">Tout décocher</button>
-        <span class="bulk-count">0 sélectionné(s)</span>
+        <button class="link bulk-all" type="button">${t('cmp.bulk.all')}</button>
+        <button class="link bulk-none" type="button">${t('cmp.bulk.none')}</button>
+        <span class="bulk-count">${t('cmp.bulk.count', { n: 0 })}</span>
       </div>
       <div class="bulk-list">
         ${all
@@ -757,21 +757,21 @@ function openBulkMove(container) {
               <input type="checkbox" data-id="${e.id}">
               <span class="bulk-ic">${KINDS[e.kind]?.icon || '📄'}</span>
               <span class="bulk-name">${escapeHtml(e.name)}</span>
-              <span class="bulk-kindlbl">${escapeHtml(KINDS[e.kind]?.label || e.kind)}</span>
+              <span class="bulk-kindlbl">${escapeHtml(KINDS[e.kind] ? kindLabel(e.kind) : e.kind)}</span>
             </label>`
           )
           .join('')}
       </div>
       <div class="modal-actions">
-        <button class="modal-btn modal-cancel">Annuler</button>
-        <button class="modal-btn modal-ok">Déplacer</button>
+        <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok">${t('cmp.bulk.move')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
   const close = () => ov.remove();
   const checks = () => [...ov.querySelectorAll('[data-id]:checked')];
   const updateCount = () => {
-    ov.querySelector('.bulk-count').textContent = `${checks().length} sélectionné(s)`;
+    ov.querySelector('.bulk-count').textContent = t('cmp.bulk.count', { n: checks().length });
   };
   ov.addEventListener('change', updateCount);
   ov.querySelector('.bulk-search').addEventListener('input', (e) => {
@@ -797,13 +797,13 @@ function openBulkMove(container) {
   ov.querySelector('.modal-ok').addEventListener('click', async () => {
     const ids = checks().map((c) => c.dataset.id);
     if (!ids.length) {
-      showToast('Coche au moins une entrée.', { timeout: 2000 });
+      showToast(t('cmp.bulk.pickOne'), { timeout: 2000 });
       return;
     }
     const kind = ov.querySelector('.bulk-kind').value;
     close();
     for (const id of ids) await updateEntry(id, { kind });
-    showToast(`${ids.length} entrée(s) déplacée(s) vers ${KINDS[kind].label}.`, { timeout: 2800 });
+    showToast(t('cmp.bulk.done', { n: ids.length, kind: kindLabel(kind) }), { timeout: 2800 });
     renderAll(container);
   });
 }
@@ -814,18 +814,18 @@ function openKindChooser(container, entry) {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card kind-chooser" role="dialog" aria-modal="true">
-      <h3 class="modal-title">Déplacer « ${escapeHtml(entry.name)} » vers…</h3>
+      <h3 class="modal-title">${t('cmp.kindMove.heading', { name: escapeHtml(entry.name) })}</h3>
       <div class="kind-grid">
         ${Object.entries(KINDS)
           .map(
             ([k, v]) =>
               `<button class="kind-opt ${k === entry.kind ? 'current' : ''}" data-k="${k}"${k === entry.kind ? ' disabled' : ''}>
-                 <span class="kind-opt-ic">${v.icon}</span> ${escapeHtml(v.label)}${k === entry.kind ? ' (actuel)' : ''}
+                 <span class="kind-opt-ic">${v.icon}</span> ${escapeHtml(kindLabel(k))}${k === entry.kind ? t('cmp.current') : ''}
                </button>`
           )
           .join('')}
       </div>
-      <div class="modal-actions"><button class="modal-btn modal-cancel">Annuler</button></div>
+      <div class="modal-actions"><button class="modal-btn modal-cancel">${t('common.cancel')}</button></div>
     </div>`;
   document.body.appendChild(ov);
   const close = () => ov.remove();
@@ -839,7 +839,7 @@ function openKindChooser(container, entry) {
       if (k === entry.kind) return;
       close();
       await updateEntry(entry.id, { kind: k });
-      showToast(`« ${entry.name} » déplacé vers ${KINDS[k].label}.`, { timeout: 2400 });
+      showToast(t('cmp.kindMove.done', { name: entry.name, kind: kindLabel(k) }), { timeout: 2400 });
       renderAll(container);
     })
   );
@@ -853,7 +853,7 @@ function renderDetail(container) {
     el.innerHTML = `<div class="cmp-placeholder">${t('compendium.placeholder')}</div>`;
     return;
   }
-  const meta = KINDS[entry.kind] || { icon: '📄', label: 'Entrée' };
+  const meta = KINDS[entry.kind] || { icon: '📄', label: t('cmp.entryDefault') };
 
   // Actions selon le type (MJ uniquement).
   const actions = [];
@@ -924,23 +924,23 @@ function renderDetail(container) {
   el.querySelector('[data-act="statblock"]')?.addEventListener('click', () => openStatblock(entry));
   el.querySelector('[data-act="combat"]')?.addEventListener('click', async () => {
     monsterToCombat(entry);
-    await modalAlert(`« ${entry.name} » ajouté au combat.`, { title: 'Combat' });
+    await modalAlert(t('cmp.act.toCombat.done', { name: entry.name }), { title: t('cmp.combat') });
   });
   el.querySelector('[data-act="tofiche"]')?.addEventListener('click', () => addSpellToSheet(entry));
   el.querySelector('[data-act="toinv"]')?.addEventListener('click', () => addItemToInventory(entry));
   el.querySelector('[data-act="scene"]')?.addEventListener('click', async () => {
     if (entry.data?.sceneId) {
       await switchScene(entry.data.sceneId);
-      await modalAlert(`Scène « ${entry.name} » activée.`, { title: 'Carte' });
+      await modalAlert(t('cmp.act.sceneActivated', { name: entry.name }), { title: t('cmp.map') });
     } else {
       const sid = store.get().activeSceneId;
       if (!sid) {
-        await modalAlert('Aucune scène active à lier (ouvre la carte d’abord).', { title: 'Carte' });
+        await modalAlert(t('cmp.act.noScene'), { title: t('cmp.map') });
         return;
       }
       await updateEntry(entry.id, { data: { ...entry.data, sceneId: sid } });
       renderDetail(container);
-      await modalAlert(`« ${entry.name} » lié à la scène active.`, { title: 'Carte' });
+      await modalAlert(t('cmp.act.sceneLinked', { name: entry.name }), { title: t('cmp.map') });
     }
   });
   el.querySelector('[data-act="totoken"]')?.addEventListener('click', async () => {
@@ -949,8 +949,8 @@ function renderDetail(container) {
     const cy = Math.round((m?.bgH || 1000) / 2 + (Math.random() * 120 - 60));
     addToken({ x: cx, y: cy, label: entry.name.slice(0, 6), img: entry.data?.img || null });
     await modalAlert(
-      `Jeton « ${entry.name} »${entry.data?.img ? ' illustré' : ''} ajouté à la scène active.`,
-      { title: 'Carte' }
+      entry.data?.img ? t('cmp.act.tokenAddedImg', { name: entry.name }) : t('cmp.act.tokenAdded', { name: entry.name }),
+      { title: t('cmp.map') }
     );
   });
   el.querySelector('[data-act="img"]')?.addEventListener('click', () => openImagePicker(entry, container));
@@ -959,21 +959,21 @@ function renderDetail(container) {
     const res = rollTable(entry);
     const out = container.querySelector('#cmp-roll-result');
     if (!res) {
-      out.innerHTML = `<span class="cmp-muted">Table vide — ajoute des résultats.</span>`;
+      out.innerHTML = `<span class="cmp-muted">${t('cmp.table.empty')}</span>`;
       return;
     }
     // Tirage local d'abord (le MJ peut rester discret), annonce au chat en option.
     out.innerHTML = `🎲 <strong>${escapeHtml(res)}</strong>
-      <button class="btn cmp-act" data-act="announce" title="Poster le résultat dans le chat public">📣 Annoncer</button>`;
+      <button class="btn cmp-act" data-act="announce" title="${t('cmp.announce.title')}">${t('cmp.announce')}</button>`;
     out.querySelector('[data-act="announce"]')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       btn.disabled = true;
       try {
         await sendMessage(`🎲 ${entry.name} — ${res}`, 'public');
-        btn.textContent = '✓ Annoncé';
+        btn.textContent = t('cmp.announced');
       } catch (err) {
         btn.disabled = false;
-        showToast('Envoi impossible : ' + err.message, { type: 'warn', icon: '⚠️' });
+        showToast(t('cmp.sendErr') + err.message, { type: 'warn', icon: '⚠️' });
       }
     });
   });
@@ -1006,12 +1006,12 @@ function renderBody(container, entry) {
       const d = entry.data || {};
       const lv = spellLevelOf(entry);
       const bits = [
-        lv != null ? (lv === 0 ? 'Sort mineur' : `Niveau ${lv}`) : '',
+        lv != null ? (lv === 0 ? t('cmp.spellCantrip') : t('cmp.levelN', { lv })) : '',
         (d.classes || []).join(', '),
       ].filter(Boolean);
       if (bits.length) extra = `<div class="cmp-stats">${bits.map((s) => `<span>${escapeHtml(s)}</span>`).join('')}</div>`;
     }
-    el.innerHTML = extra + `<div class="md">${renderMarkdown(entry.data?.desc || '*Aucune description.*')}</div>`;
+    el.innerHTML = extra + `<div class="md">${renderMarkdown(entry.data?.desc || t('cmp.noDescFull'))}</div>`;
     return;
   }
 
@@ -1021,16 +1021,16 @@ function renderBody(container, entry) {
   if (entry.kind === 'monster') {
     fields = `
       <div class="cmp-row">
-        <label class="cmp-field">CA<input id="f-ac" type="number" value="${escapeHtml(String(d.ac ?? ''))}"></label>
-        <label class="cmp-field">PV max<input id="f-hpmax" type="number" value="${escapeHtml(String(d.hpMax ?? ''))}"></label>
-        <label class="cmp-field">FP<input id="f-cr" type="text" value="${escapeHtml(String(d.cr ?? ''))}"></label>
+        <label class="cmp-field">${t('dock.ac')}<input id="f-ac" type="number" value="${escapeHtml(String(d.ac ?? ''))}"></label>
+        <label class="cmp-field">${t('combat.add.hpmax')}<input id="f-hpmax" type="number" value="${escapeHtml(String(d.hpMax ?? ''))}"></label>
+        <label class="cmp-field">${t('enc.cr')}<input id="f-cr" type="text" value="${escapeHtml(String(d.cr ?? ''))}"></label>
       </div>`;
   }
   if (entry.kind === 'spell') {
     fields = `
       <div class="cmp-row">
-        <label class="cmp-field">Niveau<input id="f-level" type="number" min="0" max="9" value="${escapeHtml(String(d.level ?? ''))}"></label>
-        <label class="cmp-field" style="flex:1; min-width:180px">Classes (séparées par des virgules)<input id="f-classes" type="text" value="${escapeHtml((d.classes || []).join(', '))}"></label>
+        <label class="cmp-field">${t('cmp.level')}<input id="f-level" type="number" min="0" max="9" value="${escapeHtml(String(d.level ?? ''))}"></label>
+        <label class="cmp-field" style="flex:1; min-width:180px">${t('cmp.classesLabel')}<input id="f-classes" type="text" value="${escapeHtml((d.classes || []).join(', '))}"></label>
       </div>`;
   }
   let tableEditor = '';
@@ -1041,21 +1041,21 @@ function renderBody(container, entry) {
         ${rows
           .map(
             (r, i) => `<div class="cmp-trow" data-i="${i}">
-              <input class="cmp-w" type="number" min="1" value="${escapeHtml(String(r.weight || 1))}" title="Poids">
-              <input class="cmp-t" type="text" value="${escapeHtml(r.text || '')}" placeholder="Résultat…">
-              <button class="cmp-icon-btn danger" data-del-row="${i}" title="Retirer">✕</button>
+              <input class="cmp-w" type="number" min="1" value="${escapeHtml(String(r.weight || 1))}" title="${t('cmp.weight')}">
+              <input class="cmp-t" type="text" value="${escapeHtml(r.text || '')}" placeholder="${t('cmp.resultPh')}">
+              <button class="cmp-icon-btn danger" data-del-row="${i}" title="${t('common.remove')}">✕</button>
             </div>`
           )
           .join('')}
-        <button class="link" id="cmp-add-row" style="width:auto;margin:6px 0 0">+ Ligne</button>
+        <button class="link" id="cmp-add-row" style="width:auto;margin:6px 0 0">${t('cmp.addRow')}</button>
       </div>`;
   }
   el.innerHTML = `
-    <input id="f-name" class="cmp-name-input" type="text" value="${escapeHtml(entry.name)}" placeholder="Nom">
+    <input id="f-name" class="cmp-name-input" type="text" value="${escapeHtml(entry.name)}" placeholder="${t('cmp.namePh')}">
     ${fields}
     ${tableEditor}
-    <textarea id="f-desc" class="cmp-desc" placeholder="Description (Markdown)…">${escapeHtml(d.desc || '')}</textarea>
-    <div class="cmp-hint">Sauvegarde automatique.</div>
+    <textarea id="f-desc" class="cmp-desc" placeholder="${t('cmp.descPh')}">${escapeHtml(d.desc || '')}</textarea>
+    <div class="cmp-hint">${t('cmp.autosave')}</div>
   `;
 
   // Sauvegardes.
@@ -1117,20 +1117,20 @@ function openPasteModal(container) {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:560px;max-width:94vw">
-      <h3 class="modal-title">📋 Coller-importer</h3>
+      <h3 class="modal-title">${t('cmp.paste.btn')}</h3>
       <div class="atk-row atk-grid2">
-        <div><label>Nom</label><input class="atk-in" id="pa-name" placeholder="Nom du PNJ"></div>
-        <div><label>Type</label><select class="atk-sel" id="pa-kind">
-          ${Object.entries(KINDS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
+        <div><label>${t('cmp.namePh')}</label><input class="atk-in" id="pa-name" placeholder="Nom du PNJ"></div>
+        <div><label>${t('cmp.type')}</label><select class="atk-sel" id="pa-kind">
+          ${Object.keys(KINDS).map((k) => `<option value="${k}">${escapeHtml(kindLabel(k))}</option>`).join('')}
         </select></div>
       </div>
-      <div class="atk-row"><label>Texte (statblock, description…)</label>
-        <textarea class="atk-in" id="pa-text" style="min-height:200px; font-family:inherit; line-height:1.5" placeholder="Colle ici le contenu. PV/CA/FP seront extraits automatiquement si présents."></textarea>
+      <div class="atk-row"><label>${t('cmp.paste.textLabel')}</label>
+        <textarea class="atk-in" id="pa-text" style="min-height:200px; font-family:inherit; line-height:1.5" placeholder="${t('cmp.paste.ph')}"></textarea>
       </div>
       <p class="modal-msg" id="pa-info" style="display:none"></p>
       <div class="modal-actions">
-        <button class="modal-btn pa-cancel">Annuler</button>
-        <button class="modal-btn modal-ok pa-ok">Importer</button>
+        <button class="modal-btn pa-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok pa-ok">${t('cmp.import')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -1186,18 +1186,18 @@ function openSrdModal(container) {
       <header class="srd-head">
         <strong>Import SRD (2014)</strong>
         <div class="srd-kinds">
-          <button class="srd-kind active" data-k="monster">👹 Monstres</button>
-          <button class="srd-kind" data-k="spell">✨ Sorts</button>
-          <button class="srd-kind" data-k="class">🎓 Classes</button>
-          <button class="srd-kind" data-k="race">🧝 Races</button>
-          <button class="srd-kind" data-k="background">📜 Historiques</button>
+          <button class="srd-kind active" data-k="monster">👹 ${t('kind.monster.pl')}</button>
+          <button class="srd-kind" data-k="spell">✨ ${t('kind.spell.pl')}</button>
+          <button class="srd-kind" data-k="class">🎓 ${t('kind.class.pl')}</button>
+          <button class="srd-kind" data-k="race">🧝 ${t('kind.race.pl')}</button>
+          <button class="srd-kind" data-k="background">📜 ${t('kind.background.pl')}</button>
         </div>
-        <button class="srd-close" title="Fermer">✕</button>
+        <button class="srd-close" title="${t('common.close')}">✕</button>
       </header>
-      <input class="srd-search" placeholder="Filtrer par nom… (contenu en anglais)">
+      <input class="srd-search" placeholder="${t('cmp.srd.search')}">
       <div class="srd-bar">
-        <label class="srd-fr"><input type="checkbox" id="srd-fr"> Libellés en FR</label>
-        <button class="srd-all" id="srd-all">Tout importer</button>
+        <label class="srd-fr"><input type="checkbox" id="srd-fr"> ${t('cmp.srd.frLabels')}</label>
+        <button class="srd-all" id="srd-all">${t('cmp.srd.all')}</button>
         <span class="srd-progress" id="srd-progress"></span>
       </div>
       <div class="srd-results" id="srd-results"></div>
@@ -1221,7 +1221,7 @@ function openSrdModal(container) {
 
   const render = () => {
     if (loading) {
-      results.innerHTML = `<div class="srd-hint">Chargement…</div>`;
+      results.innerHTML = `<div class="srd-hint">${t('common.loading')}</div>`;
       return;
     }
     if (error) {
@@ -1230,17 +1230,17 @@ function openSrdModal(container) {
     }
     const items = filteredItems();
     const n = items.length;
-    allBtn.textContent = `Tout importer${n ? ` (${n})` : ''}`;
+    allBtn.textContent = `${t('cmp.srd.all')}${n ? ` (${n})` : ''}`;
     allBtn.disabled = !n;
     const list = items.slice(0, 80);
     if (!list.length) {
-      results.innerHTML = `<div class="srd-hint">Aucun résultat.</div>`;
+      results.innerHTML = `<div class="srd-hint">${t('help.empty')}</div>`;
       return;
     }
     results.innerHTML = list
       .map(
         (x) =>
-          `<div class="srd-row"><span>${escapeHtml(x.name)}</span><button class="srd-imp" data-i="${escapeHtml(x.index)}">Importer</button></div>`
+          `<div class="srd-row"><span>${escapeHtml(x.name)}</span><button class="srd-imp" data-i="${escapeHtml(x.index)}">${t('cmp.import')}</button></div>`
       )
       .join('');
     results.querySelectorAll('[data-i]').forEach((b) =>
@@ -1249,13 +1249,13 @@ function openSrdModal(container) {
         b.textContent = '…';
         try {
           const id = await srdImport(kind, b.dataset.i, { fr: frBox.checked });
-          b.textContent = '✓ Importé';
+          b.textContent = t('cmp.srd.imported');
           activeId = id;
           editMode = false;
           renderAll(container);
         } catch {
           b.disabled = false;
-          b.textContent = 'Réessayer';
+          b.textContent = t('cmp.retry');
         }
       })
     );
@@ -1264,12 +1264,12 @@ function openSrdModal(container) {
   allBtn.addEventListener('click', async () => {
     const items = filteredItems();
     if (!items.length) return;
-    if (!(await modalConfirm(`Importer ${items.length} entrée(s) dans le compendium ? Les doublons (même nom) seront ignorés.`, { title: 'Import SRD en lot', okLabel: 'Importer' }))) return;
+    if (!(await modalConfirm(t('cmp.srd.confirm', { n: items.length }), { title: t('cmp.srd.title'), okLabel: t('cmp.import') }))) return;
     allBtn.disabled = true;
     const res = await srdImportMany(kind, items, { fr: frBox.checked }, (done, total, name) => {
       progress.textContent = `${done}/${total} — ${name}`;
     });
-    progress.textContent = `Terminé : ${res.imported} ajouté(s), ${res.updated} mis à jour, ${res.skipped} échec(s).`;
+    progress.textContent = t('cmp.srd.summary', { imported: res.imported, updated: res.updated, skipped: res.skipped });
     allBtn.disabled = false;
     renderAll(container);
   });
@@ -1281,7 +1281,7 @@ function openSrdModal(container) {
     try {
       all = await srdList(kind);
     } catch {
-      error = 'SRD indisponible (problème réseau ou API).';
+      error = t('cmp.srd.unavailable');
       all = [];
     }
     loading = false;
