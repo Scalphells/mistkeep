@@ -952,5 +952,62 @@
   "rr.pc": "PC",
   "rr.dcParen": " (DC {dc})",
 
-  "pause.banner": "⏸ GAME PAUSED"
+  "pause.banner": "⏸ GAME PAUSED",
+
+  "cond.blinded": "Blinded",
+  "cond.charmed": "Charmed",
+  "cond.deafened": "Deafened",
+  "cond.frightened": "Frightened",
+  "cond.grappled": "Grappled",
+  "cond.restrained": "Restrained",
+  "cond.poisoned": "Poisoned",
+  "cond.prone": "Prone",
+  "cond.incapacitated": "Incapacitated",
+  "cond.stunned": "Stunned",
+  "cond.paralyzed": "Paralyzed",
+  "cond.petrified": "Petrified",
+  "cond.unconscious": "Unconscious",
+  "cond.invisible": "Invisible",
+  "cond.exhaustion": "Exhaustion",
+  "cond.concentration": "Concentration",
+
+  "hp.tier.down": "Out of the fight",
+  "hp.tier.dying": "At death's door",
+  "hp.tier.bad": "Badly hurt",
+  "hp.tier.hurt": "Wounded",
+  "hp.tier.light": "Lightly wounded",
+  "hp.tier.full": "Unharmed",
+
+  "tb.goCombat": "Go to combat",
+
+  "recap.title": "# Session recap — {date}",
+  "recap.h.combat": "## ⚔️ Combat",
+  "recap.omitted": "_… {n} older event(s) omitted._",
+  "recap.noCombat": "_No combat event in this period._",
+  "recap.h.rolls": "## 🎲 Notable rolls",
+  "recap.nat20": "natural 20!",
+  "recap.nat1": "natural 1…",
+  "recap.noRolls": "_No crit or critical failure in this period._",
+  "recap.msgs": "_{n} message(s) exchanged in public chat._",
+  "recap.footer": "_Draft generated automatically — complete and correct before sharing._",
+
+  "cc.apply.dmg.title": "Apply as damage (the GM picks resistance/immunity)",
+  "cc.apply.heal.title": "Apply as healing",
+  "cc.crit": "CRITICAL!",
+  "cc.fail": "FAIL",
+  "cc.chip.dm": "🎭 GM",
+  "cc.chip.blind": "🙈 blind",
+  "cc.chip.self": "🔒 private",
+  "cc.chip.adv": "advantage",
+  "cc.chip.dis": "disadvantage",
+  "cc.privateRoll": "rolled a die privately",
+  "cc.actionDefault": "Action",
+
+  "party.title": "👥 Party",
+  "party.empty": "No character.",
+
+  "search.noteDefault": "Note",
+  "search.placeholder": "Search the Vault, notes, compendium…",
+  "search.foot": "Enter to open · Esc to close",
+  "search.minChars": "Type at least 2 characters."
 }

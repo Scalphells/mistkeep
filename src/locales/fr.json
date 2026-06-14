@@ -952,5 +952,62 @@
   "rr.pc": "PJ",
   "rr.dcParen": " (DD {dc})",
 
-  "pause.banner": "⏸ JEU EN PAUSE"
+  "pause.banner": "⏸ JEU EN PAUSE",
+
+  "cond.blinded": "Aveuglé",
+  "cond.charmed": "Charmé",
+  "cond.deafened": "Assourdi",
+  "cond.frightened": "Effrayé",
+  "cond.grappled": "Agrippé",
+  "cond.restrained": "Entravé",
+  "cond.poisoned": "Empoisonné",
+  "cond.prone": "À terre",
+  "cond.incapacitated": "Neutralisé",
+  "cond.stunned": "Étourdi",
+  "cond.paralyzed": "Paralysé",
+  "cond.petrified": "Pétrifié",
+  "cond.unconscious": "Inconscient",
+  "cond.invisible": "Invisible",
+  "cond.exhaustion": "Épuisement",
+  "cond.concentration": "Concentration",
+
+  "hp.tier.down": "Hors de combat",
+  "hp.tier.dying": "À l’agonie",
+  "hp.tier.bad": "Mal en point",
+  "hp.tier.hurt": "Blessé",
+  "hp.tier.light": "Légèrement blessé",
+  "hp.tier.full": "Indemne",
+
+  "tb.goCombat": "Aller au combat",
+
+  "recap.title": "# Résumé de séance — {date}",
+  "recap.h.combat": "## ⚔️ Combat",
+  "recap.omitted": "_… {n} événement(s) plus ancien(s) omis._",
+  "recap.noCombat": "_Aucun événement de combat sur la période._",
+  "recap.h.rolls": "## 🎲 Jets marquants",
+  "recap.nat20": "20 naturel !",
+  "recap.nat1": "1 naturel…",
+  "recap.noRolls": "_Ni critique ni échec critique sur la période._",
+  "recap.msgs": "_{n} message(s) échangés dans le chat public._",
+  "recap.footer": "_Brouillon généré automatiquement — complète et corrige avant de partager._",
+
+  "cc.apply.dmg.title": "Appliquer en dégâts (le MJ choisit résistance/immunité)",
+  "cc.apply.heal.title": "Appliquer en soin",
+  "cc.crit": "CRITIQUE !",
+  "cc.fail": "ÉCHEC",
+  "cc.chip.dm": "🎭 MJ",
+  "cc.chip.blind": "🙈 aveugle",
+  "cc.chip.self": "🔒 privé",
+  "cc.chip.adv": "avantage",
+  "cc.chip.dis": "désavantage",
+  "cc.privateRoll": "a lancé un dé en privé",
+  "cc.actionDefault": "Action",
+
+  "party.title": "👥 Groupe",
+  "party.empty": "Aucun personnage.",
+
+  "search.noteDefault": "Note",
+  "search.placeholder": "Rechercher dans le Vault, les notes, le compendium…",
+  "search.foot": "Entrée pour ouvrir · Échap pour fermer",
+  "search.minChars": "Tape au moins 2 caractères."
 }

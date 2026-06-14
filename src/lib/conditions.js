@@ -1,8 +1,11 @@
 import { escapeHtml } from './utils.js';
+import { t } from './i18n.js';
 
 /**
  * États (conditions) D&D 5e 2014, avec icônes. Partagé entre le tracker de
- * combat et l'affichage des jetons de la carte.
+ * combat et l'affichage des jetons de la carte. Le nom `n` (français) reste
+ * l'IDENTIFIANT stable (stocké/synchronisé/comparé) ; l'affichage passe par
+ * condLabel() (cf. clés cond.* dans les dictionnaires).
  *
  * Logos custom : dépose un fichier `public/icons/status/<slug>.svg` puis ajoute
  * le `slug` à CUSTOM_STATUS_ICONS ci-dessous. L'app affiche alors l'image à la
@@ -37,10 +40,17 @@ export const STATUS_ICON_BASE = '/icons/status';
  * emoji (comportement par défaut).
  */
 export const CUSTOM_STATUS_ICONS = new Set([
-  // 'poisoned', 'prone', 'stunned', 'paralyzed', 'frightened', ...
+  // Échantillon « style affiné » (les autres restent en emoji pour l'instant).
+  'poisoned', 'frightened', 'invisible', 'exhaustion',
 ]);
 
 const _byName = Object.fromEntries(CONDITIONS.map((c) => [c.n, c]));
+
+/** Libellé traduit d'un état (le nom `n` reste l'identifiant de données). */
+export function condLabel(name) {
+  const c = _byName[name];
+  return c ? t('cond.' + c.slug) : name;
+}
 
 /** Emoji (texte) d'un état — pour les contextes sans HTML (ex. <option>). */
 export function condIcon(name) {
@@ -55,8 +65,8 @@ export function condSlug(name) {
 /** Logo custom (<img>) si déposé pour ce slug, sinon l'emoji fourni. */
 export function statusIconHtml(slug, emoji, label) {
   if (slug && CUSTOM_STATUS_ICONS.has(slug)) {
-    const t = escapeHtml(label || slug);
-    return `<img class="cond-ico" src="${STATUS_ICON_BASE}/${slug}.svg" alt="${t}" title="${t}" loading="lazy">`;
+    const tt = escapeHtml(label || slug);
+    return `<img class="cond-ico" src="${STATUS_ICON_BASE}/${slug}.svg" alt="${tt}" title="${tt}" loading="lazy">`;
   }
   return emoji || '🔹';
 }
@@ -64,5 +74,5 @@ export function statusIconHtml(slug, emoji, label) {
 /** Icône d'affichage d'un état par son nom : logo custom si présent, sinon emoji. */
 export function condIconHtml(name) {
   const c = _byName[name];
-  return statusIconHtml(c?.slug, c?.i, name);
+  return statusIconHtml(c?.slug, c?.i, condLabel(name));
 }

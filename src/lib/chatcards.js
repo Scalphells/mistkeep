@@ -1,6 +1,7 @@
 import { escapeHtml } from './utils.js';
-import { characterNameForUser } from '../features/characters.js';
 import { colorFor, initials } from './profile.js';
+import { characterNameForUser } from '../features/characters.js';
+import { t } from './i18n.js';
 
 /**
  * Cartes de jet façon Foundry VTT, partagées par le flux des dés ET le chat.
@@ -21,8 +22,8 @@ export function rollVisibleTo(r, { isDM, user }) {
  *  réduction (plein / résistance / immunité) dans la fenêtre d'application. */
 function applyButtons(r) {
   return `<div class="rc-apply">
-      <button data-apply="damage" data-amount="${r.result}" title="Appliquer en dégâts (le MJ choisit résistance/immunité)">💥 Dégâts</button>
-      <button data-apply="heal" data-amount="${r.result}" title="Appliquer en soin">💚 Soin</button>
+      <button data-apply="damage" data-amount="${r.result}" title="${t('cc.apply.dmg.title')}">${t('applyroll.dmg')}</button>
+      <button data-apply="heal" data-amount="${r.result}" title="${t('cc.apply.heal.title')}">${t('applyroll.heal')}</button>
     </div>`;
 }
 
@@ -42,7 +43,7 @@ export function rollCardHtml(r, { isDM, user }) {
   const vis = r.details?.vis;
   const masked = vis === 'blind' && !isDM; // aveugle : caché aux joueurs
   const color = colorFor(r.roller_id, r.roller_name);
-  const time = r.created_at ? new Date(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+  const time = r.created_at ? new Date(r.created_at).toLocaleTimeString(t('locale.bcp47'), { hour: '2-digit', minute: '2-digit' }) : '';
   const rolls = r.details?.rolls ?? [];
   const mod = r.details?.modifier ?? 0;
 
@@ -54,19 +55,19 @@ export function rollCardHtml(r, { isDM, user }) {
     const kept = r.details?.kept ?? rolls[0];
     if (kept === 20) {
       critCls = 'crit-good';
-      critTag = 'CRITIQUE !';
+      critTag = t('cc.crit');
     } else if (kept === 1) {
       critCls = 'crit-bad';
-      critTag = 'ÉCHEC';
+      critTag = t('cc.fail');
     }
   }
 
   const chips = [];
-  if (r.roll_type === 'dm') chips.push('🎭 MJ');
-  else if (vis === 'blind') chips.push('🙈 aveugle');
-  else if (vis === 'self') chips.push('🔒 privé');
-  if (r.details?.mode === 'adv') chips.push('avantage');
-  else if (r.details?.mode === 'dis') chips.push('désavantage');
+  if (r.roll_type === 'dm') chips.push(t('cc.chip.dm'));
+  else if (vis === 'blind') chips.push(t('cc.chip.blind'));
+  else if (vis === 'self') chips.push(t('cc.chip.self'));
+  if (r.details?.mode === 'adv') chips.push(t('cc.chip.adv'));
+  else if (r.details?.mode === 'dis') chips.push(t('cc.chip.dis'));
 
   const formula = escapeHtml(r.dice || '');
   const breakdown =
@@ -74,7 +75,7 @@ export function rollCardHtml(r, { isDM, user }) {
       ? `[${rolls.join(', ')}]${mod ? (mod > 0 ? ` +${mod}` : ` ${mod}`) : ''}`
       : '';
 
-  const rollerWho = characterNameForUser(r.roller_id) || r.roller_name || 'Anonyme';
+  const rollerWho = characterNameForUser(r.roller_id) || r.roller_name || t('dock.anon');
   const head = `
     <div class="rc-head">
       <div class="rc-av" style="background:${color}">${escapeHtml(initials(rollerWho))}</div>
@@ -88,7 +89,7 @@ export function rollCardHtml(r, { isDM, user }) {
   if (masked) {
     return `<div class="roll-card masked">
         ${head}
-        <div class="rc-private">a lancé un dé en privé</div>
+        <div class="rc-private">${t('cc.privateRoll')}</div>
         <div class="rc-total">?</div>
       </div>`;
   }
@@ -107,8 +108,8 @@ export function rollCardHtml(r, { isDM, user }) {
 /** En-tête commun (avatar + auteur + heure) pour les cartes riches d'un message. */
 function msgHead(m, subtitle) {
   const color = colorFor(m.sender_id, m.sender_name);
-  const who = characterNameForUser(m.sender_id) || m.sender_name || 'Anonyme';
-  const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+  const who = characterNameForUser(m.sender_id) || m.sender_name || t('dock.anon');
+  const time = m.created_at ? new Date(m.created_at).toLocaleTimeString(t('locale.bcp47'), { hour: '2-digit', minute: '2-digit' }) : '';
   return `<div class="rc-head">
       <div class="rc-av" style="background:${color}">${escapeHtml(initials(who))}</div>
       <div class="rc-who">
@@ -140,8 +141,8 @@ export function richCardHtml(payload, m) {
   const traits = Array.isArray(payload.traits) ? payload.traits.filter(Boolean) : [];
   return `<div class="rich-card action">
       ${msgHead(m, payload.sub || '')}
-      <div class="ac-name">${escapeHtml(payload.name || 'Action')}</div>
-      ${traits.length ? `<div class="ac-traits">${traits.map((t) => `<span class="ac-trait">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      <div class="ac-name">${escapeHtml(payload.name || t('cc.actionDefault'))}</div>
+      ${traits.length ? `<div class="ac-traits">${traits.map((tr) => `<span class="ac-trait">${escapeHtml(tr)}</span>`).join('')}</div>` : ''}
       ${payload.desc ? `<div class="ac-cdesc">${escapeHtml(payload.desc)}</div>` : ''}
     </div>`;
 }

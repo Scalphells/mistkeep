@@ -3,7 +3,8 @@ import { escapeHtml } from './utils.js';
 import { navigateTo } from '../features/nav.js';
 import { loadVault } from '../features/vault.js';
 import { loadNotes } from '../features/session-notes.js';
-import { loadCompendium, KINDS } from '../features/compendium.js';
+import { loadCompendium, KINDS, kindLabel } from '../features/compendium.js';
+import { t } from './i18n.js';
 
 /**
  * Recherche globale (Ctrl/Cmd+K) : palette qui cherche dans le Vault, les
@@ -14,10 +15,10 @@ import { loadCompendium, KINDS } from '../features/compendium.js';
 let overlay = null;
 
 function snippet(text, q) {
-  const t = String(text || '');
-  const i = t.toLowerCase().indexOf(q);
-  if (i < 0) return t.slice(0, 80);
-  return (i > 24 ? '…' : '') + t.slice(Math.max(0, i - 24), i + 56);
+  const s = String(text || '');
+  const i = s.toLowerCase().indexOf(q);
+  if (i < 0) return s.slice(0, 80);
+  return (i > 24 ? '…' : '') + s.slice(Math.max(0, i - 24), i + 56);
 }
 
 function collect(q) {
@@ -33,14 +34,14 @@ function collect(q) {
   }
   for (const n of store.get().sessionNotes || []) {
     if (String(n.content).toLowerCase().includes(q)) {
-      out.push({ type: 'note', icon: '📝', label: (n.content.split('\n')[0] || 'Note').slice(0, 60), sub: snippet(n.content, q), action: () => navigateTo('notes') });
+      out.push({ type: 'note', icon: '📝', label: (n.content.split('\n')[0] || t('search.noteDefault')).slice(0, 60), sub: snippet(n.content, q), action: () => navigateTo('notes') });
     }
   }
   // Compendium : MJ comme joueurs (le store ne contient que ce que la RLS
   // autorise — sorts/objets côté joueur), pour que la recherche fonctionne aussi.
   for (const e of store.get().compendium || []) {
     if (e.name.toLowerCase().includes(q) || String(e.data?.desc || '').toLowerCase().includes(q)) {
-      out.push({ type: 'cmp', icon: KINDS[e.kind]?.icon || '📄', label: e.name, sub: KINDS[e.kind]?.label || '', action: () => openCompendium(e.id) });
+      out.push({ type: 'cmp', icon: KINDS[e.kind]?.icon || '📄', label: e.name, sub: KINDS[e.kind] ? kindLabel(e.kind) : '', action: () => openCompendium(e.id) });
     }
   }
   return out.slice(0, 40);
@@ -66,9 +67,9 @@ export function openSearch() {
   overlay.className = 'search-overlay';
   overlay.innerHTML = `
     <div class="search-box" role="dialog" aria-modal="true">
-      <input class="search-input" type="text" placeholder="Rechercher dans le Vault, les notes, le compendium…" autocomplete="off" />
+      <input class="search-input" type="text" placeholder="${t('search.placeholder')}" autocomplete="off" />
       <div class="search-results" id="search-results"></div>
-      <div class="search-foot">Entrée pour ouvrir · Échap pour fermer</div>
+      <div class="search-foot">${t('search.foot')}</div>
     </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('show'));
@@ -82,11 +83,11 @@ export function openSearch() {
     const q = input.value.trim().toLowerCase();
     items = q.length >= 2 ? collect(q) : [];
     if (!q) {
-      results.innerHTML = `<div class="search-hint">Tape au moins 2 caractères.</div>`;
+      results.innerHTML = `<div class="search-hint">${t('search.minChars')}</div>`;
       return;
     }
     if (!items.length) {
-      results.innerHTML = `<div class="search-hint">Aucun résultat.</div>`;
+      results.innerHTML = `<div class="search-hint">${t('help.empty')}</div>`;
       return;
     }
     results.innerHTML = items

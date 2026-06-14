@@ -2,6 +2,7 @@ import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { colorFor, initials } from './profile.js';
 import { combatantName } from '../features/initiative.js';
+import { t } from './i18n.js';
 
 /**
  * Bandeau du combattant actif (façon Foundry) : affiché en haut quand un combat
@@ -33,14 +34,14 @@ function render() {
   if (!_el) {
     _el = document.createElement('div');
     _el.className = 'turn-banner';
-    _el.title = 'Aller au combat';
+    _el.title = t('tb.goCombat');
     _el.addEventListener('click', () => _nav?.('initiative'));
     document.body.appendChild(_el);
   }
   const who = combatantName(active);
   _el.innerHTML = `
     <span class="tb-av" style="background:${colorFor(active.char_id, active.name)}">${escapeHtml(initials(who))}</span>
-    <span class="tb-txt"><b>${escapeHtml(who)}</b><small>Round ${initRound}</small></span>`;
+    <span class="tb-txt"><b>${escapeHtml(who)}</b><small>${t('combat.round')} ${initRound}</small></span>`;
 }
 
 export function initTurnBanner() {

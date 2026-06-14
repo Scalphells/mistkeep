@@ -1,7 +1,8 @@
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
-import { condIconHtml } from './conditions.js';
+import { condIconHtml, condLabel } from './conditions.js';
 import { navigateTo } from '../features/nav.js';
+import { t } from './i18n.js';
 
 /**
  * Aperçu du groupe (« party overview » façon Foundry) : panneau flottant
@@ -37,7 +38,7 @@ function render() {
   if (!_open) return;
   const chars = store.get().characters || [];
   _el.innerHTML = `
-    <div class="party-head">👥 Groupe<button class="party-x" title="Fermer">✕</button></div>
+    <div class="party-head">${t('party.title')}<button class="party-x" title="${t('common.close')}">✕</button></div>
     <div class="party-list">
       ${
         chars.length
@@ -46,11 +47,11 @@ function render() {
                 const v = vitals(c);
                 const pct = v.max ? Math.max(0, Math.min(100, (v.hp / v.max) * 100)) : null;
                 const color = pct == null ? 'var(--muted)' : pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--yellow)' : 'var(--red)';
-                const conds = v.conds.map((x) => `<span title="${escapeHtml(x)}">${condIconHtml(x)}</span>`).join('');
+                const conds = v.conds.map((x) => `<span title="${escapeHtml(condLabel(x))}">${condIconHtml(x)}</span>`).join('');
                 return `<button class="party-row" data-open-char="${c.id}">
                   <span class="party-nm">${escapeHtml(c.name)}${v.conc ? ' 🧠' : ''}</span>
                   <span class="party-vit">
-                    ${v.ac != null && v.ac !== '' ? `<span class="party-ac" title="CA">🛡${escapeHtml(String(v.ac))}</span>` : ''}
+                    ${v.ac != null && v.ac !== '' ? `<span class="party-ac" title="${t('dock.ac')}">🛡${escapeHtml(String(v.ac))}</span>` : ''}
                     ${v.max ? `<span class="party-hp">${v.hp ?? '?'}/${v.max}${v.temp ? ` +${v.temp}` : ''}</span>` : '<span class="party-hp muted">—</span>'}
                   </span>
                   ${pct != null ? `<span class="party-bar"><span style="width:${pct}%;background:${color}"></span></span>` : ''}
@@ -58,7 +59,7 @@ function render() {
                 </button>`;
               })
               .join('')
-          : '<div class="party-empty">Aucun personnage.</div>'
+          : `<div class="party-empty">${t('party.empty')}</div>`
       }
     </div>`;
   _el.querySelector('.party-x')?.addEventListener('click', () => setParty(false));
