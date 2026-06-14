@@ -2914,7 +2914,7 @@ html[data-vttrail] #view { min-height: calc(100vh - 70px); }
 .sw-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; background: linear-gradient(135deg, transparent 50%, var(--border-l) 50%); border-bottom-right-radius: 12px; }
 
 /* ════════════════════════════════════════════════════════════════════════
-   Fiches dynamiques SRD (porté de vault-mj) : sélecteurs de gabarit, modale
+   Fiches dynamiques SRD : sélecteurs de gabarit, modale
    d'aperçu cochable, multiclassage, encart maîtrises, étiquettes d'histoire.
    ════════════════════════════════════════════════════════════════════════ */
 
