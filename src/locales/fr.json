@@ -772,5 +772,27 @@
   "dock.res.title": "Ressource",
   "dock.res": "Ress.",
   "dock.combat.empty": "Aucun combat en cours.",
-  "dock.combat.noEvents": "Aucun événement."
+  "dock.combat.noEvents": "Aucun événement.",
+
+  "app.btn.campaigns": "Campagnes (basculer / créer)",
+  "app.btn.search": "Rechercher (Ctrl+K)",
+  "app.btn.party": "Aperçu du groupe (PV/CA/états)",
+  "app.btn.clock": "Temps in-game (jour/nuit)",
+  "app.btn.vol": "Volume du son (local)",
+  "app.btn.prefs": "Affichage (taille, contraste, animations)",
+  "app.btn.sfx": "Sons ponctuels (soundboard)",
+  "app.btn.pause": "Mettre la partie en pause",
+  "app.btn.export": "Exporter les données (JSON)",
+  "app.btn.profile": "Mon profil",
+  "app.logout": "Déconnexion",
+
+  "auth.name": "Nom / pseudo",
+  "auth.email": "Email",
+  "auth.password": "Mot de passe",
+  "auth.login": "Connexion",
+  "auth.signup": "Inscription",
+  "auth.toSignup": "Pas de compte ? S'inscrire",
+  "auth.toLogin": "Déjà un compte ? Se connecter",
+  "auth.err.required": "Tous les champs sont requis.",
+  "auth.err.generic": "Erreur."
 }

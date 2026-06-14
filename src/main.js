@@ -1,5 +1,6 @@
 import './styles/base.css';
 import { store } from './state.js';
+import { t } from './lib/i18n.js';
 import {
   getCurrentUser,
   signIn,
@@ -109,20 +110,20 @@ function renderShell() {
         <h1 class="app-title" style="font-size:15px;flex:1">
           ⚔ Mistkeep <span style="font-size:10px">v5</span>
         </h1>
-        <button class="hbtn" id="campaigns-btn" title="Campagnes (basculer / créer)">🏰</button>
-        <button class="hbtn" id="search-btn" title="Rechercher (Ctrl+K)">🔍</button>
-        <button class="hbtn" id="party-btn" title="Aperçu du groupe (PV/CA/états)">👥</button>
-        <button class="hbtn" id="clock-btn" title="Temps in-game (jour/nuit)">🕐</button>
-        <button class="hbtn" id="vol-btn" title="Volume du son (local)">🔉</button>
-        <button class="hbtn" id="prefs-btn" title="Affichage (taille, contraste, animations)">⚙</button>
-        ${store.get().isDM ? `<button class="hbtn" id="sfx-btn" title="Sons ponctuels (soundboard)">🔊</button>` : ''}
-        ${store.get().isDM ? `<button class="hbtn" id="pause-btn" title="Mettre la partie en pause">⏸</button>` : ''}
-        ${store.get().isDM ? `<button class="hbtn" id="export-btn" title="Exporter les données (JSON)">💾</button>` : ''}
-        <button class="profile-btn" id="profile-btn" title="Mon profil">
+        <button class="hbtn" id="campaigns-btn" title="${t('app.btn.campaigns')}">🏰</button>
+        <button class="hbtn" id="search-btn" title="${t('app.btn.search')}">🔍</button>
+        <button class="hbtn" id="party-btn" title="${t('app.btn.party')}">👥</button>
+        <button class="hbtn" id="clock-btn" title="${t('app.btn.clock')}">🕐</button>
+        <button class="hbtn" id="vol-btn" title="${t('app.btn.vol')}">🔉</button>
+        <button class="hbtn" id="prefs-btn" title="${t('app.btn.prefs')}">⚙</button>
+        ${store.get().isDM ? `<button class="hbtn" id="sfx-btn" title="${t('app.btn.sfx')}">🔊</button>` : ''}
+        ${store.get().isDM ? `<button class="hbtn" id="pause-btn" title="${t('app.btn.pause')}">⏸</button>` : ''}
+        ${store.get().isDM ? `<button class="hbtn" id="export-btn" title="${t('app.btn.export')}">💾</button>` : ''}
+        <button class="profile-btn" id="profile-btn" title="${t('app.btn.profile')}">
           <span class="profile-avatar" id="hdr-av"></span>
           <span id="hdr-name"></span>
         </button>
-        <button class="link" style="width:auto;margin:0" id="logout">Déconnexion</button>
+        <button class="link" style="width:auto;margin:0" id="logout">${t('app.logout')}</button>
       </header>
       <nav id="nav" class="nav-bar"></nav>
       <div id="view"></div>
@@ -168,7 +169,7 @@ function toggleVolumePopover(anchor) {
   const layers = store.get().ambience?.layers || [];
   pop.innerHTML = `
     <div class="vol-row vol-master">
-      <span class="vol-lbl">🔊 Maître</span>
+      <span class="vol-lbl">${t('dock.vol.master')}</span>
       <input type="range" min="0" max="100" step="1" value="${getMasterVol()}" data-master>
       <span class="vol-pop-v">${getMasterVol()} %</span>
     </div>
@@ -178,13 +179,13 @@ function toggleVolumePopover(anchor) {
           layers
             .map(
               (l) => `<div class="vol-row">
-                <span class="vol-lbl" title="${escapeHtml(l.name || 'Piste')}">${escapeHtml(l.name || 'Piste')}</span>
+                <span class="vol-lbl" title="${escapeHtml(l.name || t('amb.track'))}">${escapeHtml(l.name || t('amb.track'))}</span>
                 <input type="range" min="0" max="100" step="1" value="${getLayerLocal(l.id)}" data-layer="${l.id}">
                 <span class="vol-pop-v">${getLayerLocal(l.id)} %</span>
               </div>`
             )
             .join('')
-        : `<div class="vol-empty">Aucune piste en cours.</div>`
+        : `<div class="vol-empty">${t('dock.vol.empty')}</div>`
     }`;
   document.body.appendChild(pop);
   _volPop = pop;
@@ -219,7 +220,7 @@ function updateHeaderProfile() {
   const color = colorFor(user?.id, profile?.display_name);
   av.textContent = initials(profile?.display_name);
   av.style.background = color;
-  nm.textContent = `${profile?.display_name ?? ''} • ${role === 'dm' ? '🎭 MJ' : '🎲 Joueur'}`;
+  nm.textContent = `${profile?.display_name ?? ''} • ${role === 'dm' ? `🎭 ${t('common.gm')}` : `🎲 ${t('common.player')}`}`;
 }
 
 function renderAuth(mode) {
@@ -231,14 +232,14 @@ function renderAuth(mode) {
         ${
           isLogin
             ? ''
-            : `<div class="field"><label>Nom / pseudo</label><input id="name" type="text" autocomplete="nickname"></div>`
+            : `<div class="field"><label>${t('auth.name')}</label><input id="name" type="text" autocomplete="nickname"></div>`
         }
-        <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email"></div>
-        <div class="field"><label>Mot de passe</label><input id="password" type="password" autocomplete="current-password"></div>
-        <button class="btn" id="submit">${isLogin ? 'Connexion' : 'Inscription'}</button>
+        <div class="field"><label>${t('auth.email')}</label><input id="email" type="email" autocomplete="email"></div>
+        <div class="field"><label>${t('auth.password')}</label><input id="password" type="password" autocomplete="current-password"></div>
+        <button class="btn" id="submit">${isLogin ? t('auth.login') : t('auth.signup')}</button>
         <div class="error" id="err"></div>
         <button class="link" id="switch">
-          ${isLogin ? "Pas de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
+          ${isLogin ? t('auth.toSignup') : t('auth.toLogin')}
         </button>
       </div>
     </div>
@@ -256,11 +257,11 @@ function renderAuth(mode) {
     const name = document.getElementById('name')?.value.trim();
 
     if (!email || !password || (!isLogin && !name)) {
-      err.textContent = 'Tous les champs sont requis.';
+      err.textContent = t('auth.err.required');
       return;
     }
     if (!isLogin && password.length < 6) {
-      err.textContent = 'Mot de passe trop court (min. 6 caractères).';
+      err.textContent = t('profile.pwd.err.short');
       return;
     }
 
@@ -270,7 +271,7 @@ function renderAuth(mode) {
         : await signUp(email, password, name);
       if (user) await enterApp(user);
     } catch (e) {
-      err.textContent = e.message || 'Erreur.';
+      err.textContent = e.message || t('auth.err.generic');
     }
   });
 }
