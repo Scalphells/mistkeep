@@ -60,6 +60,13 @@ describe('miroir EN (Phase 2 — fichiers par langue)', () => {
     expect(barb?.hd).toBe(12);
     expect(en.SUBCLASSES['Path of the Berserker']?.key).toBe('voie-du-berserker');
   });
+
+  it('intègre le roster PHB 2014 côté EN (clé stable = slug FR)', async () => {
+    const en = await import('../src/lib/srd5e.en.js');
+    expect(en.SUBCLASSES['Way of Shadow']?.key).toBe('voie-de-l-ombre');
+    expect(en.SUBCLASSES['Way of Shadow']?.classKey).toBe('moine');
+    expect(en.CLASSES.find((c) => c.key === 'moine').subclasses).toContain('Way of Shadow');
+  });
 });
 
 describe('résolution cross-locale (fiches héritées sous une autre langue)', () => {
@@ -76,6 +83,12 @@ describe('résolution cross-locale (fiches héritées sous une autre langue)', (
     expect(classByLabel('Moine').key).toBe('moine');
     expect(raceByLabel('Elfe Sylvestre').key).toBe('elfe-sylvestre');
     expect(subclassByLabel('Voie du Berserker').key).toBe('voie-du-berserker');
+  });
+
+  it('résout une sous-classe du roster PHB ajouté (FR natif + libellé EN)', () => {
+    expect(subclassByLabel("Voie de l'Ombre").key).toBe('voie-de-l-ombre');
+    expect(subclassByLabel("Voie de l'Ombre").classKey).toBe('moine');
+    expect(subclassByLabel('Way of Shadow').key).toBe('voie-de-l-ombre');
   });
 });
 
@@ -394,8 +407,11 @@ describe('srdManagedLines', () => {
 });
 
 describe('sous-classes (par niveau)', () => {
-  it('couvre une sous-classe par classe (12)', () => {
-    expect(Object.keys(SUBCLASSES)).toHaveLength(12);
+  it('couvre le roster PHB 2014 complet (40 sous-classes, ≥1 par classe)', () => {
+    const subs = Object.values(SUBCLASSES);
+    expect(subs).toHaveLength(40);
+    expect(new Set(subs.map((s) => s.classKey)).size).toBe(12);
+    expect(CLASSES.find((c) => c.key === 'moine').subclasses).toContain("Voie de l'Ombre");
   });
 
   it('subclassByLabel : libellé exact, accents/apostrophes inclus', () => {
