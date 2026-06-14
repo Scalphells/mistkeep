@@ -124,10 +124,19 @@ export function openWindow(id, { title = tr('float.window'), mount, width, heigh
 
 function bringToFront(win) {
   if (!win) return;
-  // Stay below the modal/overlay band (100000+, see base.css) so dialogs always
-  // open on top of floating windows.
-  if (_z < 99990) _z += 1;
-  win.style.zIndex = String(_z);
+  // Les fenêtres flottantes restent SOUS les overlays/modales plein écran
+  // (z-index 100000+). On plafonne donc le compteur juste en dessous et on le
+  // ré-étale sur les fenêtres ouvertes quand il atteint la borne, pour conserver
+  // l'ordre relatif sans jamais repasser au-dessus d'une modale.
+  if (_z >= 99989) {
+    _z = 1200;
+    const ordered = [...WINDOWS.values()]
+      .map((e) => e.el)
+      .filter((el) => el !== win)
+      .sort((a, b) => (parseInt(a.style.zIndex, 10) || 0) - (parseInt(b.style.zIndex, 10) || 0));
+    for (const el of ordered) el.style.zIndex = String(++_z);
+  }
+  win.style.zIndex = String(++_z);
 }
 
 function initDrag(handle, win) {
