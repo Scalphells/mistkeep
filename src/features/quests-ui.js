@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { getQuests, addQuest, updateQuest, toggleQuestDone, removeQuest } from '../lib/quests.js';
@@ -51,12 +52,12 @@ function questRow(q, isDM) {
   const note = q.note && q.note.trim() ? `<div class="quest-note md">${renderMarkdown(q.note)}</div>` : '';
   return `<div class="quest-item ${q.done ? 'done' : ''}" data-q="${q.id}">
       <div class="quest-line">
-        <button class="quest-check ${q.done ? 'on' : ''}" ${isDM ? `data-q-done="${q.id}"` : 'disabled'} title="${q.done ? 'Terminée' : 'En cours'}">${q.done ? '✓' : ''}</button>
+        <button class="quest-check ${q.done ? 'on' : ''}" ${isDM ? `data-q-done="${q.id}"` : 'disabled'} title="${q.done ? t('quests.check.done') : t('quests.check.active')}">${q.done ? '✓' : ''}</button>
         ${
           isDM
-            ? `<input class="quest-title-in" value="${escapeHtml(q.title || '')}" data-q-title="${q.id}" placeholder="Objectif"/>
-               <button class="quest-x" data-q-del="${q.id}" title="Retirer">✕</button>`
-            : `<span class="quest-title">${escapeHtml(q.title || 'Objectif')}</span>`
+            ? `<input class="quest-title-in" value="${escapeHtml(q.title || '')}" data-q-title="${q.id}" placeholder="${t('quests.objective')}"/>
+               <button class="quest-x" data-q-del="${q.id}" title="${t('common.remove')}">✕</button>`
+            : `<span class="quest-title">${escapeHtml(q.title || t('quests.objective'))}</span>`
         }
       </div>
       ${
@@ -80,20 +81,20 @@ function render(card) {
     (list.length ? list.map((q) => questRow(q, isDM)).join('') : `<div class="quest-empty">—</div>`);
 
   card.innerHTML = `
-    <h3 class="modal-title">📜 Journal de quêtes</h3>
+    <h3 class="modal-title">${t('quests.title')}</h3>
     <div class="quest-list">
-      ${section('🟢 En cours', active)}
-      ${done.length || isDM ? section('✓ Terminées', done) : ''}
+      ${section(t('quests.sec.active'), active)}
+      ${done.length || isDM ? section(t('quests.sec.done'), done) : ''}
     </div>
     ${
       isDM
         ? `<form class="quest-add" id="quest-add">
-             <input id="quest-title" placeholder="Nouvelle quête / objectif" required/>
-             <button class="btn" type="submit">+ Ajouter</button>
+             <input id="quest-title" placeholder="${t('quests.add.ph')}" required/>
+             <button class="btn" type="submit">+ ${t('common.add')}</button>
            </form>`
-        : '<p class="quest-hint">Objectifs tenus à jour par le MJ.</p>'
+        : `<p class="quest-hint">${t('quests.hint')}</p>`
     }
-    <div class="modal-actions"><button class="modal-btn quest-close">Fermer</button></div>`;
+    <div class="modal-actions"><button class="modal-btn quest-close">${t('common.close')}</button></div>`;
 
   card.querySelector('.quest-close').addEventListener('click', closeQuests);
   if (!isDM) return;
@@ -112,9 +113,9 @@ function render(card) {
   );
   card.querySelector('#quest-add')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const t = card.querySelector('#quest-title').value.trim();
-    if (!t) return;
-    addQuest({ title: t });
+    const title = card.querySelector('#quest-title').value.trim();
+    if (!title) return;
+    addQuest({ title });
     e.target.reset();
     card.querySelector('#quest-title').focus();
   });

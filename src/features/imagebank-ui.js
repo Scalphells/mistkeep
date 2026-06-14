@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { modalAlert, modalConfirm } from '../lib/modal.js';
 import { showToast } from '../lib/toast.js';
 import { loadImageBank, addBankImages, removeBankImage } from './imagebank.js';
@@ -12,19 +13,19 @@ import { uploadTokenAsset, signedTokenUrl, addToken, setBackgroundFromPath } fro
 
 export async function mountImageBank(container) {
   if (!store.get().isDM) {
-    container.innerHTML = `<div class="cmp-placeholder">Réservé au MJ.</div>`;
+    container.innerHTML = `<div class="cmp-placeholder">${t('common.dmOnly')}</div>`;
     return () => {};
   }
   container.innerHTML = `
     <div class="bank-wrap">
       <header class="bank-head">
-        <div class="camp2-title">🖼 Banque d'images</div>
-        <label class="btn bank-import" title="Importer des images">📂 Importer
+        <div class="camp2-title">${t('bank.title')}</div>
+        <label class="btn bank-import" title="${t('bank.import.title')}">${t('common.import')}
           <input type="file" id="bank-file" accept="image/*" multiple hidden>
         </label>
         <span class="bank-count" id="bank-count"></span>
       </header>
-      <p class="bank-hint">Images réutilisables pour les jetons, les fonds de carte et le compendium. Glisse une vignette sur la carte pour en faire un jeton.</p>
+      <p class="bank-hint">${t('bank.hint')}</p>
       <div class="bank-grid" id="bank-grid"></div>
     </div>`;
 
@@ -32,14 +33,14 @@ export async function mountImageBank(container) {
     const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'));
     e.target.value = '';
     if (!files.length) return;
-    showToast(`Import de ${files.length} image(s)…`, { timeout: 1500 });
+    showToast(t('bank.toast.importing', { n: files.length }), { timeout: 1500 });
     const paths = [];
     for (const f of files) {
       try {
         const p = await uploadTokenAsset(f);
         if (p) paths.push(p);
       } catch (ex) {
-        await modalAlert('Import impossible : ' + ex.message, { title: 'Banque' });
+        await modalAlert(t('bank.err.import') + ex.message, { title: t('bank.modalTitle') });
       }
     }
     addBankImages(paths);
@@ -56,20 +57,20 @@ function render(container) {
   const count = container.querySelector('#bank-count');
   if (!grid) return;
   const imgs = store.get().imagebank || [];
-  if (count) count.textContent = imgs.length ? `${imgs.length} image(s)` : '';
+  if (count) count.textContent = imgs.length ? t('bank.count', { n: imgs.length }) : '';
   if (!imgs.length) {
-    grid.innerHTML = `<div class="cmp-placeholder">Aucune image. Clique sur « 📂 Importer ».</div>`;
+    grid.innerHTML = `<div class="cmp-placeholder">${t('bank.empty')}</div>`;
     return;
   }
   grid.innerHTML = imgs
     .map(
-      (p) => `<div class="bank-cell" data-path="${encodeURIComponent(p)}" draggable="true" title="Glisser sur la carte = jeton">
+      (p) => `<div class="bank-cell" data-path="${encodeURIComponent(p)}" draggable="true" title="${t('bank.drag')}">
         <span class="bank-thumb" data-thumb="${encodeURIComponent(p)}"></span>
         <div class="bank-acts">
-          <button class="bank-act" data-bg title="Définir comme fond de la scène active">🗺</button>
-          <button class="bank-act" data-tok title="Ajouter comme jeton (scène active)">🎭</button>
-          <button class="bank-act" data-copy title="Copier le chemin">📋</button>
-          <button class="bank-act danger" data-del title="Supprimer de la banque">🗑</button>
+          <button class="bank-act" data-bg title="${t('bank.setBg')}">🗺</button>
+          <button class="bank-act" data-tok title="${t('bank.addTok')}">🎭</button>
+          <button class="bank-act" data-copy title="${t('bank.copyPath')}">📋</button>
+          <button class="bank-act danger" data-del title="${t('bank.del')}">🗑</button>
         </div>
       </div>`
     )
@@ -91,25 +92,25 @@ function render(container) {
     });
     cell.querySelector('[data-bg]').addEventListener('click', async () => {
       await setBackgroundFromPath(path);
-      showToast('🗺 Fond de scène défini.', { timeout: 1800 });
+      showToast(t('bank.toast.bg'), { timeout: 1800 });
     });
     cell.querySelector('[data-tok]').addEventListener('click', () => {
       const m = store.get().map;
       const cx = Math.round((m?.bgW || 1600) / 2 + (Math.random() * 120 - 60));
       const cy = Math.round((m?.bgH || 1000) / 2 + (Math.random() * 120 - 60));
       addToken({ x: cx, y: cy, label: '', img: path });
-      showToast('🎭 Jeton ajouté à la scène active.', { timeout: 1800 });
+      showToast(t('bank.toast.tok'), { timeout: 1800 });
     });
     cell.querySelector('[data-copy]').addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(path);
-        showToast('📋 Chemin copié.', { timeout: 1500 });
+        showToast(t('bank.toast.copied'), { timeout: 1500 });
       } catch {
-        await modalAlert(path, { title: 'Chemin de l’image' });
+        await modalAlert(path, { title: t('bank.pathTitle') });
       }
     });
     cell.querySelector('[data-del]').addEventListener('click', async () => {
-      if (await modalConfirm('Retirer cette image de la banque ? (le fichier reste dans le stockage)', { title: 'Banque', danger: true, okLabel: 'Retirer' }))
+      if (await modalConfirm(t('bank.del.confirm'), { title: t('bank.modalTitle'), danger: true, okLabel: t('common.remove') }))
         removeBankImage(path);
     });
   });
