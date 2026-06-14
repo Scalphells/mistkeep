@@ -2998,7 +2998,7 @@ export async function mountMap(container) {
         ? `c:${existing.charId}`
         : '';
     const linkOptions = `
-      <option value="">Aucun (jeton autonome)</option>
+      <option value="">${tr('map.te.linkNone')}</option>
       ${combatants.length ? `<optgroup label="Turn order (combat)">${combatants.map((c) => `<option value="e:${c.entity_id}" ${initLink === `e:${c.entity_id}` ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}</optgroup>` : ''}
       ${chars.length ? `<optgroup label="Fiches">${chars.map((c) => `<option value="c:${c.id}" ${initLink === `c:${c.id}` ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}</optgroup>` : ''}`;
     const f = {

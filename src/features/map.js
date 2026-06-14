@@ -129,12 +129,12 @@ async function setActivePointer(id) {
 /** Crée une scène (vierge) et l'active (MJ). */
 export async function createScene(name) {
   if (!store.get().isDM) return;
-  const id = await insertScene(name || 'Nouvelle scène', { ...DEFAULT_MAP });
+  const id = await insertScene(name || tr('map.scene.new'), { ...DEFAULT_MAP });
   if (!id) return;
   // Ajout idempotent : l'écho temps réel instantané a pu déjà l'ajouter.
   const cur = store.get().scenes;
   if (!cur.some((s) => s.id === id)) {
-    store.set({ scenes: [...cur, { id, name: name || 'Nouvelle scène', sort: cur.length }] });
+    store.set({ scenes: [...cur, { id, name: name || tr('map.scene.new'), sort: cur.length }] });
   }
   await switchScene(id);
 }

@@ -87,7 +87,7 @@ export function openWindow(id, { title = tr('float.window'), mount, width, heigh
       </div>
     </div>
     <div class="sheet-window-body"></div>
-    <div class="sw-resize" title="Redimensionner"></div>`;
+    <div class="sw-resize" title="${tr('float.resize')}"></div>`;
   document.body.appendChild(win);
 
   // Taille initiale (bornée à la fenêtre du navigateur).

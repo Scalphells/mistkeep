@@ -1322,11 +1322,11 @@ function paneContent(id, sys, sheet, c, d, ed, ro) {
     case 'combat':
       return `<section class="sheet-block">
           <h3>${t('sheet.h.attacks')} ${ed ? `<button class="mini-add" data-add="atk">+</button>` : ''}</h3>
-          <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || `<div class="char-empty">Aucune attaque.${ed ? ' Ajoute-en une avec +.' : ''}</div>`}</div>
+          <div class="atk-table">${(d.atks || []).map((a, i) => atkRow(a, i, ed)).join('') || `<div class="char-empty">${t('char.noAtk')}${ed ? t('char.addHint') : ''}</div>`}</div>
         </section>
         ${resourcesSection(d, ed)}`;
     case 'spells':
-      return spellsSection(d, ed) || '<div class="char-empty">Aucun sort.</div>';
+      return spellsSection(d, ed) || `<div class="char-empty">${t('char.noSpell')}</div>`;
     case 'feats':
       return featuresSection(d, ed);
     case 'inv':

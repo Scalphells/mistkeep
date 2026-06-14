@@ -150,7 +150,7 @@ async function srdFetch(path) {
       lastErr = e;
     }
   }
-  throw lastErr || new Error('SRD indisponible');
+  throw lastErr || new Error(t('cmp.err.srdUnavailable'));
 }
 
 /* Points d'entrée SRD par type. Le SRD 5.1 ne contient que les 9 races de base

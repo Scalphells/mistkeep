@@ -68,7 +68,7 @@ export async function createCampaign(name, system) {
   const uid = store.get().user?.id;
   const { data, error } = await backend.db
     .from('campaigns')
-    .insert({ name: String(name).trim() || 'Campagne', system: system || 'dnd5e-2014', owner_id: uid })
+    .insert({ name: String(name).trim() || tr('campaigns.defaultName'), system: system || 'dnd5e-2014', owner_id: uid })
     .select('*')
     .single();
   if (error) throw new Error(error.message);

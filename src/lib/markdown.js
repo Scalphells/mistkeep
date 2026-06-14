@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
+import { t as tr } from './i18n.js';
 
 /**
  * Rendu Markdown SÛR.
@@ -30,7 +31,7 @@ function escapeAttr(s) {
 
 function rollAnchor(expr) {
   const e = String(expr).trim();
-  return `<a class="md-roll" data-roll="${escapeAttr(e)}" title="Lancer ${escapeAttr(e)}">🎲 ${e}</a>`;
+  return `<a class="md-roll" data-roll="${escapeAttr(e)}" title="${escapeAttr(tr('md.rollTitle', { e }))}">🎲 ${e}</a>`;
 }
 
 /**
@@ -49,7 +50,7 @@ function enrich(html) {
   };
   html = html.replace(/@\[\[([^\]\n]+?)\]\]/g, (_m, name) => {
     const n = name.trim();
-    return stash(`<a class="md-ref" data-ref="${escapeAttr(n)}" title="Ouvrir dans le compendium">🔗 ${n}</a>`);
+    return stash(`<a class="md-ref" data-ref="${escapeAttr(n)}" title="${escapeAttr(tr('md.refTitle'))}">🔗 ${n}</a>`);
   });
   html = html.replace(/\[\[\s*([0-9dD][0-9dD +\-*]*?)\s*\]\]/g, (_m, expr) => stash(rollAnchor(expr)));
 
