@@ -43,7 +43,7 @@ import { t } from '../lib/i18n.js';
  * suivent le combat en temps réel (lecture seule).
  */
 
-import { CONDITIONS, condIcon, condIconHtml } from '../lib/conditions.js';
+import { CONDITIONS, condIcon, condIconHtml, condLabel } from '../lib/conditions.js';
 
 /** Rappel d'un jet de Concentration si un combattant concentré subit des dégâts. */
 function concentrationCheck(entityId, damage) {
@@ -53,7 +53,7 @@ function concentrationCheck(entityId, damage) {
     (c.effects || []).some((e) => e.concentration) || (c.conditions || []).includes('Concentration');
   if (!concentrating) return;
   const dc = Math.max(10, Math.floor(damage / 2));
-  showToast(`🧠 ${c.name} : jet de Concentration, DD ${dc} (sauvegarde de Constitution)`, {
+  showToast(t('init.toast.conc', { name: c.name, dc }), {
     type: 'warn',
     icon: '⚠️',
     timeout: 8000,
@@ -206,13 +206,13 @@ function renderLog(container) {
   if (!el) return;
   const log = (store.get().combatLog || []).filter((e) => store.get().isDM || !e.dm);
   if (!log.length) {
-    el.innerHTML = `<div class="init-log-empty">Aucun événement.</div>`;
+    el.innerHTML = `<div class="init-log-empty">${t('dock.combat.noEvents')}</div>`;
     return;
   }
   el.innerHTML = log
     .slice(-120)
     .map((e) => {
-      const time = new Date(e.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const time = new Date(e.t).toLocaleTimeString(t('locale.bcp47'), { hour: '2-digit', minute: '2-digit' });
       return `<div class="init-log-row"><time>${time}</time> ${escapeHtml(e.text)}</div>`;
     })
     .join('');
@@ -256,15 +256,15 @@ function playerCombatPanel() {
       ${
         comb
           ? `<div class="ipp-row">
-               <span class="ipp-init" title="Mon initiative">Init <b>${comb.initiative ?? 0}</b></span>
-               <button class="dice-btn" data-pp="rollinit">🎲 Lancer mon init.</button>
-               <button class="dice-btn" data-pp="leave">✖ Quitter</button>
+               <span class="ipp-init" title="${t('init.myInit')}">${t('dock.init')} <b>${comb.initiative ?? 0}</b></span>
+               <button class="dice-btn" data-pp="rollinit">${t('init.rollMine')}</button>
+               <button class="dice-btn" data-pp="leave">${t('dock.leave')}</button>
              </div>
-             <div class="ipp-conds-lbl">Mes états :</div>
+             <div class="ipp-conds-lbl">${t('init.myConds')}</div>
              <div class="ipp-conds">${CONDITIONS
-               .map((c) => `<button class="ipp-cond ${conds.includes(c.n) ? 'on' : ''}" data-cond="${escapeHtml(c.n)}" title="${escapeHtml(c.n)}">${c.i}</button>`)
+               .map((c) => `<button class="ipp-cond ${conds.includes(c.n) ? 'on' : ''}" data-cond="${escapeHtml(c.n)}" title="${escapeHtml(condLabel(c.n))}">${c.i}</button>`)
                .join('')}</div>`
-          : `<button class="dice-btn" data-pp="join">➕ Rejoindre le combat</button>`
+          : `<button class="dice-btn" data-pp="join">${t('dock.join')}</button>`
       }
     </div>`;
 }
@@ -398,7 +398,7 @@ function renderList(container) {
   const { initiative, initTurn, initRound, isDM } = store.get();
 
   if (!initiative.length) {
-    el.innerHTML = `<div class="char-empty">Aucun combattant. ${isDM ? 'Ajoute-en un ou importe les PJ.' : ''}</div>`;
+    el.innerHTML = `<div class="char-empty">${t('init.empty')} ${isDM ? t('init.emptyDM') : ''}</div>`;
     return;
   }
 
@@ -413,7 +413,7 @@ function renderList(container) {
       if (!c) return;
       const id = tokenIdForComb(c);
       if (!id) {
-        showToast('Ce combattant n’a pas de jeton sur la carte.', { timeout: 2400 });
+        showToast(t('init.toast.noToken'), { timeout: 2400 });
         return;
       }
       const set = new Set(store.get().targets || []);
@@ -430,7 +430,7 @@ function renderList(container) {
       if (isDM) rollDeathSave(b.dataset.dsroll);
       else if (b.dataset.char) {
         sendPlayerRequest({ kind: 'deathsave', charId: b.dataset.char });
-        showToast('🎲 Sauvegarde contre la mort envoyée au MJ.', { timeout: 1800 });
+        showToast(t('init.toast.dsSent'), { timeout: 1800 });
       }
     })
   );
@@ -488,14 +488,14 @@ function renderList(container) {
   el.querySelectorAll('[data-add-effect]').forEach((b) =>
     b.addEventListener('click', async () => {
       const conc = b.dataset.concentration === '1';
-      const name = await modalPrompt(conc ? 'Sort/effet de concentration :' : 'Nom de l\'effet :', {
-        title: conc ? 'Concentration' : 'Effet',
-        placeholder: conc ? 'Ex. Bénédiction' : 'Ex. Marqué',
+      const name = await modalPrompt(conc ? t('init.eff.concPrompt') : t('init.eff.namePrompt'), {
+        title: conc ? t('cond.concentration') : t('init.eff.title'),
+        placeholder: conc ? t('init.eff.concPh') : t('init.eff.namePh'),
       });
       if (!name || !name.trim()) return;
       let rounds = '';
       if (!conc) {
-        rounds = await modalPrompt('Durée en rounds (vide = jusqu\'à dissipation) :', { title: 'Durée', placeholder: 'Ex. 10' });
+        rounds = await modalPrompt(t('init.eff.durPrompt'), { title: t('init.eff.durTitle'), placeholder: t('init.eff.durPh') });
         if (rounds === null) return;
       }
       addEffect(b.dataset.addEffect, { name: name.trim(), rounds: rounds && rounds.trim() ? rounds.trim() : null, concentration: conc });
@@ -581,18 +581,18 @@ function deathSavesHtml(c, isDM) {
   const succ = [1, 2, 3].map((i) => pip('s', i, ds.s >= i)).join('');
   const fail = [1, 2, 3].map((i) => pip('f', i, ds.f >= i)).join('');
   const status = dead
-    ? '<span class="ds-status dead">☠️ Mort</span>'
+    ? `<span class="ds-status dead">${t('init.ds.dead')}</span>`
     : stable
-      ? '<span class="ds-status stable">🟢 Stabilisé</span>'
+      ? `<span class="ds-status stable">${t('init.ds.stable')}</span>`
       : '';
   const roll =
     (isDM || mine) && !stable && !dead
-      ? `<button class="ds-roll" data-dsroll="${c.entity_id}" data-char="${escapeHtml(c.char_id)}" title="Lancer une sauvegarde contre la mort">🎲</button>`
+      ? `<button class="ds-roll" data-dsroll="${c.entity_id}" data-char="${escapeHtml(c.char_id)}" title="${t('init.ds.rollTitle')}">🎲</button>`
       : '';
-  return `<div class="init-deathsaves" title="Jets de sauvegarde contre la mort">
-      <span class="ds-lbl">Mort</span>
-      <span class="ds-succ" title="Réussites">${succ}</span>
-      <span class="ds-fail" title="Échecs">${fail}</span>
+  return `<div class="init-deathsaves" title="${t('init.ds.title')}">
+      <span class="ds-lbl">${t('init.ds.lbl')}</span>
+      <span class="ds-succ" title="${t('sheet.death.success')}">${succ}</span>
+      <span class="ds-fail" title="${t('sheet.death.fail')}">${fail}</span>
       ${roll}${status}
     </div>`;
 }
@@ -607,7 +607,7 @@ function combatantRow(c, i, active, isDM, round) {
   const conds = (c.conditions || [])
     .map(
       (cond) =>
-        `<span class="cond-tag">${condIconHtml(cond)} ${escapeHtml(cond)}${
+        `<span class="cond-tag">${condIconHtml(cond)} ${escapeHtml(condLabel(cond))}${
           isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-delcond="${escapeHtml(cond)}">×</button>` : ''
         }</span>`
     )
@@ -617,7 +617,7 @@ function combatantRow(c, i, active, isDM, round) {
     .map((ef, idx) => {
       const rem = ef.until == null ? null : ef.until - (round || 1);
       const expired = rem != null && rem <= 0;
-      const remTxt = ef.until == null ? '∞' : expired ? 'fini' : `${rem}`;
+      const remTxt = ef.until == null ? '∞' : expired ? t('init.eff.expired') : `${rem}`;
       return `<span class="eff-tag ${ef.concentration ? 'conc' : ''} ${expired ? 'expired' : ''}">
         ${ef.concentration ? '🧠 ' : ''}${escapeHtml(ef.name)} <em>${remTxt}</em>${
         isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-deleffect="${idx}">×</button>` : ''
@@ -627,21 +627,21 @@ function combatantRow(c, i, active, isDM, round) {
 
   const effAdd = isDM
     ? `<span class="eff-add">
-         <button class="eff-btn" data-add-effect="${c.entity_id}" title="Ajouter un effet">＋ effet</button>
-         <button class="eff-btn" data-add-effect="${c.entity_id}" data-concentration="1" title="Concentration">🧠</button>
+         <button class="eff-btn" data-add-effect="${c.entity_id}" title="${t('init.addEffect')}">${t('init.effBtn')}</button>
+         <button class="eff-btn" data-add-effect="${c.entity_id}" data-concentration="1" title="${t('cond.concentration')}">🧠</button>
        </span>`
     : '';
 
   const stBadge =
     c.status === 'ready'
-      ? '<span class="init-status ready" title="Action préparée">⏳ Prête</span>'
+      ? `<span class="init-status ready" title="${t('init.status.ready.title')}">${t('init.status.ready')}</span>`
       : c.status === 'delayed'
-        ? '<span class="init-status delayed" title="Tour retardé">⏸ Retardée</span>'
+        ? `<span class="init-status delayed" title="${t('init.status.delayed.title')}">${t('init.status.delayed')}</span>`
         : '';
 
   return `
     <div class="init-row t-${combType(c)} ${active ? 'active' : ''} ${dead ? 'dead' : ''} ${c.status ? `st-${c.status}` : ''}" ${isDM ? `draggable="true" data-eid="${c.entity_id}"` : ''}>
-      <div class="init-order">${isDM ? '<span class="init-grip" title="Glisser pour réordonner">⠿</span>' : ''}${i + 1}</div>
+      <div class="init-order">${isDM ? `<span class="init-grip" title="${t('init.grip')}">⠿</span>` : ''}${i + 1}</div>
       <div class="init-score">
         ${
           isDM
@@ -654,9 +654,9 @@ function combatantRow(c, i, active, isDM, round) {
         ${(() => {
           const tid = tokenIdForComb(c);
           const on = tid && (store.get().targets || []).includes(tid);
-          return `<button class="init-target ${on ? 'on' : ''}" data-target="${c.entity_id}" title="${tid ? 'Cibler / décibler' : 'Aucun jeton sur la carte'}">🎯</button>`;
+          return `<button class="init-target ${on ? 'on' : ''}" data-target="${c.entity_id}" title="${tid ? t('init.target.toggle') : t('init.target.none')}">🎯</button>`;
         })()}
-        ${isDM && statblockFor(c.name) ? `<button class="sb-mini" data-statblock="${escapeHtml(c.name)}" title="Statbloc / attaques">⚔</button>` : ''}
+        ${isDM && statblockFor(c.name) ? `<button class="sb-mini" data-statblock="${escapeHtml(c.name)}" title="${t('init.statblock')}">⚔</button>` : ''}
         ${stBadge}
         <div class="init-conds">${conds}${effects}${effAdd}</div>
         ${deathSavesHtml(c, isDM)}
@@ -670,13 +670,13 @@ function combatantRow(c, i, active, isDM, round) {
                <input type="number" class="init-hp-in" value="${c.hp}" data-hpset="${c.entity_id}" />
                <button class="hp-btn sm" data-id="${c.entity_id}" data-hpdelta="1">+</button>
                <span class="init-hpmax">/${c.hp_max ?? '?'}</span>
-               <span class="init-temp" title="PV temporaires">
-                 <span class="init-temp-lbl">PV temp</span>
+               <span class="init-temp" title="${t('init.tempHp')}">
+                 <span class="init-temp-lbl">${t('sheet.hp.tmp')}</span>
                  <input type="number" min="0" class="init-temp-in" value="${c.hp_temp ?? 0}" data-hptemp="${c.entity_id}" />
                </span>`
             : c.char_id
             ? `<span>${c.hp}${c.hp_max ? ` / ${c.hp_max}` : ''}</span>${
-                c.hp_temp ? ` <span class="init-temp-badge" title="PV temporaires">+${c.hp_temp}</span>` : ''
+                c.hp_temp ? ` <span class="init-temp-badge" title="${t('init.tempHp')}">+${c.hp_temp}</span>` : ''
               }`
             : `<span class="init-hptier">${hpPct !== null ? hpTierLabel(hpPct) : '—'}</span>`
         }
@@ -685,11 +685,11 @@ function combatantRow(c, i, active, isDM, round) {
       ${
         isDM
           ? `<div class="init-actions">
-               <button class="init-st-btn ${c.status === 'ready' ? 'on' : ''}" data-status="ready" data-id="${c.entity_id}" title="Action préparée">⏳</button>
-               <button class="init-st-btn ${c.status === 'delayed' ? 'on' : ''}" data-status="delayed" data-id="${c.entity_id}" title="Retarder le tour">⏸</button>
+               <button class="init-st-btn ${c.status === 'ready' ? 'on' : ''}" data-status="ready" data-id="${c.entity_id}" title="${t('init.status.ready.title')}">⏳</button>
+               <button class="init-st-btn ${c.status === 'delayed' ? 'on' : ''}" data-status="delayed" data-id="${c.entity_id}" title="${t('init.status.delayBtn')}">⏸</button>
                <select class="cond-select" data-cond="${c.entity_id}">
-                 <option value="">+ État</option>
-                 ${CONDITIONS.map((x) => `<option value="${x.n}">${x.i} ${x.n}</option>`).join('')}
+                 <option value="">${t('init.addCond')}</option>
+                 ${CONDITIONS.map((x) => `<option value="${x.n}">${x.i} ${escapeHtml(condLabel(x.n))}</option>`).join('')}
                </select>
                <button class="mini-del" data-remove="${c.entity_id}">×</button>
              </div>`
