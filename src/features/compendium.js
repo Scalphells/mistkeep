@@ -3,6 +3,7 @@ import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { addCombatant } from './initiative.js';
 import { showToast } from '../lib/toast.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * Compendium : bibliothèque de contenu réutilisable du MJ (façon Foundry).
@@ -12,6 +13,8 @@ import { showToast } from '../lib/toast.js';
  * selon le type. Diffusion Realtime.
  */
 
+// `label`/`plural` = repli français ; en pratique l'UI passe par kindLabel /
+// kindPlural ci-dessous, qui traduisent via i18n (clés kind.*).
 export const KINDS = {
   monster: { icon: '👹', label: 'Monstre', plural: 'Monstres' },
   spell: { icon: '✨', label: 'Sort', plural: 'Sorts' },
@@ -23,6 +26,10 @@ export const KINDS = {
   place: { icon: '📍', label: 'Lieu', plural: 'Lieux' },
   table: { icon: '🎲', label: 'Table', plural: 'Tables' },
 };
+
+/** Nom traduit d'un type de compendium (singulier / pluriel). */
+export const kindLabel = (k) => t(`kind.${k}`);
+export const kindPlural = (k) => t(`kind.${k}.pl`);
 
 export async function loadCompendium() {
   // Les joueurs ne reçoivent que les sorts (RLS) ; le MJ reçoit tout.

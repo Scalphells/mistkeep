@@ -4,6 +4,8 @@ import { renderMarkdown } from '../lib/markdown.js';
 import { modalPrompt, modalConfirm, modalAlert } from '../lib/modal.js';
 import {
   KINDS,
+  kindLabel,
+  kindPlural,
   loadCompendium,
   createEntry,
   updateEntry,
@@ -15,6 +17,7 @@ import {
   srdImport,
   srdImportMany,
 } from './compendium.js';
+import { t } from '../lib/i18n.js';
 import { createHandout, uploadHandout } from './handouts.js';
 import { sendMessage } from './chat.js';
 import { addToken, uploadTokenAsset, signedTokenUrl, switchScene } from './map.js';
@@ -59,8 +62,8 @@ export async function mountCompendium(container) {
         <div class="cmp-kinds" id="cmp-kinds"></div>
         <div class="cmp-spellfilters" id="cmp-spellfilters"></div>
         <div class="cmp-searchrow">
-          <input class="cmp-search" id="cmp-search" type="search" placeholder="Rechercher…" autocomplete="off" />
-          <button class="cmp-sort-btn" id="cmp-sort" title="Trier par ordre alphabétique">A→Z</button>
+          <input class="cmp-search" id="cmp-search" type="search" placeholder="${t('compendium.search')}" autocomplete="off" />
+          <button class="cmp-sort-btn" id="cmp-sort" title="${t('compendium.sortTitle')}">A→Z</button>
         </div>
         ${
           isDMv
@@ -566,14 +569,14 @@ function renderSpellFilters(container) {
   const spells = store.get().compendium.filter((e) => e.kind === 'spell');
   const classes = [...new Set(spells.flatMap((e) => e.data?.classes || []))].sort();
   el.innerHTML = `
-    <select id="cmp-flevel" class="cmp-fsel" title="Filtrer par niveau">
-      <option value="">Tous niveaux</option>
+    <select id="cmp-flevel" class="cmp-fsel" title="${t('compendium.filter.levelTitle')}">
+      <option value="">${t('compendium.filter.allLevels')}</option>
       ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         .map((n) => `<option value="${n}" ${String(spellLevel) === String(n) ? 'selected' : ''}>${n === 0 ? 'Mineur' : 'Niv. ' + n}</option>`)
         .join('')}
     </select>
-    <select id="cmp-fclass" class="cmp-fsel" title="Filtrer par classe">
-      <option value="">Toutes classes</option>
+    <select id="cmp-fclass" class="cmp-fsel" title="${t('compendium.filter.classTitle')}">
+      <option value="">${t('compendium.filter.allClasses')}</option>
       ${classes.map((c) => `<option value="${escapeHtml(c)}" ${spellClass === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
     </select>`;
   el.querySelector('#cmp-flevel').addEventListener('change', (e) => {
@@ -607,17 +610,17 @@ function renderKinds(container) {
     el.innerHTML = ['spell', 'item']
       .map(
         (k) =>
-          `<button class="cmp-kind ${filterKind === k ? 'active' : ''}" data-kind="${k}" title="${KINDS[k].plural}">${KINDS[k].icon} ${KINDS[k].plural}</button>`
+          `<button class="cmp-kind ${filterKind === k ? 'active' : ''}" data-kind="${k}" title="${kindPlural(k)}">${KINDS[k].icon} ${kindPlural(k)}</button>`
       )
       .join('');
   } else {
-    const all = `<button class="cmp-kind ${filterKind === 'all' ? 'active' : ''}" data-kind="all">Tout</button>`;
+    const all = `<button class="cmp-kind ${filterKind === 'all' ? 'active' : ''}" data-kind="all">${t('compendium.filter.all')}</button>`;
     el.innerHTML =
       all +
       Object.entries(KINDS)
         .map(
           ([k, v]) =>
-            `<button class="cmp-kind ${filterKind === k ? 'active' : ''}" data-kind="${k}" title="${v.plural}">${v.icon}</button>`
+            `<button class="cmp-kind ${filterKind === k ? 'active' : ''}" data-kind="${k}" title="${kindPlural(k)}">${v.icon}</button>`
         )
         .join('');
   }
@@ -673,7 +676,7 @@ function renderList(container) {
   if (!el) return;
   const list = filtered();
   if (!list.length) {
-    el.innerHTML = `<div class="cmp-empty">Aucune entrée.</div>`;
+    el.innerHTML = `<div class="cmp-empty">${t('compendium.empty')}</div>`;
     return;
   }
   el.innerHTML = list
@@ -847,7 +850,7 @@ function renderDetail(container) {
   if (!el) return;
   const entry = store.get().compendium.find((e) => e.id === activeId);
   if (!entry) {
-    el.innerHTML = `<div class="cmp-placeholder">Sélectionne une entrée, ou crée-en une nouvelle.</div>`;
+    el.innerHTML = `<div class="cmp-placeholder">${t('compendium.placeholder')}</div>`;
     return;
   }
   const meta = KINDS[entry.kind] || { icon: '📄', label: 'Entrée' };
@@ -858,28 +861,28 @@ function renderDetail(container) {
   const canImg = canToken || entry.kind === 'place';
   if (canToken) {
     const nActs = parseStatblockActions(entry.data?.desc).length;
-    if (nActs) actions.push(`<button class="btn cmp-act" data-act="statblock">⚔ Actions (${nActs})</button>`);
+    if (nActs) actions.push(`<button class="btn cmp-act" data-act="statblock">${t('compendium.act.actions', { n: nActs })}</button>`);
   }
-  if (isDMv && entry.kind === 'monster') actions.push(`<button class="btn cmp-act" data-act="combat">⚔ Ajouter au combat</button>`);
-  if (isDMv && canToken) actions.push(`<button class="btn cmp-act" data-act="totoken">🗺 Sur la carte</button>`);
-  if (isDMv && entry.kind === 'place') actions.push(`<button class="btn cmp-act" data-act="scene">🗺 ${entry.data?.sceneId ? 'Aller à la scène' : 'Lier la scène active'}</button>`);
-  if (isDMv && canImg) actions.push(`<button class="btn cmp-act" data-act="img">🖼 Image…</button>`);
-  if (isDMv && entry.kind === 'spell') actions.push(`<button class="btn cmp-act" data-act="tofiche">📥 Ajouter à une fiche</button>`);
-  if (isDMv && entry.kind === 'item') actions.push(`<button class="btn cmp-act" data-act="toinv">📥 Ajouter à un inventaire</button>`);
-  if (isDMv && entry.kind === 'table') actions.push(`<button class="btn cmp-act" data-act="roll">🎲 Lancer</button>`);
-  if (isDMv && entry.kind !== 'table') actions.push(`<button class="btn cmp-act" data-act="handout">📤 Aux joueurs</button>`);
+  if (isDMv && entry.kind === 'monster') actions.push(`<button class="btn cmp-act" data-act="combat">${t('compendium.act.combat')}</button>`);
+  if (isDMv && canToken) actions.push(`<button class="btn cmp-act" data-act="totoken">${t('compendium.act.totoken')}</button>`);
+  if (isDMv && entry.kind === 'place') actions.push(`<button class="btn cmp-act" data-act="scene">${entry.data?.sceneId ? t('compendium.act.sceneGo') : t('compendium.act.sceneLink')}</button>`);
+  if (isDMv && canImg) actions.push(`<button class="btn cmp-act" data-act="img">${t('compendium.act.img')}</button>`);
+  if (isDMv && entry.kind === 'spell') actions.push(`<button class="btn cmp-act" data-act="tofiche">${t('compendium.act.tofiche')}</button>`);
+  if (isDMv && entry.kind === 'item') actions.push(`<button class="btn cmp-act" data-act="toinv">${t('compendium.act.toinv')}</button>`);
+  if (isDMv && entry.kind === 'table') actions.push(`<button class="btn cmp-act" data-act="roll">${t('compendium.act.roll')}</button>`);
+  if (isDMv && entry.kind !== 'table') actions.push(`<button class="btn cmp-act" data-act="handout">${t('compendium.act.handout')}</button>`);
 
   el.innerHTML = `
     <header class="cmp-detail-head" data-kind="${entry.kind}">
       ${canImg && entry.data?.img ? `<img class="cmp-token-thumb" id="cmp-token-thumb" alt="">` : `<span class="cmp-detail-icon">${meta.icon}</span>`}
-      <h2${isDMv ? ' data-act="rename" role="button" title="Cliquer pour renommer" style="cursor:pointer"' : ''}>${escapeHtml(entry.name)}</h2>
-      <span class="cmp-badge" data-kind="${entry.kind}"${isDMv ? ' data-act="kind" role="button" title="Changer le type / déplacer"' : ''}>${meta.label}${isDMv ? ' ▾' : ''}</span>
+      <h2${isDMv ? ` data-act="rename" role="button" title="${t('compendium.rename.hint')}" style="cursor:pointer"` : ''}>${escapeHtml(entry.name)}</h2>
+      <span class="cmp-badge" data-kind="${entry.kind}"${isDMv ? ` data-act="kind" role="button" title="${t('compendium.kind.title')}"` : ''}>${kindLabel(entry.kind)}${isDMv ? ' ▾' : ''}</span>
       <span class="cmp-detail-actions">
         ${actions.join('')}
         ${
           isDMv
-            ? `<button class="cmp-icon-btn" data-act="edit" title="${editMode ? 'Aperçu' : 'Modifier'}">${editMode ? '👁' : '✏'}</button>
-               <button class="cmp-icon-btn danger" data-act="del" title="Supprimer">🗑</button>`
+            ? `<button class="cmp-icon-btn" data-act="edit" title="${editMode ? t('compendium.edit.preview') : t('compendium.edit.edit')}">${editMode ? '👁' : '✏'}</button>
+               <button class="cmp-icon-btn danger" data-act="del" title="${t('compendium.del.title')}">🗑</button>`
             : ''
         }
       </span>
@@ -899,7 +902,7 @@ function renderDetail(container) {
   }
 
   el.querySelector('[data-act="rename"]')?.addEventListener('click', async () => {
-    const v = await modalPrompt('Nouveau nom :', { title: 'Renommer l’entrée', defaultValue: entry.name });
+    const v = await modalPrompt(t('compendium.rename.prompt'), { title: t('compendium.rename.modalTitle'), defaultValue: entry.name });
     if (v && v.trim() && v.trim() !== entry.name) {
       await updateEntry(entry.id, { name: v.trim() });
       renderAll(container);
@@ -911,7 +914,7 @@ function renderDetail(container) {
     renderDetail(container);
   });
   el.querySelector('[data-act="del"]')?.addEventListener('click', async () => {
-    if (await modalConfirm(`Supprimer « ${entry.name} » ?`, { title: 'Compendium', danger: true, okLabel: 'Supprimer' })) {
+    if (await modalConfirm(t('compendium.del.confirm', { name: entry.name }), { title: t('compendium.modalTitle'), danger: true, okLabel: t('compendium.del.ok') })) {
       const wasActive = activeId === entry.id;
       await deleteEntry(entry.id);
       if (wasActive) activeId = null;
