@@ -1674,5 +1674,13 @@
   "tarokka.pos.gen.2": "② Deuxième carte",
   "tarokka.pos.gen.3": "③ Troisième carte",
   "tarokka.pos.gen.4": "④ Quatrième carte",
-  "tarokka.pos.gen.5": "⑤ Cinquième carte"
+  "tarokka.pos.gen.5": "⑤ Cinquième carte",
+  "sb.default": "Statbloc",
+  "sb.ac": "CA {v}",
+  "sb.hp": "PV {v}",
+  "sb.cr": "FP {v}",
+  "sb.toHit": "{bon} att.",
+  "sb.dc": "🛡 DD {dc}",
+  "sb.noActions": "Aucune action jouable détectée dans la description.",
+  "sb.format": "Format attendu : <code>**Nom.** … +X to hit … Hit: N (1d8 + 3) … damage</code>."
 }

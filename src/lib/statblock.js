@@ -1,5 +1,6 @@
 import { escapeHtml } from './utils.js';
 import { openActionCard } from './actioncard.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Statbloc cliquable : extrait les actions « jouables » d'une description de
@@ -83,15 +84,15 @@ function _key(e) {
  */
 export function openStatblock(entry) {
   closeStatblock();
-  const name = entry?.name || 'Statbloc';
+  const name = entry?.name || tr('sb.default');
   const d = entry?.data || entry || {};
   const desc = d.desc || '';
   const acts = parseStatblockActions(desc);
 
   const stats = [
-    d.ac != null && d.ac !== '' ? `CA ${escapeHtml(String(d.ac))}` : '',
-    d.hpMax != null && d.hpMax !== '' ? `PV ${escapeHtml(String(d.hpMax))}` : '',
-    d.cr ? `FP ${escapeHtml(String(d.cr))}` : '',
+    d.ac != null && d.ac !== '' ? tr('sb.ac', { v: escapeHtml(String(d.ac)) }) : '',
+    d.hpMax != null && d.hpMax !== '' ? tr('sb.hp', { v: escapeHtml(String(d.hpMax)) }) : '',
+    d.cr ? tr('sb.cr', { v: escapeHtml(String(d.cr)) }) : '',
   ].filter(Boolean);
 
   const ov = document.createElement('div');
@@ -107,19 +108,18 @@ export function openStatblock(entry) {
                 (a, i) => `<button class="sb-action" data-sb="${i}">
                   <span class="sb-action-nm">${escapeHtml(a.nm)}</span>
                   <span class="sb-action-meta">${[
-                    a.bon != null ? `${a.bon >= 0 ? '+' : ''}${a.bon} att.` : '',
+                    a.bon != null ? tr('sb.toHit', { bon: `${a.bon >= 0 ? '+' : ''}${a.bon}` }) : '',
                     a.dmg ? `💥 ${escapeHtml(a.dmg)}${a.typ ? ` ${escapeHtml(a.typ)}` : ''}` : '',
-                    a.dc ? `🛡 DD ${escapeHtml(a.dc)}` : '',
+                    a.dc ? tr('sb.dc', { dc: escapeHtml(a.dc) }) : '',
                   ]
                     .filter(Boolean)
                     .join(' · ')}</span>
                 </button>`
               )
               .join('')}</div>`
-          : `<p class="modal-msg">Aucune action jouable détectée dans la description.<br>
-             Format attendu : <code>**Nom.** … +X to hit … Hit: N (1d8 + 3) … damage</code>.</p>`
+          : `<p class="modal-msg">${tr('sb.noActions')}<br>${tr('sb.format')}</p>`
       }
-      <div class="modal-actions"><button class="modal-btn sb-close">Fermer</button></div>
+      <div class="modal-actions"><button class="modal-btn sb-close">${tr('common.close')}</button></div>
     </div>`;
   document.body.appendChild(ov);
   _ov = ov;

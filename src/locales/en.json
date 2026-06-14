@@ -1674,5 +1674,13 @@
   "tarokka.pos.gen.2": "② Second card",
   "tarokka.pos.gen.3": "③ Third card",
   "tarokka.pos.gen.4": "④ Fourth card",
-  "tarokka.pos.gen.5": "⑤ Fifth card"
+  "tarokka.pos.gen.5": "⑤ Fifth card",
+  "sb.default": "Stat block",
+  "sb.ac": "AC {v}",
+  "sb.hp": "HP {v}",
+  "sb.cr": "CR {v}",
+  "sb.toHit": "{bon} to hit",
+  "sb.dc": "🛡 DC {dc}",
+  "sb.noActions": "No playable action detected in the description.",
+  "sb.format": "Expected format: <code>**Name.** … +X to hit … Hit: N (1d8 + 3) … damage</code>."
 }
