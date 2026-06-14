@@ -173,7 +173,7 @@ export async function mountCharacters(container) {
     const cid = store.get().activeChar;
     const c = store.get().characters.find((x) => x.id === cid);
     if (!c) {
-      showToast('Ouvre d’abord une fiche.', { timeout: 2000 });
+      showToast(t('char.toast.openFirst'), { timeout: 2000 });
       return;
     }
     const entry = store.get().compendium.find((x) => x.id === p.id) || p;
@@ -188,13 +188,13 @@ export async function mountCharacters(container) {
       if (idx >= 0) cur[idx] = { ...cur[idx], lvl, entryId: entry.id };
       else cur.push({ nm: entry.name, lvl, entryId: entry.id });
       updateCharacter(cid, { spells: cur });
-      showToast(idx >= 0 ? `✨ ${entry.name} déjà présent — lien mis à jour` : `✨ ${entry.name} → ${c.name}`, { timeout: 1800 });
+      showToast(idx >= 0 ? t('char.toast.spellDup', { name: entry.name }) : t('char.toast.spellAdd', { name: entry.name, char: c.name }), { timeout: 1800 });
     } else if (p.kind === 'item') {
       const note = String(entry.data?.desc || '').replace(/[#*_>`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
       updateCharacter(cid, { inv: [...(c.data.inv || []), { nm: entry.name, qty: 1, wt: '', note }] });
-      showToast(`🎒 ${entry.name} → ${c.name}`, { timeout: 1800 });
+      showToast(t('char.toast.itemAdd', { name: entry.name, char: c.name }), { timeout: 1800 });
     } else {
-      showToast('Seuls les sorts et objets s’ajoutent à une fiche.', { timeout: 2200 });
+      showToast(t('char.toast.onlySpellItem'), { timeout: 2200 });
     }
   });
 
@@ -250,9 +250,9 @@ function renderList() {
             <strong>${escapeHtml(c.name)}</strong>
             ${mine ? '<span class="char-mine">★</span>' : ''}
           </div>
-          <div class="char-card-sub">${escapeHtml(d.cls || '')} ${d.lvl ? `niv.${d.lvl}` : ''}</div>
+          <div class="char-card-sub">${escapeHtml(d.cls || '')} ${d.lvl ? `${t('sheet.lvl')}${d.lvl}` : ''}</div>
           <div class="char-hpbar"><span style="width:${hpPct}%"></span></div>
-          <div class="char-card-hp">${d.hp ?? '?'} / ${d.hpMax ?? '?'} PV</div>
+          <div class="char-card-hp">${d.hp ?? '?'} / ${d.hpMax ?? '?'} ${t('combat.add.hp')}</div>
         </button>`;
     })
     .join('');
@@ -260,20 +260,20 @@ function renderList() {
   el.innerHTML =
     // Outils de table partagés : visibles par tous (lecture seule côté joueurs).
     `<div class="char-tools">
-       <button class="btn char-tool" id="char-loot" title="Trésor de groupe">🪙 Trésor</button>
-       <button class="btn char-tool" id="char-quests" title="Journal de quêtes">📜 Quêtes</button>
+       <button class="btn char-tool" id="char-loot" title="${t('char.loot.title')}">${t('char.loot')}</button>
+       <button class="btn char-tool" id="char-quests" title="${t('char.quests.title')}">${t('char.quests')}</button>
      </div>` +
     (isDM
-      ? `<button class="link char-new" id="char-new" style="text-align:left;margin:0 0 4px">+ Nouveau personnage</button>
-         <button class="link char-new" id="char-import" style="text-align:left;margin:0 0 4px">📋 Importer (coller)</button>
-         <label class="link char-new" id="char-import-json" style="text-align:left;margin:0 0 8px;display:block">📂 Importer (JSON)<input type="file" accept="application/json,.json" hidden></label>`
-      : '') + (items || `<div class="char-empty">Aucune fiche.</div>`);
+      ? `<button class="link char-new" id="char-new" style="text-align:left;margin:0 0 4px">${t('char.new')}</button>
+         <button class="link char-new" id="char-import" style="text-align:left;margin:0 0 4px">${t('char.importPaste')}</button>
+         <label class="link char-new" id="char-import-json" style="text-align:left;margin:0 0 8px;display:block">${t('char.importJson')}<input type="file" accept="application/json,.json" hidden></label>`
+      : '') + (items || `<div class="char-empty">${t('char.empty')}</div>`);
 
   el.querySelector('#char-loot')?.addEventListener('click', () => openPartyLoot());
   el.querySelector('#char-quests')?.addEventListener('click', () => openQuests());
 
   el.querySelector('#char-new')?.addEventListener('click', async () => {
-    const name = await modalPrompt('Nom du personnage :', { title: 'Nouveau personnage', placeholder: 'Ex. Aélor' });
+    const name = await modalPrompt(t('char.new.prompt'), { title: t('char.new.title'), placeholder: t('char.new.ph') });
     if (name && name.trim()) await createCharacter(name.trim());
   });
   el.querySelector('#char-import')?.addEventListener('click', openCharImport);
@@ -347,14 +347,14 @@ function openCharImport() {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:460px;max-width:94vw">
-      <h3 class="modal-title">📋 Importer une fiche (coller)</h3>
-      <p class="modal-msg">Colle le texte d'une fiche (PDF, Word, D&D Beyond, papier scanné…). L'app détecte le nom, les caractéristiques, la CA, les PV, la vitesse, le niveau, la classe et les attaques. Tu pourras tout corriger ensuite.</p>
-      <input class="modal-input" id="ci-name" placeholder="Nom (laisser vide = détection auto)">
-      <textarea class="atk-in" id="ci-text" style="width:100%;min-height:200px;margin-top:8px;font-family:ui-monospace,monospace;font-size:12px" placeholder="Colle ici le contenu de la fiche…"></textarea>
+      <h3 class="modal-title">${t('ci.title')}</h3>
+      <p class="modal-msg">${t('ci.msg')}</p>
+      <input class="modal-input" id="ci-name" placeholder="${t('ci.namePh')}">
+      <textarea class="atk-in" id="ci-text" style="width:100%;min-height:200px;margin-top:8px;font-family:ui-monospace,monospace;font-size:12px" placeholder="${t('ci.textPh')}"></textarea>
       <div class="ci-preview" id="ci-preview"></div>
       <div class="modal-actions">
-        <button class="modal-btn ci-cancel">Annuler</button>
-        <button class="modal-btn modal-ok ci-ok">Analyser &amp; créer</button>
+        <button class="modal-btn ci-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok ci-ok">${t('ci.ok')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -370,14 +370,14 @@ function openCharImport() {
     const bits = [];
     ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach((k) => d[k] != null && bits.push(`${k.toUpperCase()} ${d[k]}`));
     const extra = [
-      d.ac != null ? `CA ${d.ac}` : '',
-      d.hpMax != null ? `PV ${d.hpMax}` : '',
-      d.lvl != null ? `niv. ${d.lvl}` : '',
+      d.ac != null ? `${t('dock.ac')} ${d.ac}` : '',
+      d.hpMax != null ? `${t('combat.add.hp')} ${d.hpMax}` : '',
+      d.lvl != null ? `${t('sheet.lvl')} ${d.lvl}` : '',
       d.cls ? d.cls : '',
-      d.atks?.length ? `${d.atks.length} attaque(s)` : '',
+      d.atks?.length ? t('ci.atksCount', { n: d.atks.length }) : '',
     ].filter(Boolean);
     prev.innerHTML = ta.value.trim()
-      ? `<div class="ci-detected">Détecté : ${escapeHtml([...bits, ...extra].join(' · ')) || '<rien — vérifie le format>'}</div>`
+      ? `<div class="ci-detected">${t('ci.detected')}${escapeHtml([...bits, ...extra].join(' · ')) || t('ci.nothing')}</div>`
       : '';
   };
   ta.addEventListener('input', refresh);
@@ -393,10 +393,10 @@ function openCharImport() {
       const m = text.match(/(?:nom|name)\s*[:\-–]\s*(.+)/i);
       name = (m ? m[1] : text.split('\n').map((l) => l.trim()).find(Boolean) || '').trim().slice(0, 40);
     }
-    if (!name) name = 'Personnage importé';
+    if (!name) name = t('char.importedDefault');
     close();
     const id = await importCharacter(name, data);
-    if (id) showToast(`📋 « ${name} » importé — vérifie et complète la fiche.`, { timeout: 3000 });
+    if (id) showToast(t('char.toast.imported', { name }), { timeout: 3000 });
   });
 }
 
@@ -415,21 +415,22 @@ function exportCharacterJson(c) {
 }
 
 /* ── Diff de ré-import (confirmation avant mise à jour) ── */
+// Valeurs = clés i18n field.* (résolues à l'affichage par fieldLabel).
 const FIELD_LABELS = {
-  cls: 'Classe', sub: 'Sous-classe', lvl: 'Niveau', race: 'Race', bg: 'Historique', align: 'Alignement',
-  hp: 'PV', hpMax: 'PV max', hpTmp: 'PV temp', ac: 'CA', spd: 'Vitesse', initB: 'Init', prof: 'Maîtrise', insp: 'Inspiration',
-  str: 'FOR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'SAG', cha: 'CHA',
-  saves: 'Sauvegardes', profs: 'Compétences', exp: 'Expertises', atks: 'Attaques', spells: 'Sorts', slots: 'Emplacements',
-  feats: 'Aptitudes', equip: 'Équipement', notes: 'Notes', story: 'Histoire partagée', resources: 'Ressources', features: 'Capacités',
-  spd: 'Vitesse', darkvision: 'Vision', size: 'Taille',
-  hd: 'Dés de vie', hdMax: 'Dés de vie max', xp: 'XP', portrait: 'Portrait', sc: 'Carac. d’incantation', ds: 'Jets de mort',
+  cls: 'field.cls', sub: 'field.sub', lvl: 'field.lvl', race: 'field.race', bg: 'field.bg', align: 'field.align',
+  hp: 'field.hp', hpMax: 'field.hpMax', hpTmp: 'field.hpTmp', ac: 'field.ac', spd: 'field.spd', initB: 'field.initB', prof: 'field.prof', insp: 'field.insp',
+  str: 'field.str', dex: 'field.dex', con: 'field.con', int: 'field.int', wis: 'field.wis', cha: 'field.cha',
+  saves: 'field.saves', profs: 'field.profs', exp: 'field.exp', atks: 'field.atks', spells: 'field.spells', slots: 'field.slots',
+  feats: 'field.feats', equip: 'field.equip', notes: 'field.notes', story: 'field.story', resources: 'field.resources', features: 'field.features',
+  darkvision: 'field.darkvision', size: 'field.size',
+  hd: 'field.hd', hdMax: 'field.hdMax', xp: 'field.xp', portrait: 'field.portrait', sc: 'field.sc', ds: 'field.ds',
 };
-const fieldLabel = (k) => FIELD_LABELS[k] || k;
+const fieldLabel = (k) => (FIELD_LABELS[k] ? t(FIELD_LABELS[k]) : k);
 
 function valSumm(v) {
   if (v === undefined || v === null) return '∅';
-  if (Array.isArray(v)) return `${v.length} élément(s)`;
-  if (typeof v === 'object') return `${Object.keys(v).length} champ(s)`;
+  if (Array.isArray(v)) return t('field.nElems', { n: v.length });
+  if (typeof v === 'object') return t('field.nFields', { n: Object.keys(v).length });
   const s = String(v);
   if (s === '') return '∅';
   return s.length > 36 ? `${s.slice(0, 36)}…` : s;
@@ -466,15 +467,15 @@ function confirmImportDiff({ name, oldName, oldData, newData }) {
     ov.className = 'modal-overlay show';
     ov.innerHTML = `
       <div class="modal-card diff-card" role="dialog" aria-modal="true">
-        <h3 class="modal-title">Mettre à jour « ${escapeHtml(oldName || name)} » ?</h3>
-        <p class="modal-msg">${nothing ? 'Aucune différence détectée avec la fiche existante.' : 'Voici ce qui va changer sur la fiche existante :'}</p>
+        <h3 class="modal-title">${t('ci.diff.heading', { name: escapeHtml(oldName || name) })}</h3>
+        <p class="modal-msg">${nothing ? t('ci.diff.none') : t('ci.diff.intro')}</p>
         <div class="diff-list">
-          ${nameChanged ? `<div class="diff-row"><span class="diff-k">Nom</span><span class="diff-old">${escapeHtml(oldName)}</span><span class="diff-arrow">→</span><span class="diff-new">${escapeHtml(name)}</span></div>` : ''}
+          ${nameChanged ? `<div class="diff-row"><span class="diff-k">${t('field.name')}</span><span class="diff-old">${escapeHtml(oldName)}</span><span class="diff-arrow">→</span><span class="diff-new">${escapeHtml(name)}</span></div>` : ''}
           ${rowsHtml || (nameChanged ? '' : '<div class="dock-empty">—</div>')}
         </div>
         <div class="modal-actions">
-          <button class="modal-btn modal-cancel">Annuler</button>
-          <button class="modal-btn modal-ok"${nothing ? ' disabled' : ''}>Mettre à jour</button>
+          <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+          <button class="modal-btn modal-ok"${nothing ? ' disabled' : ''}>${t('ci.diff.update')}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -513,36 +514,36 @@ async function openPf2eDerive(id, mode) {
     const r = content.deriveAncestryPatch(d, content.ancestryByLabel(d.race));
     if (!r) return;
     Object.assign(patch, { size: r.patch.size, spd: r.patch.spd, darkvision: r.patch.darkvision, ancHp: r.ancestryHp });
-    changes.push(`taille ${r.patch.size}`, `vitesse ${r.patch.spd} m`);
-    if (r.patch.darkvision) changes.push(`vision ${r.patch.darkvision} m`);
-    changes.push(`PV d'ascendance ${r.ancestryHp}`);
+    changes.push(t('derive.size', { v: r.patch.size }), t('derive.speed', { v: r.patch.spd }));
+    if (r.patch.darkvision) changes.push(t('derive.vision', { v: r.patch.darkvision }));
+    changes.push(t('derive.ancHp', { v: r.ancestryHp }));
   } else if (mode === 'class') {
     const r = content.deriveClassPatch(d, content.classByLabel(d.cls));
     if (!r) return;
     patch.clsHp = r.classHp;
     patch.ranks = { ...(d.ranks || {}), ...r.ranks };
-    changes.push(`PV de classe ${r.classHp}/niv`, 'Perception & sauvegardes au rang de la classe');
+    changes.push(t('derive.clsHp', { v: r.classHp }), t('derive.profRank'));
   } else {
     const r = content.deriveBackgroundPatch(d, content.backgroundByLabel(d.bg));
     if (!r) return;
     const ranks = { ...(d.ranks || {}) };
     for (const sk of r.trainedSkills) ranks[sk] = Math.max(1, Number(ranks[sk]) || 0);
     patch.ranks = ranks;
-    changes.push(`entraîné en ${r.trainedSkills.join(', ') || '—'}`);
+    changes.push(t('derive.trained', { skills: r.trainedSkills.join(', ') || '—' }));
   }
   // PV max recalculés à partir des PV d'ascendance + de classe en mémoire.
   const ancHp = patch.ancHp ?? d.ancHp ?? 0;
   const clsHp = patch.clsHp ?? d.clsHp ?? 0;
   patch.hpMax = content.hpMax(ancHp, clsHp, d.lvl, d.con);
   if (!(Number(d.hp) > 0)) patch.hp = patch.hpMax;
-  changes.push(`PV max ${patch.hpMax}`);
+  changes.push(t('derive.hpMax', { v: patch.hpMax }));
   // Bloc d'aptitudes géré (recalculé en entier, idempotent via mergeFeatsBlock).
   const lines = content.managedLines({ ...d, ...patch }, content);
   const newFeats = mergeFeatsBlock(d.feats, lines);
   if (newFeats !== (d.feats || '')) patch.feats = newFeats;
-  if (!(await modalConfirm(`Appliquer : ${changes.join(' · ')}. Les boosts d'attribut restent à répartir à la main (voir le bloc Aptitudes).`, { title: '⚙ Pathfinder 2e', okLabel: 'Appliquer' }))) return;
+  if (!(await modalConfirm(t('derive.pf2e.confirm', { changes: changes.join(' · ') }), { title: t('derive.pf2e.title'), okLabel: t('common.apply') }))) return;
   updateCharacter(id, patch);
-  showToast('⚙ Gabarit pf2e appliqué.', { type: 'success', timeout: 2400 });
+  showToast(t('derive.pf2e.done'), { type: 'success', timeout: 2400 });
 }
 
 /** Montée de niveau pf2e : recalcule les PV max. La maîtrise inclut déjà le
@@ -553,11 +554,11 @@ async function pf2eLevelUp(id) {
   const d = cur.data || {};
   const content = getSystem(activeCampaign()?.system || d.system).content;
   const lvl = Math.max(1, Number(d.lvl) || 1) + 1;
-  if (!(await modalConfirm(`Passer ${cur.name} au niveau ${lvl} ? (PV max recalculés)`, { title: '⬆ Montée de niveau', okLabel: `Niveau ${lvl}` }))) return;
+  if (!(await modalConfirm(t('derive.lvlup.confirmPf2e', { name: cur.name, lvl }), { title: t('derive.lvlup.title'), okLabel: t('derive.lvlBtn', { lvl }) }))) return;
   const hpMax = content.hpMax(d.ancHp || 0, d.clsHp || 0, lvl, d.con);
   const delta = Math.max(0, hpMax - (Number(d.hpMax) || 0));
   updateCharacter(id, { lvl, hpMax, hp: Math.max(1, (Number(d.hp) || hpMax) + delta) });
-  showToast(`⬆ ${cur.name} : niveau ${lvl}, PV max ${hpMax}.`, { type: 'success', icon: '✨' });
+  showToast(t('derive.lvlup.donePf2e', { name: cur.name, lvl, hp: hpMax }), { type: 'success', icon: '✨' });
 }
 
 /** Lignes du bloc « aptitudes » géré (aptitudes/traits + maîtrises, langues, sorts).
@@ -710,8 +711,8 @@ async function openDeriveModal(id, mode) {
 
   const skillHtml = skillCfg
     ? `<div class="derive-pick">
-         <div class="derive-pick-h">${skillCfg.mode === 'race' ? 'Compétences raciales' : 'Compétences de classe'} — choisis-en <b>${skillCfg.count}</b> <span class="derive-count">(0 / ${skillCfg.count})</span></div>
-         ${racialFixed.length ? `<div class="derive-fixed">Raciales (incluses) : ${racialFixed.map((k) => escapeHtml(SKILLS[k]?.label || k)).join(', ')}</div>` : ''}
+         <div class="derive-pick-h">${skillCfg.mode === 'race' ? t('derive.skills.race') : t('derive.skills.class')} ${t('derive.skills.choose')} <b>${skillCfg.count}</b> <span class="derive-count">(0 / ${skillCfg.count})</span></div>
+         ${racialFixed.length ? `<div class="derive-fixed">${t('derive.racialIncluded', { skills: racialFixed.map((k) => escapeHtml(SKILLS[k]?.label || k)).join(', ') })}</div>` : ''}
          <div class="derive-grid">
            ${pickList
              .map(
@@ -724,7 +725,7 @@ async function openDeriveModal(id, mode) {
 
   const abilityHtml = abilityCfg
     ? `<div class="derive-pick">
-         <div class="derive-pick-h">Bonus de caractéristique au choix — +${abilityCfg.amount} sur <b>${abilityCfg.count}</b> <span class="derive-count">(0 / ${abilityCfg.count})</span></div>
+         <div class="derive-pick-h">${t('derive.abilityBonus', { amount: abilityCfg.amount })} <b>${abilityCfg.count}</b> <span class="derive-count">(0 / ${abilityCfg.count})</span></div>
          <div class="derive-grid">
            ${abilityCfg.from
              .map(
@@ -741,14 +742,14 @@ async function openDeriveModal(id, mode) {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card diff-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">Appliquer « ${escapeHtml(headTitle)} » ?</h3>
-      <p class="modal-msg">${nothing ? 'Cette fiche est déjà à jour pour ce choix.' : 'Décoche ce que tu ne veux pas appliquer :'}</p>
+      <h3 class="modal-title">${t('derive.applyHeading', { title: escapeHtml(headTitle) })}</h3>
+      <p class="modal-msg">${nothing ? t('derive.upToDate') : t('derive.uncheck')}</p>
       <div class="diff-list">${rowsHtml || '<div class="dock-empty">—</div>'}</div>
       ${skillHtml}
       ${abilityHtml}
       <div class="modal-actions">
-        <button class="modal-btn modal-cancel">Annuler</button>
-        <button class="modal-btn modal-ok">Appliquer</button>
+        <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok">${t('common.apply')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -830,7 +831,7 @@ async function openDeriveModal(id, mode) {
 
     close();
     if (Object.keys(patch).length) updateCharacter(id, patch);
-    showToast(`✨ Gabarit « ${headTitle} » appliqué.`, { type: 'success', timeout: 2600 });
+    showToast(t('derive.done', { title: headTitle }), { type: 'success', timeout: 2600 });
   });
 }
 
@@ -846,20 +847,20 @@ function multiclassSection(d, ed) {
   const prof = profBonusForLevel(total);
   const hd = hitDiceSummary(d) || '—';
   const ccl = combinedCasterLevel(d);
-  const summary = `Niveau total <b>${total}</b> · Maîtrise <b>+${prof}</b> · Dés de vie <b>${escapeHtml(hd)}</b>${ccl > 0 ? ` · Lanceur combiné <b>${ccl}</b>` : ''}`;
+  const summary = t('mc.summary', { total, prof, hd: escapeHtml(hd) }) + (ccl > 0 ? t('mc.casterCombined', { n: ccl }) : '');
   const rows = mc
     .map((e, i) => {
       if (!ed) {
-        return `<div class="mc-line">${escapeHtml(e.cls || '—')}${e.sub ? ` (${escapeHtml(e.sub)})` : ''} · niv.${num(e.lvl) || 1}</div>`;
+        return `<div class="mc-line">${escapeHtml(e.cls || '—')}${e.sub ? ` (${escapeHtml(e.sub)})` : ''} · ${t('sheet.lvl')}${num(e.lvl) || 1}</div>`;
       }
       const subs = (CLASSES.find((c) => c.label === e.cls)?.subclasses) || [];
       return `<div class="mc-edit">
         <select class="sf" data-mc-i="${i}" data-mc-k="cls">
-          <option value="">— Classe —</option>
+          <option value="">${t('mc.classOpt')}</option>
           ${CLASSES.map((c) => `<option value="${escapeHtml(c.label)}" ${c.label === e.cls ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
         </select>
         <select class="sf" data-mc-i="${i}" data-mc-k="sub">
-          <option value="">— Sous-classe —</option>
+          <option value="">${t('mc.subOpt')}</option>
           ${subs.map((s) => `<option value="${escapeHtml(s)}" ${s === e.sub ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
         </select>
         <input type="number" class="sf-num mc-lvl" min="1" max="20" value="${num(e.lvl) || 1}" data-mc-i="${i}" data-mc-k="lvl"/>
@@ -868,11 +869,11 @@ function multiclassSection(d, ed) {
     })
     .join('');
   return `<details class="sheet-block mc-block" ${mc.length ? 'open' : ''}>
-    <summary>🔀 Multiclassage</summary>
+    <summary>${t('mc.title')}</summary>
     <div class="mc-summary">${summary}</div>
-    <div class="mc-list">${rows || '<div class="char-empty">Aucune classe secondaire.</div>'}</div>
-    ${ed ? `<div class="mc-actions"><button class="mini-add" data-mc-add>+ Classe secondaire</button> <button class="rest-btn" data-mc-apply title="Recalcule maîtrise, emplacements de sorts combinés et aptitudes">⚙ Appliquer</button></div>
-       <div class="feats-hint">La classe principale (ci-dessus) reste le pilier (sauvegardes, dé de vie principal). « Appliquer » recalcule la maîtrise selon le niveau total et combine les emplacements de sorts.</div>` : ''}
+    <div class="mc-list">${rows || `<div class="char-empty">${t('mc.empty')}</div>`}</div>
+    ${ed ? `<div class="mc-actions"><button class="mini-add" data-mc-add>${t('mc.addSecondary')}</button> <button class="rest-btn" data-mc-apply title="${t('mc.apply.title')}">${t('mc.apply')}</button></div>
+       <div class="feats-hint">${t('mc.hint')}</div>` : ''}
   </details>`;
 }
 
@@ -885,10 +886,10 @@ async function openMulticlassApply(id) {
   const prof = profBonusForLevel(total);
   const slots = multiclassSpellSlots(d);
   const feats = mergeFeatsBlock(d.feats, srdFeatLines(d));
-  const bits = [`Niveau total ${total} → maîtrise +${prof}`];
-  if (slots) bits.push(`Emplacements combinés : ${slotsSumm(slots)}`);
-  bits.push('Aptitudes des classes secondaires ajoutées');
-  if (!(await modalConfirm(bits.join(' · '), { title: '🔀 Appliquer le multiclassage', okLabel: 'Appliquer' }))) return;
+  const bits = [t('mc.bitProf', { total, prof })];
+  if (slots) bits.push(t('mc.bitSlots', { slots: slotsSumm(slots) }));
+  bits.push(t('mc.featsAdded'));
+  if (!(await modalConfirm(bits.join(' · '), { title: t('mc.confirmTitle'), okLabel: t('common.apply') }))) return;
   const patch = { prof };
   if (slots) {
     const cur0 = d.slots || {};
@@ -898,7 +899,7 @@ async function openMulticlassApply(id) {
   }
   if (feats !== (d.feats || '')) patch.feats = feats;
   updateCharacter(id, patch);
-  showToast('🔀 Multiclassage appliqué.', { type: 'success', timeout: 2600 });
+  showToast(t('mc.done'), { type: 'success', timeout: 2600 });
 }
 
 /**
@@ -910,19 +911,19 @@ function profileSummarySection(d) {
   const tools = p.tools.join(' ; ');
   const langs = p.languages.join(' ; ');
   const sorts = p.casterClass && p.spellLine
-    ? `${p.cantrips ? `${p.cantrips} sort(s) mineur(s) · ` : ''}${p.spellLine}`
+    ? `${p.cantrips ? `${t('prof.cantripsN', { n: p.cantrips })} · ` : ''}${p.spellLine}`
     : '';
   if (!p.armor && !p.weapons && !tools && !langs && !sorts) return '';
   const row = (label, val) =>
     val ? `<div class="ps-row"><span class="ps-k">${label}</span><span class="ps-v">${escapeHtml(val)}</span></div>` : '';
   return `<section class="sheet-block">
       <h3>${t('sheet.h.profs')}</h3>
-      ${row('Armures', p.armor)}
-      ${row('Armes', p.weapons)}
-      ${row('Outils', tools)}
-      ${row('Langues', langs)}
-      ${row('Sorts', sorts)}
-      <div class="feats-hint">Déduit de la classe, la race et l'historique. Le détail est aussi inséré dans « Capacités &amp; traits ».</div>
+      ${row(t('prof.armor'), p.armor)}
+      ${row(t('prof.weapons'), p.weapons)}
+      ${row(t('prof.tools'), tools)}
+      ${row(t('prof.languages'), langs)}
+      ${row(t('prof.spells'), sorts)}
+      <div class="feats-hint">${t('prof.hint')}</div>
     </section>`;
 }
 
@@ -946,7 +947,7 @@ function openStartingEquipment(id) {
   const bgKit = bgEntry ? deriveBackgroundPatch(data, bgEntry) : null;
 
   if (!groups.length && !bgKit) {
-    modalAlert('Choisis d’abord une classe ou un historique SRD pour proposer un équipement de départ.', { title: 'Équipement de départ' });
+    modalAlert(t('startkit.needClass'), { title: t('startkit.title') });
     return;
   }
 
@@ -963,8 +964,8 @@ function openStartingEquipment(id) {
 
   const bgHtml = bgKit
     ? `<div class="derive-pick">
-         <div class="derive-pick-h">Historique — ${escapeHtml(bgEntry.label)}</div>
-         <div class="eq-fixed">${bgKit.equipment.map((it) => escapeHtml(itemLabel(it))).join(' · ')}${bgKit.gold ? ` · <b>${bgKit.gold} po</b>` : ''}</div>
+         <div class="derive-pick-h">${t('startkit.bgHead', { label: escapeHtml(bgEntry.label) })}</div>
+         <div class="eq-fixed">${bgKit.equipment.map((it) => escapeHtml(itemLabel(it))).join(' · ')}${bgKit.gold ? ` · <b>${bgKit.gold} ${t('startkit.gp')}</b>` : ''}</div>
        </div>`
     : '';
 
@@ -972,13 +973,13 @@ function openStartingEquipment(id) {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card diff-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">🎒 Équipement de départ</h3>
-      ${data._startKit ? '<p class="modal-msg" style="color:var(--yellow)">⚠ Un équipement de départ a déjà été ajouté à cette fiche.</p>' : '<p class="modal-msg">Choisis tes options, puis ajoute le tout à l’inventaire :</p>'}
-      ${classEntry ? `<div class="derive-pick"><div class="derive-pick-h">Classe — ${escapeHtml(classEntry.label)}</div>${groupsHtml}</div>` : ''}
+      <h3 class="modal-title">${t('startkit.heading')}</h3>
+      ${data._startKit ? `<p class="modal-msg" style="color:var(--yellow)">${t('startkit.already')}</p>` : `<p class="modal-msg">${t('startkit.choose')}</p>`}
+      ${classEntry ? `<div class="derive-pick"><div class="derive-pick-h">${t('startkit.classHead', { label: escapeHtml(classEntry.label) })}</div>${groupsHtml}</div>` : ''}
       ${bgHtml}
       <div class="modal-actions">
-        <button class="modal-btn modal-cancel">Annuler</button>
-        <button class="modal-btn modal-ok">Ajouter à l'inventaire</button>
+        <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok">${t('startkit.addInv')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -1008,7 +1009,7 @@ function openStartingEquipment(id) {
     for (const it of items) {
       const ix = inv.findIndex((x) => x.nm === it.nm);
       if (ix >= 0) inv[ix] = { ...inv[ix], qty: (Number(inv[ix].qty) || 0) + (Number(it.qty) || 1) };
-      else inv.push({ nm: it.nm, qty: it.qty || 1, wt: '', note: 'Départ' });
+      else inv.push({ nm: it.nm, qty: it.qty || 1, wt: '', note: t('startkit.noteDefault') });
     }
     const patch = { inv, _startKit: true };
     if (bgKit?.gold) {
@@ -1018,14 +1019,14 @@ function openStartingEquipment(id) {
     }
     close();
     updateCharacter(id, patch);
-    showToast(`🎒 Équipement de départ ajouté (${items.length} objet(s)${bgKit?.gold ? `, ${bgKit.gold} po` : ''}).`, { type: 'success', timeout: 3000 });
+    showToast(t('startkit.done', { n: items.length, gold: bgKit?.gold ? `, ${bgKit.gold} ${t('startkit.gp')}` : '' }), { type: 'success', timeout: 3000 });
   });
 }
 
 async function importCharFromJson(file) {
   try {
     const obj = JSON.parse(await file.text());
-    const name = String(obj.name || 'Fiche importée').slice(0, 40);
+    const name = String(obj.name || t('char.jsonDefault')).slice(0, 40);
     const data = obj.data && typeof obj.data === 'object' ? obj.data : typeof obj === 'object' ? obj : {};
     const chars = store.get().characters;
 
@@ -1043,17 +1044,17 @@ async function importCharFromJson(file) {
       if (name !== existing.name) await renameCharacter(existing.id, name);
       replaceCharacterData(existing.id, data); // remplacement complet (gère aussi les suppressions)
       store.set({ activeChar: existing.id });
-      showToast(`📂 « ${name} » mis à jour depuis JSON.`, { timeout: 2800 });
+      showToast(t('char.json.updated', { name }), { timeout: 2800 });
       return;
     }
 
     // Aucune fiche correspondante : proposer la création.
-    if (await modalConfirm(`Aucune fiche « ${name} » ne correspond. Créer une nouvelle fiche ?`, { title: 'Import JSON', okLabel: 'Créer' })) {
+    if (await modalConfirm(t('char.json.noMatch', { name }), { title: t('char.json.title'), okLabel: t('char.json.create') })) {
       const id = await importCharacter(name, data);
-      if (id) showToast(`📂 « ${name} » créé depuis JSON.`, { timeout: 2600 });
+      if (id) showToast(t('char.json.created', { name }), { timeout: 2600 });
     }
   } catch (e) {
-    await modalAlert('JSON invalide : ' + e.message, { title: 'Import JSON' });
+    await modalAlert(t('char.json.invalid') + e.message, { title: t('char.json.title') });
   }
 }
 
@@ -1093,7 +1094,7 @@ function renderSheet(scrollTop = false) {
              )
              .join('')}
          </select>
-         <button class="mini-del sheet-del" data-delchar="${c.id}" title="Supprimer la fiche">Supprimer</button>
+         <button class="mini-del sheet-del" data-delchar="${c.id}" title="${t('char.del.title')}">${t('char.delBtn')}</button>
        </div>`
     : '';
 
@@ -1101,12 +1102,12 @@ function renderSheet(scrollTop = false) {
   const sheet = sys.sheet || { tabs: Object.keys(TAB_DEFS), rail: ['hp', 'hitdice', 'stats', 'extras', 'saves'], identity: 'srd5e' };
   if (!sheet.tabs.includes(sheetTab)) sheetTab = sheet.tabs[0];
   const TABS = sheet.tabs.map((id) => ({ id, label: t(TAB_DEFS[id] || id) }));
-  const subline = `${escapeHtml(d.cls || 'Classe')}${d.sub ? ` (${escapeHtml(d.sub)})` : ''} · Niv. ${num(d.lvl) || 1}`;
+  const subline = `${escapeHtml(d.cls || t('field.cls'))}${d.sub ? ` (${escapeHtml(d.sub)})` : ''} · ${t('sheet.lvl')} ${num(d.lvl) || 1}`;
 
   el.innerHTML = `
     <div class="sheet5e">
       <aside class="sheet-rail">
-        <label class="rail-portrait ${isDM ? 'editable' : ''}" ${isDM ? 'title="Changer le portrait"' : ''}>
+        <label class="rail-portrait ${isDM ? 'editable' : ''}" ${isDM ? `title="${t('char.portrait.change')}"` : ''}>
           ${portraitUrl(d.portrait) ? `<img src="${portraitUrl(d.portrait)}" alt="">` : sheetInitials(c.name)}
           ${isDM ? `<input type="file" id="portrait-file" accept="image/*" hidden>` : ''}
         </label>
@@ -1133,7 +1134,7 @@ function renderSheet(scrollTop = false) {
     try {
       await uploadPortrait(c.id, f);
     } catch (ex) {
-      await modalAlert('Import du portrait impossible : ' + ex.message, { title: 'Portrait' });
+      await modalAlert(t('char.portrait.err') + ex.message, { title: t('char.portrait.title') });
     }
     e.target.value = '';
   });
@@ -1183,24 +1184,24 @@ function railBlock(id, sys, d, ed, ro) {
             <span class="hd-d">d</span>
             <input type="number" class="hd-size" value="${num(d.hdSize ?? 8)}" data-d="hdSize" min="4" max="12" step="2" ${ro}/>
           </span>
-          ${ed ? `<button class="rest-btn hd-spend" data-hd-spend title="Dépenser un dé de vie (1dN + mod. CON)">🎲 Dépenser</button>` : ''}
+          ${ed ? `<button class="rest-btn hd-spend" data-hd-spend title="${t('sheet.hd.spend.title')}">${t('sheet.hd.spend')}</button>` : ''}
         </div>`;
     case 'stats':
       return `<div class="rail-stats">
-          ${stat('CA', 'ac', d.ac, ro)}
-          ${stat('Init.', 'initB', d.initB, ro, '', true)}
-          ${stat('Vitesse', 'spd', d.spd, ro, 'm')}
-          ${stat('Vision', 'darkvision', d.darkvision, ro, 'm')}
+          ${stat(t('field.ac'), 'ac', d.ac, ro)}
+          ${stat(t('field.initB'), 'initB', d.initB, ro, '', true)}
+          ${stat(t('field.spd'), 'spd', d.spd, ro, 'm')}
+          ${stat(t('field.darkvision'), 'darkvision', d.darkvision, ro, 'm')}
           ${sizeStat(d.size, ro)}
-          ${stat('Maîtrise', 'prof', d.prof, ro, '', true)}
+          ${stat(t('field.prof'), 'prof', d.prof, ro, '', true)}
         </div>`;
     case 'extras':
       return `<div class="rail-extras">
-          <button class="insp-btn ${d.insp ? 'on' : ''}" data-insp ${ro} title="Inspiration héroïque">✨ Inspiration</button>
-          <div class="passive-pp" title="Perception passive (10 + bonus de Perception)">👁 Perception passive <b>${10 + skillBonus(d, 'perception')}</b></div>
+          <button class="insp-btn ${d.insp ? 'on' : ''}" data-insp ${ro} title="${t('sheet.insp.title')}">${t('sheet.insp')}</button>
+          <div class="passive-pp" title="${t('sheet.passivePP.title')}">${t('sheet.passivePP')} <b>${10 + skillBonus(d, 'perception')}</b></div>
           <div class="exh-block">
-            <span class="exh-lbl">Épuisement</span>
-            <div class="exh-dots">${[1, 2, 3, 4, 5, 6].map((i) => `<button class="exh-dot ${(Number(d.exh) || 0) >= i ? 'on' : ''}" data-exh="${i}" ${ro} title="Niveau ${i}"></button>`).join('')}</div>
+            <span class="exh-lbl">${t('cond.exhaustion')}</span>
+            <div class="exh-dots">${[1, 2, 3, 4, 5, 6].map((i) => `<button class="exh-dot ${(Number(d.exh) || 0) >= i ? 'on' : ''}" data-exh="${i}" ${ro} title="${t('sheet.exhLevel', { n: i })}"></button>`).join('')}</div>
           </div>
         </div>`;
     case 'saves':
@@ -1334,7 +1335,7 @@ function paneContent(id, sys, sheet, c, d, ed, ro) {
       return storySection(c, d, ed, ro);
     case 'notes':
       return `${featsBlock(d.feats, ed)}
-        ${textBlock('Notes', 'notes', d.notes, ro)}`;
+        ${textBlock(t('field.notes'), 'notes', d.notes, ro)}`;
   }
   return '';
 }
@@ -1372,11 +1373,11 @@ function idSelect(kind, label, entries, value, ro, ed) {
         (e) => `<option value="${escapeHtml(e.label)}" ${e.label === cur ? 'selected' : ''}>${escapeHtml(e.label)}</option>`
       )
     );
-  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (perso)</option>`);
+  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
   const known = kind === 'cls' ? classByLabel(cur) : kind === 'race' ? raceByLabel(cur) : backgroundByLabel(cur);
   return `<span class="sf-derive">
       <select class="sf" data-derive="${kind}" ${ro}>${opts.join('')}</select>
-      ${ed && known ? `<button class="sf-cog" data-derive-open="${kind}" title="Appliquer le gabarit ${escapeHtml(label.toLowerCase())} (sauvegardes, vitesse, vision…)">⚙</button>` : ''}
+      ${ed && known ? `<button class="sf-cog" data-derive-open="${kind}" title="${t('sheet.derive.title', { label: escapeHtml(label.toLowerCase()) })}">⚙</button>` : ''}
     </span>`;
 }
 
@@ -1386,13 +1387,13 @@ function subSelect(d, ro, ed) {
   const cur = String(d.sub || '');
   const subs = cls ? cls.subclasses : [];
   const inList = subs.includes(cur);
-  const opts = ['<option value="">— Sous-classe —</option>']
+  const opts = [`<option value="">${t('mc.subOpt')}</option>`]
     .concat(subs.map((s) => `<option value="${escapeHtml(s)}" ${s === cur ? 'selected' : ''}>${escapeHtml(s)}</option>`));
-  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (perso)</option>`);
+  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
   const known = subclassByLabel(cur);
   return `<span class="sf-derive">
       <select class="sf" data-derive="sub" ${ro}>${opts.join('')}</select>
-      ${ed && known ? `<button class="sf-cog" data-derive-open="sub" title="Appliquer les aptitudes de sous-classe débloquées par le niveau">⚙</button>` : ''}
+      ${ed && known ? `<button class="sf-cog" data-derive-open="sub" title="${t('sheet.derive.subTitle')}">⚙</button>` : ''}
     </span>`;
 }
 
@@ -1404,10 +1405,10 @@ function pf2eSelect(kind, label, entries, value, ro, ed) {
   const opts = [`<option value="">— ${label} —</option>`].concat(
     entries.map((e) => `<option value="${escapeHtml(e.label)}" ${e.label === cur ? 'selected' : ''}>${escapeHtml(e.label)}</option>`)
   );
-  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (perso)</option>`);
+  if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
   return `<span class="sf-derive">
       <select class="sf" data-pfderive="${kind}" ${ro}>${opts.join('')}</select>
-      ${ed && inList ? `<button class="sf-cog" data-pfderive-open="${kind}" title="Appliquer ${escapeHtml(label.toLowerCase())} (PV, vitesse, rangs, aptitudes)">⚙</button>` : ''}
+      ${ed && inList ? `<button class="sf-cog" data-pfderive-open="${kind}" title="${t('sheet.pfderive.title', { label: escapeHtml(label.toLowerCase()) })}">⚙</button>` : ''}
     </span>`;
 }
 
@@ -1417,7 +1418,7 @@ function sizeStat(val, ro) {
   const opts = [['P', 'P'], ['M', 'M'], ['G', 'G']];
   return `
     <div class="combat-stat">
-      <div class="cs-label">Taille</div>
+      <div class="cs-label">${t('field.size')}</div>
       <div class="cs-val">
         <select class="cs-size" data-d="size" ${ro}>
           ${opts.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}
@@ -1431,7 +1432,7 @@ function abilityBox(a, d, ro, sys) {
   return `
     <div class="ability-box">
       <div class="ab-label">${a.label}</div>
-      <div class="ab-mod rollable" data-roll="ability" data-key="${a.key}" title="Lancer un test de ${a.label}">${sys.fmtMod(mod)}</div>
+      <div class="ab-mod rollable" data-roll="ability" data-key="${a.key}" title="${t('sheet.rollAbility', { ability: a.label })}">${sys.fmtMod(mod)}</div>
       <input type="number" class="ab-score" value="${num(d[a.key])}" data-d="${a.key}" ${ro}/>
     </div>`;
 }
@@ -1441,7 +1442,7 @@ function saveRow(a, d, ed, sys) {
   return `
     <label class="prof-row">
       <input type="checkbox" data-save="${a.key}" ${has ? 'checked' : ''} ${ed ? '' : 'disabled'}/>
-      <span class="prof-bonus rollable" data-roll="save" data-key="${a.key}" title="Jet de sauvegarde de ${a.label}">${sys.fmtMod(sys.saveBonus(d, a.key))}</span>
+      <span class="prof-bonus rollable" data-roll="save" data-key="${a.key}" title="${t('sheet.rollSave', { ability: a.label })}">${sys.fmtMod(sys.saveBonus(d, a.key))}</span>
       <span class="prof-name">${a.label}</span>
     </label>`;
 }
@@ -1452,7 +1453,7 @@ function rankRow(key, label, sub, rollKind, d, ed, sys) {
   const r = sys.profRanks[rank];
   const bonus = rollKind === 'save' ? sys.saveBonus(d, key) : sys.skillBonus(d, key);
   const btn = ed
-    ? `<button class="exp-toggle ${rank > 0 ? 'on' : ''}" data-rank="${key}" title="Rang : ${r.label} (clic pour changer)">${r.abbr}</button>`
+    ? `<button class="exp-toggle ${rank > 0 ? 'on' : ''}" data-rank="${key}" title="${t('sheet.rankTitle', { rank: r.label })}">${r.abbr}</button>`
     : `<span class="exp-badge" title="${r.label}">${r.abbr}</span>`;
   return `
     <label class="prof-row">
@@ -1475,15 +1476,15 @@ function skillRow(k, d, ed) {
   return `
     <label class="prof-row">
       <input type="checkbox" data-skill="${k}" ${prof ? 'checked' : ''} ${ed ? '' : 'disabled'}/>
-      <span class="prof-bonus rollable" data-roll="skill" data-key="${k}" title="Test de ${sk.label}">${sys.fmtMod(sys.skillBonus(d, k))}</span>
+      <span class="prof-bonus rollable" data-roll="skill" data-key="${k}" title="${t('sheet.skillTest', { skill: sk.label })}">${sys.fmtMod(sys.skillBonus(d, k))}</span>
       <span class="prof-name">${sk.label} <em>(${ab})</em></span>
-      ${ed ? `<button class="exp-toggle ${exp ? 'on' : ''}" data-exp="${k}" title="Expertise">E</button>` : exp ? '<span class="exp-badge">E</span>' : ''}
+      ${ed ? `<button class="exp-toggle ${exp ? 'on' : ''}" data-exp="${k}" title="${t('sheet.expertise')}">E</button>` : exp ? '<span class="exp-badge">E</span>' : ''}
     </label>`;
 }
 
 function atkRow(a, i, ed) {
   if (!ed) {
-    return `<div class="atk-line clickable" data-cardatk="${i}" title="Ouvrir la carte d'action (attaque / dégâts / critique)">
+    return `<div class="atk-line clickable" data-cardatk="${i}" title="${t('sheet.atk.open')}">
       <strong>${escapeHtml(a.nm || '')}</strong>
       <span>${escapeHtml(a.bon || '')}</span>
       <span>${escapeHtml(a.dmg || '')} ${escapeHtml(a.typ || '')}</span>
@@ -1491,12 +1492,12 @@ function atkRow(a, i, ed) {
     </div>`;
   }
   return `<div class="atk-line edit">
-    <button class="atk-card-btn" data-cardatk="${i}" title="Carte d'action">🎴</button>
-    <input value="${escapeHtml(a.nm || '')}" data-atk="${i}" data-k="nm" placeholder="Nom"/>
+    <button class="atk-card-btn" data-cardatk="${i}" title="${t('sheet.atk.card')}">🎴</button>
+    <input value="${escapeHtml(a.nm || '')}" data-atk="${i}" data-k="nm" placeholder="${t('cmp.namePh')}"/>
     <input value="${escapeHtml(a.bon || '')}" data-atk="${i}" data-k="bon" placeholder="+X" style="width:48px"/>
     <input value="${escapeHtml(a.dmg || '')}" data-atk="${i}" data-k="dmg" placeholder="1d8+2" style="width:70px"/>
-    <input value="${escapeHtml(a.typ || '')}" data-atk="${i}" data-k="typ" placeholder="type" style="width:80px"/>
-    <input value="${escapeHtml(a.prop || '')}" data-atk="${i}" data-k="prop" placeholder="propriétés"/>
+    <input value="${escapeHtml(a.typ || '')}" data-atk="${i}" data-k="typ" placeholder="${t('sheet.atk.typePh')}" style="width:80px"/>
+    <input value="${escapeHtml(a.prop || '')}" data-atk="${i}" data-k="prop" placeholder="${t('sheet.atk.propPh')}"/>
     <button class="mini-del" data-delatk="${i}">×</button>
   </div>`;
 }
@@ -1507,25 +1508,25 @@ function featuresSection(d, ed) {
   const rows = list
     .map((f, i) => {
       if (!ed) {
-        return `<div class="feat-line clickable" data-cardfeat="${i}" title="Voir l'aptitude (description + jets cliquables)">
-          <strong>${escapeHtml(f.nm || '')}</strong>${f.lvl ? `<span class="feat-lvl">niv.${escapeHtml(String(f.lvl))}</span>` : ''}
+        return `<div class="feat-line clickable" data-cardfeat="${i}" title="${t('sheet.feat.view')}">
+          <strong>${escapeHtml(f.nm || '')}</strong>${f.lvl ? `<span class="feat-lvl">${t('sheet.lvl')}${escapeHtml(String(f.lvl))}</span>` : ''}
           <span class="feat-snip">${escapeHtml((f.desc || '').replace(/[#*_>`]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90))}</span>
         </div>`;
       }
       return `<div class="feat-edit">
         <div class="feat-edit-top">
-          <button class="atk-card-btn" data-cardfeat="${i}" title="Carte d'aptitude">🎴</button>
-          <input value="${escapeHtml(f.nm || '')}" data-feat="${i}" data-k="nm" placeholder="Nom de l'aptitude"/>
-          <input value="${escapeHtml(f.lvl || '')}" data-feat="${i}" data-k="lvl" placeholder="Niv" style="width:48px"/>
+          <button class="atk-card-btn" data-cardfeat="${i}" title="${t('sheet.feat.card')}">🎴</button>
+          <input value="${escapeHtml(f.nm || '')}" data-feat="${i}" data-k="nm" placeholder="${t('sheet.feat.namePh')}"/>
+          <input value="${escapeHtml(f.lvl || '')}" data-feat="${i}" data-k="lvl" placeholder="${t('sheet.lvlPh')}" style="width:48px"/>
           <button class="mini-del" data-delfeat="${i}">×</button>
         </div>
-        <textarea class="spell-desc-in" data-feat="${i}" data-k="desc" rows="2" placeholder="Description (Markdown ; [[1d6]] devient cliquable)">${escapeHtml(f.desc || '')}</textarea>
+        <textarea class="spell-desc-in" data-feat="${i}" data-k="desc" rows="2" placeholder="${t('sheet.feat.descPh')}">${escapeHtml(f.desc || '')}</textarea>
       </div>`;
     })
     .join('');
   return `<section class="sheet-block">
     <h3>${t('sheet.h.feats')} ${ed ? `<button class="mini-add" data-add="feat">+</button>` : ''}</h3>
-    <div class="feat-table">${rows || `<div class="char-empty">Aucune aptitude.${ed ? ' Applique une classe/espèce (⚙) ou ajoute avec +.' : ''}</div>`}</div>
+    <div class="feat-table">${rows || `<div class="char-empty">${t('sheet.feat.empty')}${ed ? t('sheet.feat.emptyEd') : ''}</div>`}</div>
   </section>`;
 }
 
@@ -1541,7 +1542,7 @@ function spellsSection(d, ed) {
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       .map(
         (n) =>
-          `<option value="${n}" ${n === Number(sel) ? 'selected' : ''}>${n === 0 ? 'Mineur' : `Niv.${n}`}</option>`
+          `<option value="${n}" ${n === Number(sel) ? 'selected' : ''}>${n === 0 ? t('cmp.cantrip') : `${t('sheet.lvl')}${n}`}</option>`
       )
       .join('');
 
@@ -1553,25 +1554,25 @@ function spellsSection(d, ed) {
           if (ed) {
             return `<div class="spell-edit">
                  <div class="spell-edit-top">
-                   <button class="spell-cast" data-cardspell="${idx}" title="Carte d'action (attaque / dégâts / critique / DD)">🎴</button>
-                   <button class="spell-cast" data-cast="${idx}" title="Lancer le sort (consomme un emplacement)">🪄</button>
-                   <input value="${escapeHtml(s.nm)}" data-spell="${idx}" data-k="nm" placeholder="Nom du sort"/>
+                   <button class="spell-cast" data-cardspell="${idx}" title="${t('sheet.spell.card')}">🎴</button>
+                   <button class="spell-cast" data-cast="${idx}" title="${t('sheet.spell.cast')}">🪄</button>
+                   <input value="${escapeHtml(s.nm)}" data-spell="${idx}" data-k="nm" placeholder="${t('sheet.spell.namePh')}"/>
                    <select class="spell-lvl-sel" data-spell="${idx}" data-k="lvl">${lvlOptions(s.lvl)}</select>
                    <button class="mini-del" data-delspell="${idx}">×</button>
                  </div>
-                 <input class="spell-desc-in" value="${escapeHtml(s.desc || '')}" data-spell="${idx}" data-k="desc" placeholder="Description rapide (optionnel)"/>
+                 <input class="spell-desc-in" value="${escapeHtml(s.desc || '')}" data-spell="${idx}" data-k="desc" placeholder="${t('sheet.spell.descPh')}"/>
                  <div class="spell-cast-fields">
-                   <input value="${escapeHtml(s.atk || '')}" data-spell="${idx}" data-k="atk" placeholder="Att. +X"/>
-                   <input value="${escapeHtml(s.dmg || '')}" data-spell="${idx}" data-k="dmg" placeholder="Dégâts (3d6)"/>
-                   <input value="${escapeHtml(s.dc || '')}" data-spell="${idx}" data-k="dc" placeholder="DD"/>
-                   <input value="${escapeHtml(s.heal || '')}" data-spell="${idx}" data-k="heal" placeholder="Soin (1d8+MOD)" title="MOD = mod. d'incantation ; PROF = maîtrise ; FOR/DEX/… = mod. de carac."/>
-                   <input value="${escapeHtml(s.cond || '')}" data-spell="${idx}" data-k="cond" placeholder="État (Empoisonné)"/>
+                   <input value="${escapeHtml(s.atk || '')}" data-spell="${idx}" data-k="atk" placeholder="${t('sheet.spell.atkPh')}"/>
+                   <input value="${escapeHtml(s.dmg || '')}" data-spell="${idx}" data-k="dmg" placeholder="${t('sheet.spell.dmgPh')}"/>
+                   <input value="${escapeHtml(s.dc || '')}" data-spell="${idx}" data-k="dc" placeholder="${t('dice.dc')}"/>
+                   <input value="${escapeHtml(s.heal || '')}" data-spell="${idx}" data-k="heal" placeholder="${t('sheet.spell.healPh')}" title="${t('sheet.spell.healTitle')}"/>
+                   <input value="${escapeHtml(s.cond || '')}" data-spell="${idx}" data-k="cond" placeholder="${t('sheet.spell.condPh')}"/>
                  </div>
                </div>`;
           }
           const desc = effSpellDesc(s);
           const hasDesc = !!(desc && desc.trim());
-          const tags = [s.atk ? `att. ${s.atk}` : '', s.dmg ? escapeHtml(s.dmg) : '', s.dc ? `DD ${escapeHtml(String(s.dc))}` : '']
+          const tags = [s.atk ? `${t('sheet.spell.atkShort')} ${s.atk}` : '', s.dmg ? escapeHtml(s.dmg) : '', s.dc ? `${t('dice.dc')} ${escapeHtml(String(s.dc))}` : '']
             .filter(Boolean)
             .map((x) => `<span class="spell-tag">${escapeHtml(x)}</span>`)
             .join('');
@@ -1585,7 +1586,7 @@ function spellsSection(d, ed) {
                </div>`;
         })
         .join('');
-      return `<div class="spell-group"><div class="spell-lv">${lv === 0 ? 'Sorts mineurs' : `Niveau ${lv}`}</div>${rows}</div>`;
+      return `<div class="spell-group"><div class="spell-lv">${lv === 0 ? t('sheet.spell.cantrips') : `${t('field.lvl')} ${lv}`}</div>${rows}</div>`;
     })
     .join('');
 
@@ -1594,7 +1595,7 @@ function spellsSection(d, ed) {
     <section class="sheet-block">
       <h3>${t('sheet.h.spells')} ${ed ? `<button class="mini-add" data-add="spell">+</button>` : ''}</h3>
       ${slotsBlock(d, ed)}
-      ${groups || (spells.length ? '' : '<div class="char-empty">Aucun sort.</div>')}
+      ${groups || (spells.length ? '' : `<div class="char-empty">${t('sheet.spell.empty')}</div>`)}
     </section>`;
 }
 
@@ -1607,15 +1608,15 @@ function slotsBlock(d, ed) {
       const m = d.slots[lv].m;
       const u = Math.min(d.slots[lv].u || 0, m);
       const pips = Array.from({ length: m }, (_, i) =>
-        `<button class="slot-pip ${i < u ? 'used' : ''}" ${ed ? '' : 'disabled'} data-slot="${lv}" data-i="${i + 1}" title="${i < u ? 'Récupérer' : 'Utiliser'}"></button>`
+        `<button class="slot-pip ${i < u ? 'used' : ''}" ${ed ? '' : 'disabled'} data-slot="${lv}" data-i="${i + 1}" title="${i < u ? t('sheet.slot.recover') : t('sheet.slot.use')}"></button>`
       ).join('');
-      return `<div class="slot-row"><span class="slot-lv">Niv ${lv}</span><span class="slot-pips">${pips}</span><span class="slot-count">${m - u}/${m}</span></div>`;
+      return `<div class="slot-row"><span class="slot-lv">${t('sheet.slotLvl', { lv })}</span><span class="slot-pips">${pips}</span><span class="slot-count">${m - u}/${m}</span></div>`;
     })
     .join('');
   const editor = ed
-    ? `<details class="slots-cfg"><summary>Configurer les emplacements</summary>
+    ? `<details class="slots-cfg"><summary>${t('sheet.slot.config')}</summary>
          <div class="slots-maxgrid">${lvls
-           .map((lv) => `<label>N${lv}<input type="number" min="0" max="9" value="${d.slots?.[lv]?.m || 0}" data-slotmax="${lv}"></label>`)
+           .map((lv) => `<label>${t('dock.slotLv', { lv })}<input type="number" min="0" max="9" value="${d.slots?.[lv]?.m || 0}" data-slotmax="${lv}"></label>`)
            .join('')}</div>
        </details>`
     : '';
@@ -1627,32 +1628,32 @@ function slotsBlock(d, ed) {
 function resourcesSection(d, ed) {
   const res = d.resources || [];
   if (!res.length && !ed) return '';
-  const RESET = { short: 'repos court', long: 'repos long', none: '—' };
+  const RESET = { short: t('sheet.reset.short'), long: t('sheet.reset.long'), none: t('sheet.reset.none') };
   const rows = res
     .map((r, i) => {
       const max = Math.max(0, Number(r.max) || 0);
       const used = Math.min(Number(r.used) || 0, max);
       const pips = Array.from({ length: max }, (_, k) =>
-        `<button class="slot-pip ${k < used ? 'used' : ''}" data-res="${i}" data-i="${k + 1}" title="${k < used ? 'Récupérer' : 'Utiliser'}"></button>`
+        `<button class="slot-pip ${k < used ? 'used' : ''}" data-res="${i}" data-i="${k + 1}" title="${k < used ? t('sheet.slot.recover') : t('sheet.slot.use')}"></button>`
       ).join('');
       if (ed) {
         return `<div class="res-edit">
-            <input value="${escapeHtml(r.name || '')}" data-resk="${i}" data-k="name" placeholder="Ressource (ki, rage…)"/>
-            <input type="number" min="0" max="30" value="${max}" data-resk="${i}" data-k="max" title="Max"/>
-            <select data-resk="${i}" data-k="reset" title="Récupération">
-              <option value="short" ${r.reset === 'short' ? 'selected' : ''}>Repos court</option>
-              <option value="long" ${r.reset === 'long' || !r.reset ? 'selected' : ''}>Repos long</option>
-              <option value="none" ${r.reset === 'none' ? 'selected' : ''}>Aucun</option>
+            <input value="${escapeHtml(r.name || '')}" data-resk="${i}" data-k="name" placeholder="${t('sheet.res.namePh')}"/>
+            <input type="number" min="0" max="30" value="${max}" data-resk="${i}" data-k="max" title="${t('sheet.res.max')}"/>
+            <select data-resk="${i}" data-k="reset" title="${t('sheet.res.reset')}">
+              <option value="short" ${r.reset === 'short' ? 'selected' : ''}>${t('sheet.restShort')}</option>
+              <option value="long" ${r.reset === 'long' || !r.reset ? 'selected' : ''}>${t('sheet.restLong')}</option>
+              <option value="none" ${r.reset === 'none' ? 'selected' : ''}>${t('sheet.restNone')}</option>
             </select>
             <button class="mini-del" data-delres="${i}">×</button>
           </div>`;
       }
-      return `<div class="slot-row"><span class="slot-lv res-name">${escapeHtml(r.name || 'Ressource')}</span><span class="slot-pips">${pips}</span><span class="slot-count">${max - used}/${max} <em>${RESET[r.reset] || RESET.long}</em></span></div>`;
+      return `<div class="slot-row"><span class="slot-lv res-name">${escapeHtml(r.name || t('dock.res.title'))}</span><span class="slot-pips">${pips}</span><span class="slot-count">${max - used}/${max} <em>${RESET[r.reset] || RESET.long}</em></span></div>`;
     })
     .join('');
   return `<section class="sheet-block">
       <h3>${t('sheet.h.resources')} ${ed ? `<button class="mini-add" data-add="res">+</button> <button class="mini-add" data-init-res title="${t('sheet.initres.title')}">${t('sheet.initres')}</button>` : ''}</h3>
-      <div class="slots-block">${rows || '<div class="char-empty">Aucune ressource.</div>'}</div>
+      <div class="slots-block">${rows || `<div class="char-empty">${t('sheet.res.empty')}</div>`}</div>
     </section>`;
 }
 
@@ -1713,9 +1714,9 @@ function featsBlock(text, ed) {
         <h3>${t('sheet.h.traits')}</h3>
         ${accordion}
         <details class="feats-editor">
-          <summary>Modifier</summary>
+          <summary>${t('common.edit')}</summary>
           <textarea class="sheet-text" data-d="feats" rows="6">${escapeHtml(text || '')}</textarea>
-          <div class="feats-hint">Une capacité par ligne. Format « Nom — description ». Indentez les détails.</div>
+          <div class="feats-hint">${t('sheet.traits.hint')}</div>
         </details>
       </section>`;
   }
@@ -1726,12 +1727,14 @@ function featsBlock(text, ed) {
     </section>`;
 }
 
+// k = clé de données (po/pe/pa/pc côté fiche) ; label/title = clés i18n
+// réutilisées du trésor de groupe (pièces FR/EN), résolues à l'affichage.
 const COINS = [
-  { k: 'pp', label: 'PP', title: 'Platine' },
-  { k: 'po', label: 'PO', title: 'Or' },
-  { k: 'pe', label: 'PE', title: 'Électrum' },
-  { k: 'pa', label: 'PA', title: 'Argent' },
-  { k: 'pc', label: 'PC', title: 'Cuivre' },
+  { k: 'pp', label: 'loot.coin.pp', title: 'loot.coin.pp.t' },
+  { k: 'po', label: 'loot.coin.gp', title: 'loot.coin.gp.t' },
+  { k: 'pe', label: 'loot.coin.ep', title: 'loot.coin.ep.t' },
+  { k: 'pa', label: 'loot.coin.sp', title: 'loot.coin.sp.t' },
+  { k: 'pc', label: 'loot.coin.cp', title: 'loot.coin.cp.t' },
 ];
 
 function invRow(it, i, ed) {
@@ -1744,10 +1747,10 @@ function invRow(it, i, ed) {
     </div>`;
   }
   return `<div class="inv-line edit">
-    <input value="${escapeHtml(it.nm || '')}" data-inv="${i}" data-k="nm" placeholder="Objet"/>
-    <input type="number" value="${escapeHtml(String(it.qty ?? 1))}" data-inv="${i}" data-k="qty" placeholder="Qté" style="width:54px"/>
+    <input value="${escapeHtml(it.nm || '')}" data-inv="${i}" data-k="nm" placeholder="${t('loot.item.ph')}"/>
+    <input type="number" value="${escapeHtml(String(it.qty ?? 1))}" data-inv="${i}" data-k="qty" placeholder="${t('sheet.inv.qtyPh')}" style="width:54px"/>
     <input type="number" step="0.1" value="${escapeHtml(String(it.wt ?? ''))}" data-inv="${i}" data-k="wt" placeholder="lb" style="width:58px"/>
-    <input value="${escapeHtml(it.note || '')}" data-inv="${i}" data-k="note" placeholder="note"/>
+    <input value="${escapeHtml(it.note || '')}" data-inv="${i}" data-k="note" placeholder="${t('loot.note.ph')}"/>
     <button class="mini-del" data-delinv="${i}">×</button>
   </div>`;
 }
@@ -1762,16 +1765,16 @@ function inventorySection(d, ed, ro) {
     <section class="sheet-block">
       <h3>${t('sheet.h.money')}</h3>
       <div class="coins-row">
-        ${COINS.map((c) => `<label class="coin" title="${c.title}"><span>${c.label}</span><input type="number" min="0" value="${num(coins[c.k])}" data-coin="${c.k}" ${ro}/></label>`).join('')}
+        ${COINS.map((c) => `<label class="coin" title="${t(c.title)}"><span>${t(c.label)}</span><input type="number" min="0" value="${num(coins[c.k])}" data-coin="${c.k}" ${ro}/></label>`).join('')}
       </div>
     </section>
     <section class="sheet-block">
       <h3>${t('sheet.h.inv')} ${ed ? `<button class="mini-add" data-add="inv">+</button> <button class="mini-add" data-startkit title="${t('sheet.startkit.title')}">${t('sheet.startkit')}</button>` : ''}
-        <span class="inv-weight ${over ? 'over' : ''}" title="Capacité de charge = FOR × 15">${totalW.toFixed(1)} / ${cap} lb</span>
+        <span class="inv-weight ${over ? 'over' : ''}" title="${t('sheet.inv.capTitle')}">${totalW.toFixed(1)} / ${cap} lb</span>
       </h3>
-      <div class="inv-table">${items.length ? items.map((it, i) => invRow(it, i, ed)).join('') : `<div class="char-empty">Aucun objet.${ed ? ' Ajoute-en un avec + ou 🎒 Départ.' : ''}</div>`}</div>
+      <div class="inv-table">${items.length ? items.map((it, i) => invRow(it, i, ed)).join('') : `<div class="char-empty">${t('sheet.inv.empty')}${ed ? t('sheet.inv.emptyEd') : ''}</div>`}</div>
     </section>
-    ${textBlock("Notes d'équipement", 'equip', d.equip, ro)}
+    ${textBlock(t('sheet.equipNotes'), 'equip', d.equip, ro)}
   `;
 }
 
@@ -1909,7 +1912,7 @@ function bindSheet(el, id, ed) {
   });
   el.querySelector('[data-delchar]')?.addEventListener('click', async () => {
     const cur = store.get().characters.find((c) => c.id === id);
-    if (await modalConfirm(`Supprimer définitivement la fiche « ${cur?.name} » ?`, { title: 'Supprimer la fiche', danger: true, okLabel: 'Supprimer' })) {
+    if (await modalConfirm(t('char.del.confirm', { name: cur?.name }), { title: t('char.del.title'), danger: true, okLabel: t('common.delete') })) {
       deleteCharacter(id);
     }
   });
@@ -1932,7 +1935,7 @@ function bindSheet(el, id, ed) {
     if (!cur) return;
     const dd = cur.data;
     const newLvl = (Number(dd.lvl) || 1) + 1;
-    if (!(await modalConfirm(`Passer ${cur.name} au niveau ${newLvl} ? (maîtrise, dé de vie, aptitudes de sous-classe et emplacements de sorts mis à jour ; pense à ajuster les PV max)`, { title: '⬆ Montée de niveau', okLabel: `Niveau ${newLvl}` }))) return;
+    if (!(await modalConfirm(t('char.lvlup.confirm5e', { name: cur.name, lvl: newLvl }), { title: t('derive.lvlup.title'), okLabel: t('derive.lvlBtn', { lvl: newLvl }) }))) return;
     const prof = 2 + Math.floor((newLvl - 1) / 4);
     const hdMax = newLvl;
     const hd = Math.min(hdMax, (Number(dd.hd ?? (Number(dd.lvl) || 1)) || 0) + 1);
@@ -1951,7 +1954,7 @@ function bindSheet(el, id, ed) {
       patch.slots = slots;
     }
     updateCharacter(id, patch);
-    showToast(`⬆ ${cur.name} atteint le niveau ${newLvl} ! (maîtrise +${prof})`, { type: 'success', icon: '✨' });
+    showToast(t('char.lvlup.done5e', { name: cur.name, lvl: newLvl, prof }), { type: 'success', icon: '✨' });
   });
 
   // Jets de mort : un clic règle le nombre de réussites/échecs.
@@ -1988,18 +1991,18 @@ function bindSheet(el, id, ed) {
     const cur = store.get().characters.find((c) => c.id === id);
     if (!cur) return;
     const dd = cur.data;
-    if (!(await modalConfirm('Repos court : récupère les ressources « repos court ». Continuer ?', { title: '🔥 Repos court', okLabel: 'Repos court' }))) return;
+    if (!(await modalConfirm(t('rest.short.confirm'), { title: t('rest.short.title'), okLabel: t('rest.short.ok') }))) return;
     const resources = (dd.resources || []).map((r) => (r.reset === 'short' ? { ...r, used: 0 } : r));
     updateCharacter(id, { resources });
-    showToast('🔥 Repos court : ressources récupérées.', { timeout: 2000 });
-    postCard({ kind: 'note', icon: '🔥', title: `${cur.name} prend un repos court`, sub: 'Repos court', lines: ['Ressources « repos court » récupérées'] });
+    showToast(t('rest.short.done'), { timeout: 2000 });
+    postCard({ kind: 'note', icon: '🔥', title: t('rest.short.cardTitle', { name: cur.name }), sub: t('rest.short.cardSub'), lines: [t('rest.short.cardLine')] });
   });
 
   el.querySelector('[data-rest="long"]')?.addEventListener('click', async () => {
     const cur = store.get().characters.find((c) => c.id === id);
     if (!cur) return;
     const dd = cur.data;
-    if (!(await modalConfirm('Repos long : PV au maximum, PV temporaires remis à 0, emplacements de sorts restaurés, jets de mort réinitialisés, et la moitié des dés de vie regagnés. Continuer ?', { title: '🛌 Repos long', okLabel: 'Repos long' }))) return;
+    if (!(await modalConfirm(t('rest.long.confirm'), { title: t('rest.long.title'), okLabel: t('rest.long.ok') }))) return;
     const slots = {};
     for (const [lv, s] of Object.entries(dd.slots || {})) slots[lv] = { ...s, u: 0 };
     const hdMax = Number(dd.hdMax ?? dd.lvl) || 1;
@@ -2012,9 +2015,9 @@ function bindSheet(el, id, ed) {
     postCard({
       kind: 'note',
       icon: '🛌',
-      title: `${cur.name} se réveille reposé`,
-      sub: 'Repos long',
-      lines: ['PV au maximum', 'PV temporaires remis à 0', 'Emplacements de sorts restaurés', 'Jets de mort réinitialisés', `Dés de vie regagnés : +${regain}`],
+      title: t('rest.long.cardTitle', { name: cur.name }),
+      sub: t('rest.long.cardSub'),
+      lines: [t('rest.long.l1'), t('rest.long.l2'), t('rest.long.l3'), t('rest.long.l4'), t('rest.long.l5', { n: regain })],
     });
   });
 
@@ -2026,7 +2029,7 @@ function bindSheet(el, id, ed) {
     const hdMax = Number(dd.hdMax ?? dd.lvl) || 1;
     const hd = Number(dd.hd ?? hdMax) || 0;
     if (hd <= 0) {
-      modalAlert('Plus de dés de vie disponibles.', { title: 'Dés de vie' });
+      modalAlert(t('rest.hd.none'), { title: t('sheet.rail.hitdice') });
       return;
     }
     const size = Number(dd.hdSize) || 8;
@@ -2040,7 +2043,7 @@ function bindSheet(el, id, ed) {
     const gain = Math.max(0, die + conMod);
     const hp = Math.min(Number(dd.hpMax) || Infinity, (Number(dd.hp) || 0) + gain);
     updateCharacter(id, { hp, hd: hd - 1 });
-    showToast(`🎲 Dé de vie : 1d${size}(${die})${conMod >= 0 ? '+' : ''}${conMod} = +${gain} PV (${hd - 1}/${hdMax} restants)`, { type: 'success', icon: '🩹' });
+    showToast(t('rest.hd.roll', { size, die, mod: `${conMod >= 0 ? '+' : ''}${conMod}`, gain, cur: hd - 1, max: hdMax }), { type: 'success', icon: '🩹' });
   });
 
   // Jets depuis la fiche : carac / sauvegarde / compétence / attaque → flux des dés.
@@ -2057,25 +2060,25 @@ function bindSheet(el, id, ed) {
       if (!cur) return;
       const dd = cur.data;
       const who = cur.name || 'PJ';
-      const t = node.dataset.roll;
+      const rk = node.dataset.roll;
       const k = node.dataset.key;
       // Les bonus viennent du descripteur du système de la campagne (cf. systems/).
       const sys = getSystem(activeCampaign()?.system || dd.system);
       // Maj = avantage, Ctrl/Cmd = désavantage.
       const mode = e.shiftKey ? 'adv' : e.ctrlKey || e.metaKey ? 'dis' : 'normal';
-      if (t === 'ability') {
+      if (rk === 'ability') {
         const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
-        sendD20Check(sys.abilityMod(dd[k]), `${who} — Test de ${lbl}`, { mode });
-      } else if (t === 'save') {
+        sendD20Check(sys.abilityMod(dd[k]), t('dock.checkLabel', { name: who, ability: lbl }), { mode });
+      } else if (rk === 'save') {
         const lbl = sys.saves?.find((s) => s.key === k)?.label || sys.abilities.find((a) => a.key === k)?.label || k;
-        sendD20Check(sys.saveBonus(dd, k), `${who} — Sauvegarde de ${lbl}`, { mode });
-      } else if (t === 'skill') {
-        sendD20Check(sys.skillBonus(dd, k), `${who} — ${sys.skills[k]?.label || k}`, { mode });
-      } else if (t === 'atk') {
+        sendD20Check(sys.saveBonus(dd, k), t('char.roll.save', { name: who, save: lbl }), { mode });
+      } else if (rk === 'skill') {
+        sendD20Check(sys.skillBonus(dd, k), t('char.roll.skill', { name: who, skill: sys.skills[k]?.label || k }), { mode });
+      } else if (rk === 'atk') {
         const a = (dd.atks || [])[Number(node.dataset.i)];
         if (!a) return;
-        sendD20Check(normBon(a.bon), `${who} — ${a.nm || 'Attaque'} (attaque)`, { mode });
-        if (a.dmg) sendRoll(a.dmg, 'public', `${who} — ${a.nm || 'Attaque'} (dégâts)`);
+        sendD20Check(normBon(a.bon), t('ac.lbl.atk', { who, nm: a.nm || t('combat.action.attack') }), { mode });
+        if (a.dmg) sendRoll(a.dmg, 'public', t('ac.lbl.dmg', { who, nm: a.nm || t('combat.action.attack') }));
       }
     })
   );
@@ -2187,7 +2190,7 @@ function bindSheet(el, id, ed) {
     const cur = store.get().characters.find((c) => c.id === id);
     const proposed = classResources(cur.data);
     if (!proposed.length) {
-      await modalAlert(`Aucune ressource type pour la classe « ${cur.data.cls || '—'} ». Ajoute-la à la main avec +.`, { title: 'Ressources de classe' });
+      await modalAlert(t('char.res.noType', { cls: cur.data.cls || '—' }), { title: t('char.res.title') });
       return;
     }
     const norm = (s) => String(s || '').normalize('NFC').trim().toLowerCase();
@@ -2248,7 +2251,7 @@ function bindSheet(el, id, ed) {
           const r = { ...resources[ri] };
           const remaining = (r.max || 0) - (r.used || 0);
           if (cost > remaining) {
-            const ok = await modalConfirm(`Pas assez de ${r.name} (${remaining}/${r.max}). Lancer quand même ?`, { title: 'Ressource', okLabel: 'Lancer' });
+            const ok = await modalConfirm(t('char.cast.notEnoughRes', { name: r.name, remaining, max: r.max }), { title: t('dock.res.title'), okLabel: t('dice.roll') });
             if (!ok) return;
           } else {
             r.used = (r.used || 0) + cost;
@@ -2263,7 +2266,7 @@ function bindSheet(el, id, ed) {
         const slots = { ...(cur.data.slots || {}) };
         const slot = { ...(slots[lv] || { m: 0, u: 0 }) };
         if ((slot.u || 0) >= (slot.m || 0)) {
-          const ok = await modalConfirm(`Aucun emplacement de niveau ${lv} disponible. Lancer quand même ?`, { title: 'Sorts', okLabel: 'Lancer' });
+          const ok = await modalConfirm(t('char.cast.noSlot', { lv }), { title: t('cmp.spells'), okLabel: t('dice.roll') });
           if (!ok) return;
         } else {
           slot.u = (slot.u || 0) + 1;
@@ -2272,10 +2275,10 @@ function bindSheet(el, id, ed) {
         }
       }
       const mode = e.shiftKey ? 'adv' : e.ctrlKey || e.metaKey ? 'dis' : 'normal';
-      if (s.atk) sendD20Check(normBon(resolveNotation(s.atk, cur.data)), `${who} — ${s.nm || 'Sort'} (attaque)`, { mode });
-      if (s.dmg) sendRoll(resolveNotation(s.dmg, cur.data), 'public', `${who} — ${s.nm || 'Sort'} (dégâts)`);
-      logCombat(`✨ ${who} lance ${s.nm || 'un sort'}${lv ? ` (niv. ${lv})` : ''}${s.dc ? ` — DD ${s.dc}` : ''}.`);
-      showToast(`✨ ${s.nm || 'Sort'} lancé`, { timeout: 1800 });
+      if (s.atk) sendD20Check(normBon(resolveNotation(s.atk, cur.data)), t('ac.lbl.atk', { who, nm: s.nm || t('combat.action.spell') }), { mode });
+      if (s.dmg) sendRoll(resolveNotation(s.dmg, cur.data), 'public', t('ac.lbl.dmg', { who, nm: s.nm || t('combat.action.spell') }));
+      logCombat(t('char.cast.log', { who, nm: s.nm || t('char.cast.aSpell'), lvl: lv ? t('char.cast.logLvl', { lvl: lv }) : '', dc: s.dc ? t('char.cast.logDc', { dc: s.dc }) : '' }));
+      showToast(t('char.cast.toast', { nm: s.nm || t('combat.action.spell') }), { timeout: 1800 });
     })
   );
   // Carte d'action : attaques et sorts (description + jets attaque/dégâts/critique/DD).
@@ -2300,7 +2303,7 @@ function bindSheet(el, id, ed) {
       e.stopPropagation();
       const cur = store.get().characters.find((c) => c.id === id);
       const f = (cur?.data.features || [])[Number(b.dataset.cardfeat)];
-      if (f) openActionCard({ charId: id, who: cur.name || 'PJ', kind: 'atk', item: { nm: f.nm || 'Aptitude', desc: f.desc || '', noAtk: true } });
+      if (f) openActionCard({ charId: id, who: cur.name || 'PJ', kind: 'atk', item: { nm: f.nm || t('char.featDefault'), desc: f.desc || '', noAtk: true } });
     })
   );
   el.querySelectorAll('[data-feat]').forEach((input) =>
