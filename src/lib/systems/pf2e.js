@@ -13,6 +13,7 @@
  */
 
 import { abilityMod as rawMod } from '../rules.js';
+import { t } from '../i18n.js';
 import {
   ANCESTRIES, BACKGROUNDS_PF2E, CLASSES_PF2E,
   ancestryByLabel, backgroundByLabelPf2e, classByLabelPf2e,
@@ -25,34 +26,33 @@ function abilityMod(score) {
   return rawMod(score === undefined || score === null || score === '' ? 10 : score);
 }
 
-export const ABILITIES = [
-  { key: 'str', label: 'FOR' },
-  { key: 'dex', label: 'DEX' },
-  { key: 'con', label: 'CON' },
-  { key: 'int', label: 'INT' },
-  { key: 'wis', label: 'SAG' },
-  { key: 'cha', label: 'CHA' },
-];
+// Libellés résolus via i18n au rendu (FOR/SAG en FR, STR/WIS en EN). Clé et
+// caractéristique restent stables.
+const _ABBR = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+export const ABILITIES = _ABBR.map((key) => ({
+  key,
+  get label() {
+    return t('sys.abbr.' + key);
+  },
+}));
 
-// Compétence -> { label, caractéristique } (les 16 du Remaster).
-export const SKILLS = {
-  acrobaties: { label: 'Acrobaties', ability: 'dex' },
-  arcanes: { label: 'Arcanes', ability: 'int' },
-  artisanat: { label: 'Artisanat', ability: 'int' },
-  athletisme: { label: 'Athlétisme', ability: 'str' },
-  diplomatie: { label: 'Diplomatie', ability: 'cha' },
-  discretion: { label: 'Discrétion', ability: 'dex' },
-  duperie: { label: 'Duperie', ability: 'cha' },
-  intimidation: { label: 'Intimidation', ability: 'cha' },
-  larcin: { label: 'Larcin', ability: 'dex' },
-  medecine: { label: 'Médecine', ability: 'wis' },
-  nature: { label: 'Nature', ability: 'wis' },
-  occultisme: { label: 'Occultisme', ability: 'int' },
-  religion: { label: 'Religion', ability: 'wis' },
-  representation: { label: 'Représentation', ability: 'cha' },
-  societe: { label: 'Société', ability: 'int' },
-  survie: { label: 'Survie', ability: 'wis' },
+// Compétence -> { label (i18n), caractéristique } (les 16 du Remaster).
+const _SKILL_ABILITY = {
+  acrobaties: 'dex', arcanes: 'int', artisanat: 'int', athletisme: 'str', diplomatie: 'cha',
+  discretion: 'dex', duperie: 'cha', intimidation: 'cha', larcin: 'dex', medecine: 'wis',
+  nature: 'wis', occultisme: 'int', religion: 'wis', representation: 'cha', societe: 'int', survie: 'wis',
 };
+export const SKILLS = Object.fromEntries(
+  Object.entries(_SKILL_ABILITY).map(([k, ability]) => [
+    k,
+    {
+      ability,
+      get label() {
+        return t('sys.skillpf.' + k);
+      },
+    },
+  ])
+);
 
 /** Jets de sauvegarde (entrées nommées) + Perception, tous à rang. */
 export const SAVES = [

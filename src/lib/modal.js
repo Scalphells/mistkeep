@@ -118,8 +118,9 @@ export function modalAlert(message, { title = '', okLabel = 'OK' } = {}) {
   return modalBase({ kind: 'alert', title, message, okLabel }, () => undefined);
 }
 
-export function modalConfirm(message, { title = '', okLabel = t('common.confirm'), cancelLabel = t('common.cancel'), danger = false } = {}) {
-  return modalBase({ kind: 'confirm', title, message, okLabel, cancelLabel, danger }, () => true);
+export function modalConfirm(message, { title = '', okLabel = t('common.confirm'), cancelLabel = t('common.cancel'), danger = false, bodyHtml = '' } = {}) {
+  // bodyHtml : contenu riche optionnel (déjà assaini par l'appelant) sous le message.
+  return modalBase({ kind: 'confirm', title, message, fields: bodyHtml, okLabel, cancelLabel, danger }, () => true);
 }
 
 export function modalPrompt(message, { title = '', defaultValue = '', placeholder = '', okLabel = t('common.validate'), cancelLabel = t('common.cancel'), multiline = false } = {}) {

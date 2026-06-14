@@ -62,6 +62,23 @@ describe('miroir EN (Phase 2 — fichiers par langue)', () => {
   });
 });
 
+describe('résolution cross-locale (fiches héritées sous une autre langue)', () => {
+  // En locale FR (défaut des tests), les LIBELLÉS EN doivent aussi résoudre vers
+  // l'entrée active via la clé stable partagée — et réciproquement en EN.
+  it('un libellé EN résout vers l’entrée de la locale active (par clé)', () => {
+    expect(classByLabel('Monk').key).toBe('moine');
+    expect(raceByLabel('Wood Elf').key).toBe('elfe-sylvestre');
+    expect(backgroundByLabel('Criminal').key).toBe('criminel');
+    expect(subclassByLabel('Path of the Berserker').key).toBe('voie-du-berserker');
+  });
+
+  it('le libellé natif (FR) continue de résoudre', () => {
+    expect(classByLabel('Moine').key).toBe('moine');
+    expect(raceByLabel('Elfe Sylvestre').key).toBe('elfe-sylvestre');
+    expect(subclassByLabel('Voie du Berserker').key).toBe('voie-du-berserker');
+  });
+});
+
 describe('classByLabel / raceByLabel', () => {
   it('reconnaît les noms FR du seed (accents inclus)', () => {
     expect(classByLabel('Barbare').key).toBe('barbare');

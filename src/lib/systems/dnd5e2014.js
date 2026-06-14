@@ -16,37 +16,36 @@
  */
 
 import { abilityMod } from '../rules.js';
+import { t } from '../i18n.js';
 
-export const ABILITIES = [
-  { key: 'str', label: 'FOR' },
-  { key: 'dex', label: 'DEX' },
-  { key: 'con', label: 'CON' },
-  { key: 'int', label: 'INT' },
-  { key: 'wis', label: 'SAG' },
-  { key: 'cha', label: 'CHA' },
-];
+// Libellés résolus via i18n au rendu (FOR/SAG en FR, STR/WIS en EN). La clé
+// (str/dex/…) et la caractéristique d'une compétence restent stables.
+const _ABBR = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+export const ABILITIES = _ABBR.map((key) => ({
+  key,
+  get label() {
+    return t('sys.abbr.' + key);
+  },
+}));
 
-// Compétence -> { label, caractéristique }
-export const SKILLS = {
-  acrobatics:   { label: 'Acrobaties', ability: 'dex' },
-  animal:       { label: 'Dressage', ability: 'wis' },
-  arcana:       { label: 'Arcanes', ability: 'int' },
-  athletics:    { label: 'Athlétisme', ability: 'str' },
-  deception:    { label: 'Tromperie', ability: 'cha' },
-  history:      { label: 'Histoire', ability: 'int' },
-  insight:      { label: 'Perspicacité', ability: 'wis' },
-  intimidation: { label: 'Intimidation', ability: 'cha' },
-  investigation:{ label: 'Investigation', ability: 'int' },
-  medicine:     { label: 'Médecine', ability: 'wis' },
-  nature:       { label: 'Nature', ability: 'int' },
-  perception:   { label: 'Perception', ability: 'wis' },
-  performance:  { label: 'Représentation', ability: 'cha' },
-  persuasion:   { label: 'Persuasion', ability: 'cha' },
-  religion:     { label: 'Religion', ability: 'int' },
-  sleight:      { label: 'Escamotage', ability: 'dex' },
-  stealth:      { label: 'Discrétion', ability: 'dex' },
-  survival:     { label: 'Survie', ability: 'wis' },
+// Compétence -> { label (i18n), caractéristique }
+const _SKILL_ABILITY = {
+  acrobatics: 'dex', animal: 'wis', arcana: 'int', athletics: 'str', deception: 'cha',
+  history: 'int', insight: 'wis', intimidation: 'cha', investigation: 'int', medicine: 'wis',
+  nature: 'int', perception: 'wis', performance: 'cha', persuasion: 'cha', religion: 'int',
+  sleight: 'dex', stealth: 'dex', survival: 'wis',
 };
+export const SKILLS = Object.fromEntries(
+  Object.entries(_SKILL_ABILITY).map(([k, ability]) => [
+    k,
+    {
+      ability,
+      get label() {
+        return t('sys.skill5e.' + k);
+      },
+    },
+  ])
+);
 
 /** Formate un modificateur signé (+3 / -1 / +0). */
 export function fmtMod(n) {

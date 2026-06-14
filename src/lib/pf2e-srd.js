@@ -139,9 +139,20 @@ export const ANCESTRIES = _enLoc() ? ENPF.ANCESTRIES : ANCESTRIES_FR;
 export const BACKGROUNDS_PF2E = _enLoc() ? ENPF.BACKGROUNDS_PF2E : BACKGROUNDS_PF2E_FR;
 export const CLASSES_PF2E = _enLoc() ? ENPF.CLASSES_PF2E : CLASSES_PF2E_FR;
 
-export const ancestryByLabel = (v) => ANCESTRIES.find((a) => a.label === v || a.key === v) || null;
-export const backgroundByLabelPf2e = (v) => BACKGROUNDS_PF2E.find((b) => b.label === v || b.key === v) || null;
-export const classByLabelPf2e = (v) => CLASSES_PF2E.find((c) => c.label === v || c.key === v) || null;
+// Résolution cross-locale : une fiche d'avant l'i18n stocke un libellé FR ; on
+// résout via la locale active, puis via l'autre langue (clé stable partagée).
+const _normPf = (s) => String(s || '').normalize('NFC').trim().toLowerCase();
+const _findPf = (arr, v) => arr.find((e) => _normPf(e.label) === _normPf(v) || _normPf(e.key) === _normPf(v)) || null;
+const _xresPf = (active, inactive, v) => {
+  if (!v) return null;
+  const hit = _findPf(active, v);
+  if (hit) return hit;
+  const o = _findPf(inactive, v);
+  return o ? active.find((e) => e.key === o.key) || null : null;
+};
+export const ancestryByLabel = (v) => _xresPf(ANCESTRIES, _enLoc() ? ANCESTRIES_FR : ENPF.ANCESTRIES, v);
+export const backgroundByLabelPf2e = (v) => _xresPf(BACKGROUNDS_PF2E, _enLoc() ? BACKGROUNDS_PF2E_FR : ENPF.BACKGROUNDS_PF2E, v);
+export const classByLabelPf2e = (v) => _xresPf(CLASSES_PF2E, _enLoc() ? CLASSES_PF2E_FR : ENPF.CLASSES_PF2E, v);
 
 /* ── Dérivations PURES ──────────────────────────────────────── */
 

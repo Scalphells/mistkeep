@@ -321,3 +321,29 @@ export const SPECIES = _enLoc() ? EN24.SPECIES : SPECIES_FR;
 export const BACKGROUNDS_2024 = _enLoc() ? EN24.BACKGROUNDS_2024 : BACKGROUNDS_2024_FR;
 export const CLASSES_2024 = _enLoc() ? EN24.CLASSES_2024 : CLASSES_2024_FR;
 export const SUBCLASSES_2024 = _enLoc() ? EN24.SUBCLASSES_2024 : SUBCLASSES_2024_FR;
+
+/* ── Résolution par libellé, cross-locale (anciennes fiches stockées en FR) ──
+ * On résout d'abord dans la locale active (libellé OU clé), puis, à défaut, via
+ * l'AUTRE langue → on remappe sur l'entrée active grâce à la clé stable. */
+const _norm24 = (s) => String(s || '').normalize('NFC').trim().toLowerCase();
+const _find24 = (arr, v) => arr.find((e) => _norm24(e.label) === _norm24(v) || _norm24(e.key) === _norm24(v)) || null;
+const _xres24 = (active, inactive, v) => {
+  if (!v) return null;
+  const hit = _find24(active, v);
+  if (hit) return hit;
+  const o = _find24(inactive, v);
+  return o ? active.find((e) => e.key === o.key) || null : null;
+};
+export const classByLabel2024 = (v) => _xres24(CLASSES_2024, _enLoc() ? CLASSES_2024_FR : EN24.CLASSES_2024, v);
+export const speciesByLabel2024 = (v) => _xres24(SPECIES, _enLoc() ? SPECIES_FR : EN24.SPECIES, v);
+export const backgroundByLabel2024 = (v) => _xres24(BACKGROUNDS_2024, _enLoc() ? BACKGROUNDS_2024_FR : EN24.BACKGROUNDS_2024, v);
+const _subList24 = (obj) => Object.entries(obj).map(([label, s]) => ({ label, ...s }));
+export const subclassByLabel2024 = (v) => {
+  if (!v) return null;
+  const n = _norm24(v);
+  const active = _subList24(SUBCLASSES_2024);
+  const hit = active.find((e) => _norm24(e.label) === n || _norm24(e.key) === n);
+  if (hit) return hit;
+  const o = _subList24(_enLoc() ? SUBCLASSES_2024_FR : EN24.SUBCLASSES_2024).find((e) => _norm24(e.label) === n || _norm24(e.key) === n);
+  return o ? active.find((e) => e.key === o.key) || null : null;
+};

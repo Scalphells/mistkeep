@@ -89,28 +89,96 @@ function srdContent() {
   return getSystem(activeCampaign()?.system).srd || null;
 }
 
+// Les résolveurs SRD sont cross-locale : une fiche d'avant l'i18n stocke un
+// libellé FR ; sous une UI EN, l'entrée est tout de même retrouvée par sa clé
+// stable (et réciproquement). Le contenu 2024 expose ses propres résolveurs.
 function classByLabel(label) {
   const c = srdContent();
-  return c ? c.classes.find((x) => x.label === label || x.key === label) || null : classByLabel5e(label);
+  if (!c) return classByLabel5e(label);
+  return c.classByLabel ? c.classByLabel(label) : c.classes.find((x) => x.label === label || x.key === label) || null;
 }
 
 function raceByLabel(label) {
   const c = srdContent();
-  return c ? c.races.find((x) => x.label === label || x.key === label) || null : raceByLabel5e(label);
+  if (!c) return raceByLabel5e(label);
+  return c.raceByLabel ? c.raceByLabel(label) : c.races.find((x) => x.label === label || x.key === label) || null;
 }
 
 function backgroundByLabel(label) {
   const c = srdContent();
-  return c ? c.backgrounds.find((x) => x.label === label || x.key === label) || null : backgroundByLabel5e(label);
+  if (!c) return backgroundByLabel5e(label);
+  return c.backgroundByLabel ? c.backgroundByLabel(label) : c.backgrounds.find((x) => x.label === label || x.key === label) || null;
 }
 
 function subclassByLabel(label) {
   const c = srdContent();
   if (!c) return subclassByLabel5e(label);
   if (!label || !c.subclasses) return null;
+  if (c.subclassByLabel) return c.subclassByLabel(label);
   // c.subclasses : objet indexé par libellé ; data.sub peut être une clé OU un libellé.
   const hit = Object.entries(c.subclasses).find(([lab, s]) => lab === label || s.key === label);
   return hit ? { label: hit[0], ...hit[1] } : null;
+}
+
+/**
+ * Fiches d'avant l'i18n : l'identité est stockée en LIBELLÉ (FR), ce qui casse
+ * la résolution sous une UI EN. On détecte les valeurs qui résolvent vers une
+ * entrée SRD dont la CLÉ stable diffère, pour proposer une migration validée.
+ * @returns {Array<{field:string,labelKey:string,from:string,to:string,name:string}>}
+ */
+function srdIdChanges(d, sys) {
+  const out = [];
+  const ident = sys?.sheet?.identity;
+  let map;
+  if (ident === 'pf2e' && sys.content) {
+    map = [
+      ['race', 'sheet.id.ancestry', sys.content.ancestryByLabel],
+      ['cls', 'sheet.id.class', sys.content.classByLabel],
+      ['bg', 'sheet.id.bg', sys.content.backgroundByLabel],
+    ];
+  } else if (ident === 'srd5e') {
+    map = [
+      ['cls', 'sheet.id.class', classByLabel],
+      ['race', 'sheet.id.raceLabel', raceByLabel],
+      ['bg', 'sheet.id.bg', backgroundByLabel],
+      ['sub', 'mc.subOpt', subclassByLabel],
+    ];
+  } else {
+    return out; // système « Libre » : pas d'identité SRD à migrer
+  }
+  for (const [field, labelKey, fn] of map) {
+    const v = d?.[field];
+    if (!v || !fn) continue;
+    const hit = fn(v);
+    if (hit && hit.key && hit.key !== v) out.push({ field, labelKey, from: v, to: hit.key, name: hit.label });
+  }
+  // Classes secondaires (multiclassage 5e) stockées en libellé.
+  if (ident === 'srd5e' && Array.isArray(d?.mc)) {
+    d.mc.forEach((e, i) => {
+      const ch = e?.cls && classByLabel(e.cls);
+      if (ch && ch.key !== e.cls) out.push({ field: `mc.${i}.cls`, labelKey: 'mc.classOpt', from: e.cls, to: ch.key, name: ch.label });
+      const sh = e?.sub && subclassByLabel(e.sub);
+      if (sh && sh.key !== e.sub) out.push({ field: `mc.${i}.sub`, labelKey: 'mc.subOpt', from: e.sub, to: sh.key, name: sh.label });
+    });
+  }
+  return out;
+}
+
+/** Construit le patch (clés stables) à partir des changements calculés. */
+function applySrdIdMigration(d, changes) {
+  const patch = {};
+  let mc = null;
+  for (const ch of changes) {
+    if (ch.field.startsWith('mc.')) {
+      const [, idx, key] = ch.field.split('.');
+      mc = mc || (Array.isArray(d?.mc) ? d.mc.map((x) => ({ ...x })) : []);
+      if (mc[idx]) mc[idx][key] = ch.to;
+    } else {
+      patch[ch.field] = ch.to;
+    }
+  }
+  if (mc) patch.mc = mc;
+  return patch;
 }
 
 /**
@@ -857,16 +925,20 @@ function multiclassSection(d, ed) {
         const subLab = e.sub ? (subclassByLabel(e.sub)?.label || e.sub) : '';
         return `<div class="mc-line">${escapeHtml(clsLab)}${subLab ? ` (${escapeHtml(subLab)})` : ''} · ${t('sheet.lvl')}${num(e.lvl) || 1}</div>`;
       }
-      const clsEntry = CLASSES.find((c) => c.label === e.cls || c.key === e.cls);
+      const clsHit = classByLabel(e.cls);
+      const clsKey = clsHit ? clsHit.key : e.cls; // canonicalise (libellé FR/EN → clé)
+      const clsEntry = CLASSES.find((c) => c.key === clsKey) || clsHit;
+      const subHit = subclassByLabel(e.sub);
+      const subKey = subHit ? subHit.key : e.sub;
       const subOpts = (clsEntry?.subclasses || []).map((s) => { const sc = subclassByLabel(s); return { key: sc ? sc.key : s, label: s }; });
       return `<div class="mc-edit">
         <select class="sf" data-mc-i="${i}" data-mc-k="cls">
           <option value="">${t('mc.classOpt')}</option>
-          ${CLASSES.map((c) => `<option value="${escapeHtml(c.key)}" ${(c.key === e.cls || c.label === e.cls) ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+          ${CLASSES.map((c) => `<option value="${escapeHtml(c.key)}" ${c.key === clsKey ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
         </select>
         <select class="sf" data-mc-i="${i}" data-mc-k="sub">
           <option value="">${t('mc.subOpt')}</option>
-          ${subOpts.map((o) => `<option value="${escapeHtml(o.key)}" ${(o.key === e.sub || o.label === e.sub) ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+          ${subOpts.map((o) => `<option value="${escapeHtml(o.key)}" ${o.key === subKey ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
         </select>
         <input type="number" class="sf-num mc-lvl" min="1" max="20" value="${num(e.lvl) || 1}" data-mc-i="${i}" data-mc-k="lvl"/>
         <button class="mini-del" data-mc-del="${i}">×</button>
@@ -1108,6 +1180,8 @@ function renderSheet(scrollTop = false) {
   if (!sheet.tabs.includes(sheetTab)) sheetTab = sheet.tabs[0];
   const TABS = sheet.tabs.map((id) => ({ id, label: t(TAB_DEFS[id] || id) }));
   const subline = `${escapeHtml(classByLabel(d.cls)?.label || d.cls || t('field.cls'))}${d.sub ? ` (${escapeHtml(subclassByLabel(d.sub)?.label || d.sub)})` : ''} · ${t('sheet.lvl')} ${num(d.lvl) || 1}`;
+  // Bannière de migration : libellés hérités (FR) résolvant vers une entrée SRD.
+  const migrate = ed ? srdIdChanges(d, sys) : [];
 
   el.innerHTML = `
     <div class="sheet5e">
@@ -1123,6 +1197,7 @@ function renderSheet(scrollTop = false) {
       </aside>
 
       <main class="sheet-main">
+        ${migrate.length ? `<div class="sheet-migrate-banner">⚠ ${t('sheet.migrate.banner', { n: migrate.length })} <button class="rest-btn" data-migrate-ids>${t('sheet.migrate.btn')}</button></div>` : ''}
         <nav class="sheet-tabs">
           ${TABS.map((t) => `<button class="sheet-tab ${t.id === sheetTab ? 'active' : ''}" data-pane="${t.id}">${t.label}</button>`).join('')}
         </nav>
@@ -1275,9 +1350,9 @@ function identityBlock(sheet, d, ed, ro, sys) {
   const pcontent = sheet.identity === 'pf2e' ? sys?.content : null;
   if (pcontent) {
     return `<div class="sheet-id-grid">
-        ${pf2eSelect('race', pcontent.ancestriesLabel || t('sheet.id.ancestry'), pcontent.ancestries, d.race, ro, ed)}
-        ${pf2eSelect('cls', t('sheet.id.class'), pcontent.classes, d.cls, ro, ed)}
-        ${pf2eSelect('bg', t('sheet.id.bg'), pcontent.backgrounds, d.bg, ro, ed)}
+        ${pf2eSelect('race', pcontent.ancestriesLabel || t('sheet.id.ancestry'), pcontent.ancestries, d.race, ro, ed, pcontent.ancestryByLabel)}
+        ${pf2eSelect('cls', t('sheet.id.class'), pcontent.classes, d.cls, ro, ed, pcontent.classByLabel)}
+        ${pf2eSelect('bg', t('sheet.id.bg'), pcontent.backgrounds, d.bg, ro, ed, pcontent.backgroundByLabel)}
         <span class="sf-num">${t('sheet.lvl')}<input type="number" value="${num(d.lvl)}" data-d="lvl" ${ro}/></span>
         <input class="sf" value="${escapeHtml(d.align || '')}" data-d="align" placeholder="${t('sheet.id.align')}" ${ro}/>
         <span class="sf-num">${t('sheet.xp')}<input type="number" value="${num(d.xp)}" data-d="xp" ${ro}/></span>
@@ -1371,7 +1446,11 @@ function stat(label, key, val, ro, suffix = '', signed = false) {
  */
 function idSelect(kind, label, entries, value, ro, ed) {
   const cur = String(value || '');
-  const match = (e) => e.key === cur || e.label === cur;
+  // Canonicalise la valeur stockée (libellé FR/EN ou clé) vers la clé stable,
+  // pour qu'une ancienne fiche sélectionne la bonne entrée sous toute langue.
+  const known = kind === 'cls' ? classByLabel(cur) : kind === 'race' ? raceByLabel(cur) : backgroundByLabel(cur);
+  const curKey = known ? known.key : cur;
+  const match = (e) => e.key === curKey || e.key === cur || e.label === cur;
   const inList = entries.some(match);
   const opts = [`<option value="">— ${label} —</option>`]
     .concat(
@@ -1380,7 +1459,6 @@ function idSelect(kind, label, entries, value, ro, ed) {
       )
     );
   if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
-  const known = kind === 'cls' ? classByLabel(cur) : kind === 'race' ? raceByLabel(cur) : backgroundByLabel(cur);
   return `<span class="sf-derive">
       <select class="sf" data-derive="${kind}" ${ro}>${opts.join('')}</select>
       ${ed && known ? `<button class="sf-cog" data-derive-open="${kind}" title="${t('sheet.derive.title', { label: escapeHtml(label.toLowerCase()) })}">⚙</button>` : ''}
@@ -1391,15 +1469,16 @@ function idSelect(kind, label, entries, value, ro, ed) {
 function subSelect(d, ro, ed) {
   const cls = classByLabel(d.cls);
   const cur = String(d.sub || '');
+  const known = subclassByLabel(cur);
+  const curKey = known ? known.key : cur;
   const subs = cls ? cls.subclasses : [];
   // subclasses = tableau de libellés ; on résout la clé stable de chacune pour la valeur d'option.
   const subOpts = subs.map((s) => { const sc = subclassByLabel(s); return { key: sc ? sc.key : s, label: s }; });
-  const match = (o) => o.key === cur || o.label === cur;
+  const match = (o) => o.key === curKey || o.key === cur || o.label === cur;
   const inList = subOpts.some(match);
   const opts = [`<option value="">${t('mc.subOpt')}</option>`]
     .concat(subOpts.map((o) => `<option value="${escapeHtml(o.key)}" ${match(o) ? 'selected' : ''}>${escapeHtml(o.label)}</option>`));
   if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
-  const known = subclassByLabel(cur);
   return `<span class="sf-derive">
       <select class="sf" data-derive="sub" ${ro}>${opts.join('')}</select>
       ${ed && known ? `<button class="sf-cog" data-derive-open="sub" title="${t('sheet.derive.subTitle')}">⚙</button>` : ''}
@@ -1408,9 +1487,11 @@ function subSelect(d, ro, ed) {
 
 /** Sélecteur d'identité pf2e (ascendance/classe/historique) : pilote
  *  l'application du gabarit Remaster via data-pfderive (flux séparé du 5e). */
-function pf2eSelect(kind, label, entries, value, ro, ed) {
+function pf2eSelect(kind, label, entries, value, ro, ed, resolve) {
   const cur = String(value || '');
-  const match = (e) => e.key === cur || e.label === cur;
+  const known = resolve ? resolve(cur) : null; // cross-locale : libellé FR → clé stable
+  const curKey = known ? known.key : cur;
+  const match = (e) => e.key === curKey || e.key === cur || e.label === cur;
   const inList = entries.some(match);
   const opts = [`<option value="">— ${label} —</option>`].concat(
     entries.map((e) => `<option value="${escapeHtml(e.key)}" ${match(e) ? 'selected' : ''}>${escapeHtml(e.label)}</option>`)
@@ -1863,6 +1944,26 @@ function bindSheet(el, id, ed) {
   el.querySelectorAll('[data-derive-open]').forEach((b) =>
     b.addEventListener('click', () => openDeriveModal(id, DERIVE_MODE[b.dataset.deriveOpen] || 'class'))
   );
+
+  // Migration validée : libellés hérités → clés stables (aperçu avant écriture).
+  el.querySelector('[data-migrate-ids]')?.addEventListener('click', async () => {
+    const cur = store.get().characters.find((c) => c.id === id);
+    if (!cur || !canEdit(cur)) return;
+    const sys = getSystem(activeCampaign()?.system || cur.data?.system);
+    const changes = srdIdChanges(cur.data || {}, sys);
+    if (!changes.length) return;
+    const rows = changes
+      .map((ch) => `<li><strong>${escapeHtml(t(ch.labelKey))}</strong> : ${escapeHtml(ch.from)} → ${escapeHtml(ch.name || ch.to)}</li>`)
+      .join('');
+    const ok = await modalConfirm(t('sheet.migrate.intro'), {
+      title: t('sheet.migrate.title'),
+      okLabel: t('sheet.migrate.ok'),
+      bodyHtml: `<ul class="migrate-list">${rows}</ul>`,
+    });
+    if (!ok) return;
+    updateCharacter(id, applySrdIdMigration(cur.data || {}, changes));
+    showToast(t('sheet.migrate.done', { n: changes.length }), { type: 'success', timeout: 2600 });
+  });
 
   // Pathfinder 2e : sélecteurs d'identité (flux séparé du 5e, data-pfderive).
   const PF_MODE = { race: 'ancestry', cls: 'class', bg: 'background' };

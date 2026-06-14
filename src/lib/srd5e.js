@@ -581,11 +581,22 @@ export const CLASS_EQUIPMENT = _enLoc() ? EN5.CLASS_EQUIPMENT : CLASS_EQUIPMENT_
 export const BACKGROUNDS = _enLoc() ? EN5.BACKGROUNDS : BACKGROUNDS_FR;
 export const SUBCLASSES = _enLoc() ? EN5.SUBCLASSES : SUBCLASSES_FR;
 
+// Résolution cross-locale : une fiche d'avant l'i18n stocke un LIBELLÉ FR ; en
+// anglais (et réciproquement), on indexe AUSSI les libellés de l'AUTRE langue
+// vers l'entrée de la locale active (les deux miroirs partagent la clé stable).
+const _addCrossLabels = (index, inactive) => {
+  for (const e of inactive) {
+    const active = index.get(norm(e.key));
+    if (active && !index.has(norm(e.label))) index.set(norm(e.label), active);
+  }
+};
+
 const CLASS_INDEX = new Map();
 for (const c of CLASSES) {
   CLASS_INDEX.set(norm(c.label), c);
   CLASS_INDEX.set(norm(c.key), c);
 }
+_addCrossLabels(CLASS_INDEX, _enLoc() ? CLASSES_FR : EN5.CLASSES);
 const RACE_INDEX = new Map();
 for (const r of RACES) {
   RACE_INDEX.set(norm(r.label), r);
@@ -611,6 +622,7 @@ for (const [alias, key] of Object.entries(RACE_ALIASES)) {
   const r = RACES.find((x) => x.key === key);
   if (r && !RACE_INDEX.has(norm(alias))) RACE_INDEX.set(norm(alias), r);
 }
+_addCrossLabels(RACE_INDEX, _enLoc() ? RACES_FR : EN5.RACES);
 
 /** Entrée de classe à partir d'un libellé (ou clé). Tolère un suffixe « Barde 3 ». */
 export function classByLabel(label) {
@@ -634,6 +646,7 @@ for (const b of BACKGROUNDS) {
   BG_INDEX.set(norm(b.label), b);
   BG_INDEX.set(norm(b.key), b);
 }
+_addCrossLabels(BG_INDEX, _enLoc() ? BACKGROUNDS_FR : EN5.BACKGROUNDS);
 
 /** Entrée d'historique à partir d'un libellé (ou clé). */
 export function backgroundByLabel(label) {
@@ -651,6 +664,11 @@ for (const [label, sc] of Object.entries(SUBCLASSES)) {
   const entry = { label, ...sc, key: sc.key || subSlug(label) };
   SUBCLASS_INDEX.set(norm(label), entry);
   SUBCLASS_INDEX.set(entry.key, entry);
+}
+// Cross-locale : libellé de sous-classe de l'autre langue → entrée active (clé partagée).
+for (const [label, sc] of Object.entries(_enLoc() ? SUBCLASSES_FR : EN5.SUBCLASSES)) {
+  const active = SUBCLASS_INDEX.get(sc.key || subSlug(label));
+  if (active && !SUBCLASS_INDEX.has(norm(label))) SUBCLASS_INDEX.set(norm(label), active);
 }
 
 /** Entrée de sous-classe à partir d'une clé OU d'un libellé (ou null). */
