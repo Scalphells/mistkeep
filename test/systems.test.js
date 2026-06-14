@@ -87,16 +87,26 @@ describe('descripteur dnd5e-2024', () => {
     expect(dnd5e2024.srd.backgrounds.every((b) => b.feature.desc.includes('+2/+1'))).toBe(true);
   });
 
-  it('douze classes, une sous-classe SRD 5.2 chacune', () => {
+  it('douze classes, roster PHB 2024 complet (4 sous-classes chacune)', () => {
     expect(dnd5e2024.srd.classes).toHaveLength(12);
-    expect(dnd5e2024.srd.classes.every((c) => c.subclasses.length === 1)).toBe(true);
+    expect(dnd5e2024.srd.classes.every((c) => c.subclasses.length === 4)).toBe(true);
     expect(dnd5e2024.srd.subclasses['Champion'].classKey).toBe('guerrier');
     expect(dnd5e2024.srd.subclasses['Évocateur'].classKey).toBe('magicien');
-    expect(Object.keys(dnd5e2024.srd.subclasses)).toHaveLength(12);
+    expect(Object.keys(dnd5e2024.srd.subclasses)).toHaveLength(48);
+    // Résolution cross-locale du roster ajouté (libellé EN sous locale FR par défaut).
+    expect(dnd5e2024.srd.subclassByLabel('Voie du Zélateur').classKey).toBe('barbare');
+    expect(dnd5e2024.srd.subclassByLabel('Path of the Zealot').key).toBe('voie-du-zelateur');
     // Les stats de base (DV, sauvegardes, incantation) restent celles de 2014.
     const barb = dnd5e2024.srd.classes.find((c) => c.key === 'barbare');
     expect(barb.hd).toBe(12);
     expect(barb.saves).toEqual(['str', 'con']);
+  });
+
+  it('roster 2024 répliqué côté EN (miroir srd2024.en.js)', async () => {
+    const en = await import('../src/lib/srd2024.en.js');
+    expect(Object.keys(en.SUBCLASSES_2024)).toHaveLength(48);
+    expect(en.SUBCLASSES_2024['Path of the Zealot']?.key).toBe('voie-du-zelateur');
+    expect(en.CLASSES_2024.find((c) => c.key === 'barbare').subclasses).toContain('Path of the Zealot');
   });
 
   it('aptitudes de classe 2024 : niveau 1 rempli, dont les nouveautés 2024', () => {
