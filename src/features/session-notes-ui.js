@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { modalConfirm, modalPrompt } from '../lib/modal.js';
 import { renderMarkdown } from '../lib/markdown.js';
@@ -22,12 +23,12 @@ import {
  */
 
 function authorName(id) {
-  if (id === store.get().user?.id) return 'Moi';
-  return store.get().players.find((p) => p.id === id)?.display_name || 'Joueur';
+  if (id === store.get().user?.id) return t('notes.me');
+  return store.get().players.find((p) => p.id === id)?.display_name || t('common.player');
 }
 
 function fmtDate(iso) {
-  return new Date(iso).toLocaleString('fr-FR', {
+  return new Date(iso).toLocaleString(t('locale.bcp47'), {
     weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 }
@@ -36,12 +37,12 @@ export function mountSessionNotes(container) {
   container.innerHTML = `
     <div class="sn-wrap">
       <section class="sn-composer">
-        <textarea id="sn-input" class="sn-input" placeholder="Note, résumé, événement marquant… (Markdown)" maxlength="8000"></textarea>
+        <textarea id="sn-input" class="sn-input" placeholder="${t('notes.composer.ph')}" maxlength="8000"></textarea>
         <div class="sn-composer-actions">
-          <label class="sn-share"><input type="checkbox" id="sn-shared"> Partager avec la table</label>
-          <span class="sn-hint">Sinon, visible de toi seul (et du MJ).</span>
-          ${store.get().isDM ? '<button class="btn" id="sn-recap" title="Pré-remplit la note avec un brouillon de résumé (journal de combat, jets marquants)">🪄 Résumé auto</button>' : ''}
-          <button class="btn" id="sn-add">Ajouter</button>
+          <label class="sn-share"><input type="checkbox" id="sn-shared"> ${t('notes.share')}</label>
+          <span class="sn-hint">${t('notes.hint')}</span>
+          ${store.get().isDM ? `<button class="btn" id="sn-recap" title="${t('notes.recap.title')}">${t('notes.recap')}</button>` : ''}
+          <button class="btn" id="sn-add">${t('common.add')}</button>
         </div>
         <div class="sn-err" id="sn-err"></div>
       </section>
@@ -61,15 +62,15 @@ export function mountSessionNotes(container) {
       input.value = '';
       shared.checked = false;
     } catch (e) {
-      err.textContent = e.message || "Échec de l'ajout.";
+      err.textContent = e.message || t('notes.err.add');
     }
   });
 
   // Brouillon de résumé (MJ) : pré-remplit le composeur, rien n'est posté
   // automatiquement — le MJ relit, complète, puis ajoute/partage.
   container.querySelector('#sn-recap')?.addEventListener('click', async () => {
-    const h = await modalPrompt('Reprendre les événements des dernières heures :', {
-      title: '🪄 Résumé de séance', defaultValue: '4', placeholder: '4',
+    const h = await modalPrompt(t('notes.recap.prompt'), {
+      title: t('notes.recap.modalTitle'), defaultValue: '4', placeholder: '4',
     });
     if (h === null) return;
     const hours = Math.max(1, Math.min(24, Number(h) || 4));
@@ -99,7 +100,7 @@ function renderList(container) {
   if (el.querySelector('textarea.sn-edit-area') === document.activeElement) return; // édition en cours
 
   if (!sessionNotes.length) {
-    el.innerHTML = `<div class="sn-empty">📝 Aucune note pour l'instant.</div>`;
+    el.innerHTML = `<div class="sn-empty">${t('notes.empty')}</div>`;
     return;
   }
 
@@ -111,14 +112,14 @@ function renderList(container) {
       <article class="sn-note" data-note="${n.id}">
         <header class="sn-note-head">
           <span class="sn-author" style="color:${colorFor(n.created_by, authorName(n.created_by))}">${escapeHtml(authorName(n.created_by))}</span>
-          <span class="sn-badge ${n.shared ? 'shared' : 'private'}">${n.shared ? '🌐 Partagée' : '🔒 Privée'}</span>
+          <span class="sn-badge ${n.shared ? 'shared' : 'private'}">${n.shared ? t('notes.badge.shared') : t('notes.badge.private')}</span>
           <time class="sn-time">${fmtDate(n.created_at)}</time>
           ${
             editable
               ? `<span class="sn-note-actions">
-                   ${mine || store.get().isDM ? `<button class="sn-edit" data-share="${n.id}" title="${n.shared ? 'Rendre privée' : 'Partager'}">${n.shared ? '🔒' : '🌐'}</button>` : ''}
-                   <button class="sn-edit" data-edit="${n.id}" title="Modifier">✏</button>
-                   <button class="sn-del" data-del="${n.id}" title="Supprimer">🗑</button>
+                   ${mine || store.get().isDM ? `<button class="sn-edit" data-share="${n.id}" title="${n.shared ? t('notes.makePrivate') : t('notes.makeShared')}">${n.shared ? '🔒' : '🌐'}</button>` : ''}
+                   <button class="sn-edit" data-edit="${n.id}" title="${t('common.edit')}">✏</button>
+                   <button class="sn-del" data-del="${n.id}" title="${t('common.delete')}">🗑</button>
                  </span>`
               : ''
           }
@@ -130,7 +131,7 @@ function renderList(container) {
 
   el.querySelectorAll('[data-del]').forEach((b) =>
     b.addEventListener('click', async () => {
-      if (await modalConfirm('Supprimer cette note ?', { title: 'Notes de session', danger: true, okLabel: 'Supprimer' }))
+      if (await modalConfirm(t('notes.del.confirm'), { title: t('notes.modalTitle'), danger: true, okLabel: t('common.delete') }))
         deleteNote(b.dataset.del);
     })
   );
@@ -155,8 +156,8 @@ function startEdit(container, id) {
   body.innerHTML = `
     <textarea class="sn-input sn-edit-area" maxlength="8000">${escapeHtml(note.content)}</textarea>
     <div class="sn-composer-actions">
-      <button class="link sn-cancel" style="width:auto;margin:0">Annuler</button>
-      <button class="btn sn-save" style="width:auto;margin:0">Enregistrer</button>
+      <button class="link sn-cancel" style="width:auto;margin:0">${t('common.cancel')}</button>
+      <button class="btn sn-save" style="width:auto;margin:0">${t('common.save')}</button>
     </div>`;
   const area = body.querySelector('textarea');
   area.focus();

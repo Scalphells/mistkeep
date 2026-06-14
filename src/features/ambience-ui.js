@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { modalAlert } from '../lib/modal.js';
 import { addLayer, updateLayer, removeLayer, uploadAmbience, getMasterVol, setMasterVol } from '../lib/ambience.js';
@@ -13,18 +14,18 @@ export function mountAmbience(container) {
   container.innerHTML = `
     <div class="amb-wrap">
       <div class="amb-master">
-        🔊 Volume maître (local) <input id="amb-master" type="range" min="0" max="100" step="1">
+        ${t('amb.master')} <input id="amb-master" type="range" min="0" max="100" step="1">
         <span id="amb-master-v" class="amb-master-v"></span>
       </div>
       <div class="amb-controls">
-        <input id="amb-url" class="amb-url" type="text" placeholder="URL audio (mp3/ogg)" autocomplete="off" />
-        <input id="amb-name" class="amb-name" type="text" placeholder="Nom (optionnel)" autocomplete="off" />
-        <button class="btn" id="amb-add">➕ Ajouter la piste</button>
-        <label class="amb-file btn-like" title="Importer un fichier audio">📂 Importer<input id="amb-file" type="file" accept="audio/*" hidden></label>
+        <input id="amb-url" class="amb-url" type="text" placeholder="${t('amb.url.ph')}" autocomplete="off" />
+        <input id="amb-name" class="amb-name" type="text" placeholder="${t('amb.name.ph')}" autocomplete="off" />
+        <button class="btn" id="amb-add">${t('amb.add')}</button>
+        <label class="amb-file btn-like" title="${t('amb.import.title')}">${t('amb.import')}<input id="amb-file" type="file" accept="audio/*" hidden></label>
       </div>
       <div class="amb-err" id="amb-err"></div>
       <div class="amb-layers" id="amb-layers"></div>
-      <p class="amb-hint">Empile plusieurs sons en boucle (ex. forêt + pluie + cris lointains). Accepte les fichiers/URL .mp3/.ogg <strong>et les liens YouTube</strong> (lecteur caché). Chaque joueur règle son propre volume maître. À la première écoute, un bouton « Activer le son » peut apparaître (politique navigateur).</p>
+      <p class="amb-hint">${t('amb.hint')}</p>
     </div>
   `;
 
@@ -47,7 +48,7 @@ export function mountAmbience(container) {
     try {
       await uploadAmbience(f);
     } catch (ex) {
-      await modalAlert('Import audio impossible : ' + ex.message, { title: 'Ambiance' });
+      await modalAlert(t('amb.err.import') + ex.message, { title: t('amb.modalTitle') });
     }
     e.target.value = '';
   });
@@ -65,7 +66,7 @@ export function mountAmbience(container) {
     if (!list) return;
     const layers = store.get().ambience?.layers || [];
     if (!layers.length) {
-      list.innerHTML = `<div class="amb-empty">Aucune piste. Ajoute une URL ou importe un fichier.</div>`;
+      list.innerHTML = `<div class="amb-empty">${t('amb.empty')}</div>`;
       return;
     }
     // On ne reconstruit pas si un curseur de volume est en cours de réglage.
@@ -74,12 +75,12 @@ export function mountAmbience(container) {
       .map(
         (l) => `
         <div class="amb-layer ${l.playing ? 'on' : ''}" data-l="${l.id}">
-          <button class="amb-lbtn" data-toggle="${l.id}" title="${l.playing ? 'Pause' : 'Lecture'}">${l.playing ? '⏸' : '▶'}</button>
-          <span class="amb-lname" title="${escapeHtml(l.name || '')}">${escapeHtml(l.name || 'Piste')}</span>
-          <button class="amb-lbtn ${l.loop !== false ? 'active' : ''}" data-loop="${l.id}" title="Boucle">🔁</button>
-          <input class="amb-lvol" type="range" min="0" max="100" step="1" value="${l.vol ?? 60}" data-vol="${l.id}" title="Volume ${l.vol ?? 60}%">
+          <button class="amb-lbtn" data-toggle="${l.id}" title="${l.playing ? t('amb.pause') : t('amb.play')}">${l.playing ? '⏸' : '▶'}</button>
+          <span class="amb-lname" title="${escapeHtml(l.name || '')}">${escapeHtml(l.name || t('amb.track'))}</span>
+          <button class="amb-lbtn ${l.loop !== false ? 'active' : ''}" data-loop="${l.id}" title="${t('amb.loop')}">🔁</button>
+          <input class="amb-lvol" type="range" min="0" max="100" step="1" value="${l.vol ?? 60}" data-vol="${l.id}" title="${t('amb.vol')} ${l.vol ?? 60}%">
           <span class="amb-lvolv">${l.vol ?? 60}%</span>
-          <button class="amb-lbtn danger" data-del="${l.id}" title="Retirer">🗑</button>
+          <button class="amb-lbtn danger" data-del="${l.id}" title="${t('common.remove')}">🗑</button>
         </div>`
       )
       .join('');
