@@ -4,6 +4,7 @@ import { parseDice } from '../features/dice.js';
 import { adjustHp, logCombat, sendPlayerRequest } from '../features/initiative.js';
 import { updateCharacter } from '../features/characters.js';
 import { updateToken } from '../features/map.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Résolution d'attaque ciblée (MJ).
@@ -66,7 +67,7 @@ function combatantForToken(t) {
 }
 function tokenLabel(t) {
   if (!t) return '—';
-  return t.label || charOf(t.charId)?.name || 'Jeton';
+  return t.label || charOf(t.charId)?.name || tr('map.tokenDefault');
 }
 function tokenAC(t) {
   const ch = charOf(t?.charId);
@@ -105,7 +106,7 @@ function applyDamage(token, dmg) {
     d -= fromTemp;
     const after = Math.max(0, before - d);
     updateCharacter(charId, { hp: after, hpTmp: temp });
-    logCombat(`💥 ${tokenLabel(token)} subit ${dmg} dégâts (PV ${before}→${after}).`);
+    logCombat(tr('map.log.dmg', { label: tokenLabel(token), dmg, hp: before, after }));
     return 'sheet';
   }
   // Jeton autonome avec PV propres.
@@ -118,7 +119,7 @@ function applyDamage(token, dmg) {
     d -= fromTemp;
     const after = Math.max(0, before - d);
     updateToken(token.id, { hp: after, hpTemp: temp });
-    logCombat(`💥 ${tokenLabel(token)} subit ${dmg} dégâts (PV ${before}→${after}).`);
+    logCombat(tr('map.log.dmg', { label: tokenLabel(token), dmg, hp: before, after }));
     return 'token';
   }
   return 'none'; // jeton non lié : PV non suivis
@@ -164,40 +165,40 @@ export function openAttackResolver({ attackerTokenId = null, targetTokenId = nul
   overlay.className = 'modal-overlay atk-overlay';
   overlay.innerHTML = `
     <div class="modal-card atk-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">⚔ Résolution d'attaque</h3>
+      <h3 class="modal-title">${tr('atk.title')}</h3>
       <div class="atk-row">
-        <label>Attaquant</label>
+        <label>${tr('atk.attacker')}</label>
         <select class="atk-sel" id="atk-attacker"></select>
       </div>
       <div class="atk-row">
-        <label>Attaque</label>
+        <label>${tr('combat.action.attack')}</label>
         <select class="atk-sel" id="atk-which"></select>
       </div>
       <div class="atk-row atk-grid2">
-        <div><label>Bonus att.</label><input class="atk-in" id="atk-bonus" placeholder="+5"></div>
-        <div><label>Dégâts</label><input class="atk-in" id="atk-dmg" placeholder="1d8+3"></div>
+        <div><label>${tr('atk.atkBonus')}</label><input class="atk-in" id="atk-bonus" placeholder="+5"></div>
+        <div><label>${tr('combat.gs.dmg')}</label><input class="atk-in" id="atk-dmg" placeholder="1d8+3"></div>
       </div>
       <div class="atk-row">
-        <label>Jet</label>
+        <label>${tr('atk.roll')}</label>
         <div class="atk-modes" id="atk-mode">
-          <button data-mode="normal" class="active">Normal</button>
-          <button data-mode="adv">Avantage</button>
-          <button data-mode="dis">Désavantage</button>
+          <button data-mode="normal" class="active">${tr('atk.normal')}</button>
+          <button data-mode="adv">${tr('atk.adv')}</button>
+          <button data-mode="dis">${tr('atk.dis')}</button>
         </div>
       </div>
       <hr class="atk-hr">
       <div class="atk-row">
-        <label>Cible</label>
+        <label>${tr('atk.target')}</label>
         <select class="atk-sel" id="atk-target"></select>
       </div>
       <div class="atk-row atk-grid2">
-        <div><label>CA cible</label><input class="atk-in" id="atk-ac" placeholder="15"></div>
+        <div><label>${tr('atk.targetAc')}</label><input class="atk-in" id="atk-ac" placeholder="15"></div>
         <div class="atk-tgthp" id="atk-tgthp"></div>
       </div>
       <div class="atk-result" id="atk-result"></div>
       <div class="modal-actions">
-        <button class="modal-btn atk-close">Fermer</button>
-        <button class="modal-btn modal-ok" id="atk-resolve">🎲 Résoudre</button>
+        <button class="modal-btn atk-close">${tr('common.close')}</button>
+        <button class="modal-btn modal-ok" id="atk-resolve">${tr('map.zs.resolve')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -232,8 +233,8 @@ export function openAttackResolver({ attackerTokenId = null, targetTokenId = nul
   function fillAttacks() {
     const atks = tokenAttacks(curAttacker());
     whichSel.innerHTML =
-      atks.map((a, i) => `<option value="${i}">${escapeHtml(a.nm || `Attaque ${i + 1}`)}</option>`).join('') +
-      `<option value="-1">✏ Manuel…</option>`;
+      atks.map((a, i) => `<option value="${i}">${escapeHtml(a.nm || tr('atk.attackN', { n: i + 1 }))}</option>`).join('') +
+      `<option value="-1">${tr('atk.manual')}</option>`;
     if (st.atkIndex >= atks.length) st.atkIndex = atks.length ? 0 : -1;
     whichSel.value = String(st.atkIndex);
     syncAtkFields();
@@ -256,8 +257,8 @@ export function openAttackResolver({ attackerTokenId = null, targetTokenId = nul
     else if (ch?.data?.hp != null) hp = { cur: ch.data.hp, max: ch.data.hpMax, temp: ch.data.hpTmp };
     else if (tgt && (tgt.hp != null || tgt.hpMax != null)) hp = { cur: tgt.hp ?? 0, max: tgt.hpMax, temp: tgt.hpTemp };
     tgtHp.innerHTML = hp
-      ? `<label>PV cible</label><div class="atk-hpval">${hp.cur}${hp.max != null ? ` / ${hp.max}` : ''}${hp.temp ? ` (+${hp.temp})` : ''}</div>`
-      : `<label>PV cible</label><div class="atk-hpval muted">non suivis</div>`;
+      ? `<label>${tr('atk.targetHp')}</label><div class="atk-hpval">${hp.cur}${hp.max != null ? ` / ${hp.max}` : ''}${hp.temp ? ` (+${hp.temp})` : ''}</div>`
+      : `<label>${tr('atk.targetHp')}</label><div class="atk-hpval muted">${tr('atk.untracked')}</div>`;
   }
 
   attackerSel.addEventListener('change', () => {
@@ -300,7 +301,7 @@ export function openAttackResolver({ attackerTokenId = null, targetTokenId = nul
     const ac = acIn.value === '' ? null : Number(acIn.value);
     const atkName = (() => {
       const atks = tokenAttacks(attacker);
-      return st.atkIndex >= 0 && atks[st.atkIndex] ? atks[st.atkIndex].nm || 'Attaque' : 'Attaque';
+      return st.atkIndex >= 0 && atks[st.atkIndex] ? atks[st.atkIndex].nm || tr('combat.action.attack') : tr('combat.action.attack');
     })();
 
     // Jet d'attaque (avantage/désavantage).
@@ -321,7 +322,7 @@ export function openAttackResolver({ attackerTokenId = null, targetTokenId = nul
 
     const aName = tokenLabel(attacker);
     const tName = tokenLabel(target);
-    const modeTag = st.mode === 'adv' ? ' (avantage)' : st.mode === 'dis' ? ' (désavantage)' : '';
+    const modeTag = st.mode === 'adv' ? tr('atk.advTag') : st.mode === 'dis' ? tr('atk.disTag') : '';
 
     let dmgInfo = null;
     let applied = 'none';
@@ -331,21 +332,21 @@ export function openAttackResolver({ attackerTokenId = null, targetTokenId = nul
     }
 
     // Journal de combat (partagé temps réel).
-    const verdict = crit ? 'CRITIQUE' : fumble ? 'échec critique' : hit ? 'touché' : 'raté';
-    let line = `⚔ ${aName} → ${tName} [${atkName}] : ${totalAtk}${ac != null ? ` vs CA ${ac}` : ''} → ${verdict}`;
-    if (hit && dmgInfo) line += `, ${dmgInfo.total} dégâts`;
-    if (applied === 'none' && hit && dmgInfo) line += ' (PV non suivis)';
+    const verdict = crit ? tr('atk.crit') : fumble ? tr('atk.fumble') : hit ? tr('atk.hit') : tr('atk.miss');
+    let line = tr('atk.log.line', { a: aName, t: tName, atk: atkName, roll: totalAtk, acPart: ac != null ? tr('atk.vsAc', { ac }) : '', verdict });
+    if (hit && dmgInfo) line += tr('atk.log.dmgSuffix', { dmg: dmgInfo.total });
+    if (applied === 'none' && hit && dmgInfo) line += tr('atk.log.untracked');
     logCombat(line);
 
     // Lecture du résultat dans la modale.
     const diceStr = dice.length > 1 ? `[${dice.join(', ')}] → ${nat}` : `${nat}`;
     resultEl.innerHTML = `
       <div class="atk-res-card ${hit ? 'hit' : 'miss'} ${crit ? 'crit' : ''} ${fumble ? 'fumble' : ''}">
-        <div class="atk-res-head">${crit ? '💥 CRITIQUE !' : fumble ? '🎯 Échec critique' : hit ? '✔ Touché' : '✘ Raté'}</div>
-        <div class="atk-res-line">d20${modeTag} : <b>${diceStr}</b> ${bonus >= 0 ? `+ ${bonus}` : `- ${-bonus}`} = <b>${totalAtk}</b>${ac != null ? ` vs CA ${ac}` : ''}</div>
+        <div class="atk-res-head">${crit ? tr('atk.res.crit') : fumble ? tr('atk.res.fumble') : hit ? tr('atk.res.hit') : tr('atk.res.miss')}</div>
+        <div class="atk-res-line">d20${modeTag} : <b>${diceStr}</b> ${bonus >= 0 ? `+ ${bonus}` : `- ${-bonus}`} = <b>${totalAtk}</b>${ac != null ? tr('atk.vsAc', { ac }) : ''}</div>
         ${hit && dmgInfo
-          ? `<div class="atk-res-line">Dégâts${crit ? ' (dés doublés)' : ''} : ${dmgInfo.rolls.length ? `[${dmgInfo.rolls.join(', ')}]` : ''}${dmgInfo.modifier ? ` ${dmgInfo.modifier > 0 ? '+' : ''}${dmgInfo.modifier}` : ''} = <b>${dmgInfo.total}</b></div>
-             <div class="atk-res-line ${applied === 'none' ? 'muted' : ''}">${applied === 'none' ? '⚠ Cible non liée — PV non appliqués.' : applied === 'sent' ? `→ envoyé au MJ pour ${escapeHtml(tName)}` : `→ appliqués à ${escapeHtml(tName)}`}</div>`
+          ? `<div class="atk-res-line">${tr('combat.gs.dmg')}${crit ? tr('atk.critDoubled') : ''} : ${dmgInfo.rolls.length ? `[${dmgInfo.rolls.join(', ')}]` : ''}${dmgInfo.modifier ? ` ${dmgInfo.modifier > 0 ? '+' : ''}${dmgInfo.modifier}` : ''} = <b>${dmgInfo.total}</b></div>
+             <div class="atk-res-line ${applied === 'none' ? 'muted' : ''}">${applied === 'none' ? tr('atk.res.unlinked') : applied === 'sent' ? tr('atk.res.sentTo', { name: escapeHtml(tName) }) : tr('atk.res.appliedTo', { name: escapeHtml(tName) })}</div>`
           : ''}
       </div>`;
     // Rafraîchit l'affichage des PV cible (après application).
@@ -361,25 +362,25 @@ function openMultiAttack(attackerTokenId, targetIdList) {
   overlay.className = 'modal-overlay atk-overlay show';
   overlay.innerHTML = `
     <div class="modal-card atk-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">⚔ Attaque groupée — ${targetIdList.length} cibles</h3>
-      <div class="atk-row"><label>Attaquant</label><select class="atk-sel" id="ma-attacker"></select></div>
-      <div class="atk-row"><label>Attaque</label><select class="atk-sel" id="ma-which"></select></div>
+      <h3 class="modal-title">${tr('atk.multi.title', { n: targetIdList.length })}</h3>
+      <div class="atk-row"><label>${tr('atk.attacker')}</label><select class="atk-sel" id="ma-attacker"></select></div>
+      <div class="atk-row"><label>${tr('combat.action.attack')}</label><select class="atk-sel" id="ma-which"></select></div>
       <div class="atk-row atk-grid2">
-        <div><label>Bonus att.</label><input class="atk-in" id="ma-bonus" placeholder="+5"></div>
-        <div><label>Dégâts</label><input class="atk-in" id="ma-dmg" placeholder="1d8+3"></div>
+        <div><label>${tr('atk.atkBonus')}</label><input class="atk-in" id="ma-bonus" placeholder="+5"></div>
+        <div><label>${tr('combat.gs.dmg')}</label><input class="atk-in" id="ma-dmg" placeholder="1d8+3"></div>
       </div>
       <div class="atk-row">
-        <label>Jet</label>
+        <label>${tr('atk.roll')}</label>
         <div class="atk-modes" id="ma-mode">
-          <button data-mode="normal" class="active">Normal</button>
-          <button data-mode="adv">Avantage</button>
-          <button data-mode="dis">Désavantage</button>
+          <button data-mode="normal" class="active">${tr('atk.normal')}</button>
+          <button data-mode="adv">${tr('atk.adv')}</button>
+          <button data-mode="dis">${tr('atk.dis')}</button>
         </div>
       </div>
       <div class="atk-result" id="ma-result"></div>
       <div class="modal-actions">
-        <button class="modal-btn atk-close">Fermer</button>
-        <button class="modal-btn modal-ok" id="ma-go">🎲 Résoudre sur ${targetIdList.length} cibles</button>
+        <button class="modal-btn atk-close">${tr('common.close')}</button>
+        <button class="modal-btn modal-ok" id="ma-go">${tr('atk.multi.resolve', { n: targetIdList.length })}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -396,7 +397,7 @@ function openMultiAttack(attackerTokenId, targetIdList) {
   const curAttacker = () => tokens.find((t) => t.id === st.atkId);
   function fillAttacks() {
     const atks = tokenAttacks(curAttacker());
-    whichSel.innerHTML = atks.map((a, i) => `<option value="${i}">${escapeHtml(a.nm || `Attaque ${i + 1}`)}</option>`).join('') + `<option value="-1">✏ Manuel…</option>`;
+    whichSel.innerHTML = atks.map((a, i) => `<option value="${i}">${escapeHtml(a.nm || tr('atk.attackN', { n: i + 1 }))}</option>`).join('') + `<option value="-1">${tr('atk.manual')}</option>`;
     if (st.atkIndex >= atks.length) st.atkIndex = atks.length ? 0 : -1;
     whichSel.value = String(st.atkIndex);
     if (st.atkIndex >= 0 && atks[st.atkIndex]) {
@@ -433,7 +434,7 @@ function openMultiAttack(attackerTokenId, targetIdList) {
     const attacker = curAttacker();
     const bonus = parseInt(String(bonusIn.value).replace(/[^\d+-]/g, ''), 10) || 0;
     const atks = tokenAttacks(attacker);
-    const atkName = st.atkIndex >= 0 && atks[st.atkIndex] ? atks[st.atkIndex].nm || 'Attaque' : 'Attaque';
+    const atkName = st.atkIndex >= 0 && atks[st.atkIndex] ? atks[st.atkIndex].nm || tr('combat.action.attack') : tr('combat.action.attack');
     const rows = targetIdList.map((tid) => {
       const target = tokens.find((t) => t.id === tid);
       if (!target) return null;
@@ -457,7 +458,16 @@ function openMultiAttack(attackerTokenId, targetIdList) {
           if (dmg > 0) applied = applyDamage(target, dmg);
         }
       }
-      logCombat(`⚔ ${tokenLabel(attacker)} → ${tokenLabel(target)} [${atkName}] : ${totalAtk}${ac != null ? ` vs CA ${ac}` : ''} → ${crit ? 'CRITIQUE' : fumble ? 'échec critique' : hit ? 'touché' : 'raté'}${hit && dmg ? `, ${dmg} dégâts` : ''}`);
+      logCombat(
+        tr('atk.log.line', {
+          a: tokenLabel(attacker),
+          t: tokenLabel(target),
+          atk: atkName,
+          roll: totalAtk,
+          acPart: ac != null ? tr('atk.vsAc', { ac }) : '',
+          verdict: crit ? tr('atk.crit') : fumble ? tr('atk.fumble') : hit ? tr('atk.hit') : tr('atk.miss'),
+        }) + (hit && dmg ? tr('atk.log.dmgSuffix', { dmg }) : '')
+      );
       return { name: tokenLabel(target), totalAtk, ac, hit, crit, fumble, dmg, applied };
     }).filter(Boolean);
     overlay.querySelector('#ma-result').innerHTML = `<div class="zs-rows">${rows
