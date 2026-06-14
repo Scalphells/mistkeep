@@ -141,7 +141,7 @@ function srdIdChanges(d, sys) {
       ['cls', 'sheet.id.class', classByLabel],
       ['race', 'sheet.id.raceLabel', raceByLabel],
       ['bg', 'sheet.id.bg', backgroundByLabel],
-      ['sub', 'mc.subOpt', subclassByLabel],
+      ['sub', 'field.sub', subclassByLabel],
     ];
   } else {
     return out; // système « Libre » : pas d'identité SRD à migrer
@@ -150,18 +150,58 @@ function srdIdChanges(d, sys) {
     const v = d?.[field];
     if (!v || !fn) continue;
     const hit = fn(v);
-    if (hit && hit.key && hit.key !== v) out.push({ field, labelKey, from: v, to: hit.key, name: hit.label });
+    if (hit && hit.key && hit.key !== v) out.push({ field, labelKey, from: v, to: hit.key, name: hit.label, entry: hit });
   }
   // Classes secondaires (multiclassage 5e) stockées en libellé.
   if (ident === 'srd5e' && Array.isArray(d?.mc)) {
     d.mc.forEach((e, i) => {
       const ch = e?.cls && classByLabel(e.cls);
-      if (ch && ch.key !== e.cls) out.push({ field: `mc.${i}.cls`, labelKey: 'mc.classOpt', from: e.cls, to: ch.key, name: ch.label });
+      if (ch && ch.key !== e.cls) out.push({ field: `mc.${i}.cls`, labelKey: 'field.cls', from: e.cls, to: ch.key, name: ch.label, entry: ch });
       const sh = e?.sub && subclassByLabel(e.sub);
-      if (sh && sh.key !== e.sub) out.push({ field: `mc.${i}.sub`, labelKey: 'mc.subOpt', from: e.sub, to: sh.key, name: sh.label });
+      if (sh && sh.key !== e.sub) out.push({ field: `mc.${i}.sub`, labelKey: 'field.sub', from: e.sub, to: sh.key, name: sh.label, entry: sh });
     });
   }
   return out;
+}
+
+/**
+ * Résumé LECTURE SEULE de ce qu'une entrée SRD définit (vitesse, taille, vision,
+ * bonus de caracs, DV, sauvegardes, maîtrises, compétences, aptitudes…). Sert
+ * d'aperçu à la migration : informatif, ne modifie aucune statistique de la fiche.
+ */
+function srdEntrySummary(entry, sys) {
+  if (!entry) return [];
+  const bits = [];
+  const ab = (k) => sys?.abilities?.find((a) => a.key === k)?.label || String(k).toUpperCase();
+  const sk = (k) => sys?.skills?.[k]?.label || k;
+  if (entry.ability && typeof entry.ability === 'object') {
+    const a = Object.entries(entry.ability).map(([k, v]) => `${v >= 0 ? '+' : ''}${v} ${ab(k)}`);
+    if (a.length) bits.push(`${t('migrate.f.abilities')} ${a.join(', ')}`);
+  }
+  if (Array.isArray(entry.boosts) && entry.boosts.length) {
+    bits.push(`${t('migrate.f.abilities')} ${entry.boosts.map((b) => (b === 'free' ? '★' : ab(b))).join(', ')}`);
+  }
+  if (entry.speed != null) bits.push(`${t('field.spd')} ${entry.speed} m`);
+  if (entry.size) bits.push(`${t('field.size')} ${entry.size}`);
+  if (entry.darkvision) bits.push(`${t('field.darkvision')} ${entry.darkvision} m`);
+  if (entry.hd) bits.push(`${t('field.hd')} d${entry.hd}`);
+  else if (entry.hp != null) bits.push(`${t('field.hp')} +${entry.hp}`);
+  if (Array.isArray(entry.saves) && entry.saves.length) bits.push(`${t('field.saves')} ${entry.saves.map(ab).join(', ')}`);
+  if (entry.weaponProf) bits.push(`${t('migrate.f.weapons')} ${entry.weaponProf}`);
+  if (entry.armorProf && !/^(none|aucune)$/i.test(entry.armorProf)) bits.push(`${t('migrate.f.armor')} ${entry.armorProf}`);
+  if (Array.isArray(entry.skills) && entry.skills.length) bits.push(`${t('field.profs')} ${entry.skills.map(sk).join(', ')}`);
+  else if (typeof entry.skills === 'number' && entry.skills) bits.push(t('migrate.f.skillsPick', { n: entry.skills }));
+  if (entry.skillCount) bits.push(t('migrate.f.skillsPick', { n: entry.skillCount }));
+  if (entry.tools) bits.push(`${t('migrate.f.tools')} ${entry.tools}`);
+  if (entry.languages) bits.push(`${t('migrate.f.langs')} ${entry.languages}`);
+  if (Array.isArray(entry.traits) && entry.traits.length) {
+    bits.push(`${t('migrate.f.traits')} ${entry.traits.map((x) => x.name || x).join(', ')}`);
+  }
+  if (Array.isArray(entry.features) && entry.features.length) {
+    const f = entry.features.map((x) => (x.level ? `${x.level}: ${x.name}` : x.name)).filter(Boolean);
+    if (f.length) bits.push(`${t('field.feats')} ${f.join(' · ')}`);
+  }
+  return bits;
 }
 
 /** Construit le patch (clés stables) à partir des changements calculés. */
@@ -1953,7 +1993,11 @@ function bindSheet(el, id, ed) {
     const changes = srdIdChanges(cur.data || {}, sys);
     if (!changes.length) return;
     const rows = changes
-      .map((ch) => `<li><strong>${escapeHtml(t(ch.labelKey))}</strong> : ${escapeHtml(ch.from)} → ${escapeHtml(ch.name || ch.to)}</li>`)
+      .map((ch) => {
+        const sum = srdEntrySummary(ch.entry, sys);
+        const sumHtml = sum.length ? `<div class="migrate-srd">${sum.map((s) => escapeHtml(s)).join(' · ')}</div>` : '';
+        return `<li><strong>${escapeHtml(t(ch.labelKey))}</strong> : ${escapeHtml(ch.name || ch.to)}${sumHtml}</li>`;
+      })
       .join('');
     const ok = await modalConfirm(t('sheet.migrate.intro'), {
       title: t('sheet.migrate.title'),
