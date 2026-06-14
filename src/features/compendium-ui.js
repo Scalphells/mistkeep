@@ -189,8 +189,8 @@ async function dedupeCompendium(container) {
     return;
   }
   const ok = await modalConfirm(
-    `${toDelete.length} doublon(s) répartis sur ${dupGroups} entrée(s) seront supprimés. On conserve à chaque fois la version la plus complète. Continuer ?`,
-    { title: '🧹 Dédupliquer', danger: true, okLabel: `Supprimer ${toDelete.length}` }
+    t('cmp.dedupe.confirm', { n: toDelete.length, groups: dupGroups }),
+    { title: t('cmp.dedupe'), danger: true, okLabel: t('common.deleteN', { n: toDelete.length }) }
   );
   if (!ok) return;
   const deadIds = new Set(toDelete.map((e) => e.id));
@@ -218,13 +218,13 @@ function openClearKind(container) {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:340px;max-width:92vw">
-      <h3 class="modal-title">🗑 Vider un type</h3>
+      <h3 class="modal-title">${t('cmp.clear')}</h3>
       <p class="modal-msg">${t('cmp.clear.msg')}</p>
       <div class="clr-list">
         ${kinds
           .map(
             (k) => `<button class="clr-row" data-clr="${k}">
-              <span>${KINDS[k].icon} ${escapeHtml(KINDS[k].plural)}</span>
+              <span>${KINDS[k].icon} ${escapeHtml(kindPlural(k))}</span>
               <span class="clr-n">${counts[k]}</span>
             </button>`
           )
@@ -244,8 +244,8 @@ function openClearKind(container) {
       const victims = (store.get().compendium || []).filter((e) => e.kind === k);
       close();
       const ok = await modalConfirm(
-        `Supprimer les ${victims.length} ${KINDS[k].plural.toLowerCase()} du compendium ? Action irréversible.`,
-        { title: `🗑 Vider — ${KINDS[k].plural}`, danger: true, okLabel: `Supprimer ${victims.length}` }
+        t('cmp.clear.confirm', { n: victims.length, kind: kindPlural(k).toLowerCase() }),
+        { title: t('cmp.clear.confirmTitle', { kind: kindPlural(k) }), danger: true, okLabel: t('common.deleteN', { n: victims.length }) }
       );
       if (!ok) return;
       for (const e of victims) await deleteEntry(e.id);

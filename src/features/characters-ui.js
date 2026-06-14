@@ -574,7 +574,7 @@ function slotsSumm(slots) {
   return Object.keys(slots)
     .map(Number)
     .sort((a, b) => a - b)
-    .map((lv) => `Niv.${lv} ×${slots[lv].m}`)
+    .map((lv) => `${t('sheet.lvl')}${lv} ×${slots[lv].m}`)
     .join(' · ');
 }
 
@@ -1070,7 +1070,7 @@ function renderSheet(scrollTop = false) {
   renderedSig = c ? `${JSON.stringify(c)}|${store.get().charPrivate?.[c.id] ?? ''}` : '';
 
   if (!c) {
-    el.innerHTML = `<div class="char-empty">Sélectionne un personnage.</div>`;
+    el.innerHTML = `<div class="char-empty">${t('char.empty')}</div>`;
     return;
   }
 

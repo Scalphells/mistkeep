@@ -66,7 +66,7 @@ export function toggleWindow(id, opts) {
  *        Fonction de montage de la vue ; peut renvoyer un cleanup.
  * @param {number} [opts.width] / [opts.height]  Taille initiale souhaitée.
  */
-export function openWindow(id, { title = 'Fenêtre', mount, width, height } = {}) {
+export function openWindow(id, { title = tr('float.window'), mount, width, height } = {}) {
   const existing = WINDOWS.get(id);
   if (existing) {
     existing.el.classList.remove('minimized');

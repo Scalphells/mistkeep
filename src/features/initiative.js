@@ -258,18 +258,18 @@ export async function adjustHp(entityId, delta) {
   // journalisé pour ne pas révéler les PV chiffrés des monstres. Détail chiffré
   // en plus pour le MJ uniquement.
   if (delta < 0) {
-    logCombat(`💥 ${c.name} subit ${-delta} dégâts.`, true);
-    logCombat(`   ${c.name} : ${c.hp}→${hp} PV.`, true);
+    logCombat(tr('clog.dmg', { name: c.name, n: -delta }), true);
+    logCombat(tr('clog.hpChange', { name: c.name, from: c.hp, to: hp }), true);
   } else if (delta > 0) {
-    logCombat(`💚 ${c.name} récupère ${delta} PV.`, true);
-    logCombat(`   ${c.name} : ${c.hp}→${hp} PV.`, true);
+    logCombat(tr('clog.heal', { name: c.name, n: delta }), true);
+    logCombat(tr('clog.hpChange', { name: c.name, from: c.hp, to: hp }), true);
   }
-  if (wasUp && hp === 0) logCombat(`☠️ ${c.name} tombe à 0 PV !`);
+  if (wasUp && hp === 0) logCombat(tr('clog.drop0', { name: c.name }));
   // Rappel de Concentration : si le combattant maintient un effet de concentration
   // et subit des dégâts, jet de CON DD max(10, moitié des dégâts).
   if (delta < 0 && hp > 0 && (c.effects || []).some((e) => e.concentration)) {
     const dc = Math.max(10, Math.floor(-delta / 2));
-    logCombat(`🧠 ${c.name} : jet de Concentration — DD ${dc} (Constitution).`);
+    logCombat(tr('clog.concSave', { name: c.name, dc }));
   }
 
   // Jets de sauvegarde contre la mort (uniquement pour les PJ liés à une fiche).
@@ -280,17 +280,17 @@ export async function adjustHp(entityId, delta) {
       // Dégâts massifs (excédent ≥ PV max) = mort instantanée (règle 2014).
       if (c.hp_max && overkill >= c.hp_max) {
         patch.death_saves = { s: 0, f: 3 };
-        logCombat(`☠️ ${c.name} subit des dégâts massifs et meurt sur le coup.`);
+        logCombat(tr('clog.massiveDeath', { name: c.name }));
       } else {
         patch.death_saves = { s: 0, f: 0 };
-        logCombat(`🩸 ${c.name} tombe inconscient — jets de sauvegarde contre la mort.`);
+        logCombat(tr('clog.unconscious', { name: c.name }));
       }
     } else if (c.hp === 0 && hp === 0 && delta < 0) {
       // Dégâts subis alors qu'on est déjà à 0 PV = un échec automatique (deux si critique géré ailleurs).
       const ds = { ...(c.death_saves || { s: 0, f: 0 }) };
       ds.f = Math.min(3, ds.f + 1);
       patch.death_saves = ds;
-      logCombat(`💀 ${c.name} subit des dégâts à 0 PV : un échec (✘${ds.f}).`);
+      logCombat(tr('clog.dmgAt0', { name: c.name, f: ds.f }));
     } else if (hp > 0 && c.death_saves) {
       patch.death_saves = null; // soigné/relevé : fin des jets
     }
@@ -299,7 +299,7 @@ export async function adjustHp(entityId, delta) {
   // À 0 PV, la concentration est automatiquement brisée (pas de jet).
   if (hp === 0 && wasUp && (c.effects || []).some((e) => e.concentration)) {
     patch.effects = (c.effects || []).filter((e) => !e.concentration);
-    logCombat(`🧠💥 Concentration de ${c.name} brisée (tombe à 0 PV).`);
+    logCombat(tr('clog.concBroken', { name: c.name }));
   }
 
   // Auto-butin : un monstre/PNJ qui meurt verse son butin (ligne « Butin : … » de
@@ -327,7 +327,7 @@ function dropLoot(c) {
     ...loot.items.map((it) => ({ id: `l_${crypto.randomUUID().slice(0, 8)}`, nm: it.nm, qty: it.qty, note: `Butin · ${c.name}` })),
   ];
   setPartyLoot({ coins, items });
-  logCombat(`💰 Butin de ${c.name} ajouté au trésor de groupe.`);
+  logCombat(tr('clog.loot', { name: c.name }));
 }
 
 /** Lance un jet de sauvegarde contre la mort pour un combattant (MJ). */
@@ -341,14 +341,14 @@ export async function rollDeathSave(entityId) {
   const r = d20roll();
   const res = resolveDeathSave(cur, r);
   if (res.revived) {
-    logCombat(`🎲 ${c.name} — sauvegarde contre la mort : 20 ! Reprend connaissance avec 1 PV.`);
+    logCombat(tr('clog.ds20', { name: c.name }));
     await updateCombatant(entityId, { hp: 1, death_saves: null });
     return;
   }
-  const tag = r === 1 ? 'échec critique, 2 échecs' : r >= 10 ? 'réussite' : 'échec';
-  logCombat(`🎲 ${c.name} — sauvegarde contre la mort : ${r} (${tag} · ✔${res.ds.s}/✘${res.ds.f}).`);
-  if (res.stable) logCombat(`🟢 ${c.name} est stabilisé.`);
-  else if (res.dead) logCombat(`☠️ ${c.name} succombe à ses blessures.`);
+  const tag = r === 1 ? tr('clog.tagFumble') : r >= 10 ? tr('clog.success') : tr('clog.fail');
+  logCombat(tr('clog.dsRoll', { name: c.name, r, tag, s: res.ds.s, f: res.ds.f }));
+  if (res.stable) logCombat(tr('clog.stable', { name: c.name }));
+  else if (res.dead) logCombat(tr('clog.succumb', { name: c.name }));
   await updateCombatant(entityId, { death_saves: res.ds });
 }
 
@@ -361,8 +361,8 @@ export async function setDeathSave(entityId, kind, n) {
   // Clic sur une pastille déjà allumée → on la décoche (revient à n-1) ; sinon n.
   if (kind === 's') ds.s = ds.s >= n ? n - 1 : n;
   else ds.f = ds.f >= n ? n - 1 : n;
-  if (ds.s >= 3) logCombat(`🟢 ${c.name} est stabilisé.`);
-  else if (ds.f >= 3) logCombat(`☠️ ${c.name} succombe à ses blessures.`);
+  if (ds.s >= 3) logCombat(tr('clog.stable', { name: c.name }));
+  else if (ds.f >= 3) logCombat(tr('clog.succumb', { name: c.name }));
   await updateCombatant(entityId, { death_saves: ds });
 }
 
@@ -382,7 +382,7 @@ export async function resolveGroupSave({ ability, dc, amount, halfOnSuccess = tr
   const amt = Math.max(0, Number(amount) || 0);
   let nSucc = 0;
   let nFail = 0;
-  logCombat(`💥 Jet de sauvegarde de groupe — ${ablabel} DD ${DC}${type ? ` (${type})` : ''}.`);
+  logCombat(tr('clog.groupSave', { ablabel, dc: DC, type: type ? ` (${type})` : '' }));
   for (const eid of entityIds) {
     const c = list.find((x) => x.entity_id === eid);
     if (!c) continue;
@@ -397,11 +397,11 @@ export async function resolveGroupSave({ ability, dc, amount, halfOnSuccess = tr
     if (success) nSucc++;
     else nFail++;
     const bstr = bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : '';
-    logCombat(`   ${c.name} : ${total} (${formula} ${die}${bstr}) → ${success ? 'réussite' : 'échec'}.`, true);
+    logCombat(tr('clog.groupSaveRow', { name: c.name, total, formula, die, bstr, result: success ? tr('clog.success') : tr('clog.fail') }), true);
     const dmg = amt === 0 ? 0 : success ? (halfOnSuccess ? Math.floor(amt / 2) : 0) : amt;
     if (dmg > 0) await adjustHp(eid, -dmg); // adjustHp journalise le détail des PV
   }
-  logCombat(`   Résultat : ${nSucc} réussite(s), ${nFail} échec(s).`);
+  logCombat(tr('clog.groupSaveResult', { s: nSucc, f: nFail }));
 }
 
 /** Bascule un état (condition) sur un combattant (MJ). */
@@ -516,10 +516,10 @@ export async function nextTurn() {
   if (turn >= initiative.length) {
     turn = 0;
     round += 1;
-    logCombat(`— Round ${round} —`);
+    logCombat(tr('clog.round', { round }));
   }
   const next = initiative[turn];
-  if (next) logCombat(`▶ Tour de ${next.name}.`);
+  if (next) logCombat(tr('clog.turn', { name: next.name }));
   await setMeta(turn, round);
   await expireEffects(round);
 }
@@ -534,7 +534,7 @@ async function expireEffects(round) {
     if (kept.length === eff.length) continue;
     for (const e of eff) {
       if (!(e.until == null || e.until > round)) {
-        logCombat(`⏳ Effet expiré sur ${c.name} : ${e.name}.`);
+        logCombat(tr('clog.effectExpired', { name: c.name, effect: e.name }));
       }
     }
     await updateCombatant(c.entity_id, { effects: kept });
@@ -614,8 +614,8 @@ export async function setCombatantStatus(entityId, status) {
   if (!c) return;
   const next = c.status === status ? null : status; // re-cliquer = annuler
   await updateCombatant(entityId, { status: next });
-  if (next === 'ready') logCombat(`⏳ ${c.name} prépare une action.`);
-  else if (next === 'delayed') logCombat(`⏸ ${c.name} retarde son tour.`);
+  if (next === 'ready') logCombat(tr('clog.ready', { name: c.name }));
+  else if (next === 'delayed') logCombat(tr('clog.delay', { name: c.name }));
 }
 
 /* ── Realtime ─────────────────────────────────────────────── */
@@ -729,7 +729,7 @@ export function applyDmgToTarget(p) {
   if (p.target?.entityId) comb = init.find((c) => c.entity_id === p.target.entityId);
   if (!comb && p.target?.charId) comb = init.find((c) => c.char_id === p.target.charId);
   const name = p.target?.name || 'la cible';
-  const verb = amt > 0 ? `💥 subit ${amt} dégâts` : `💚 récupère ${-amt} PV`;
+  const verb = amt > 0 ? tr('clog.verbDmg', { n: amt }) : tr('clog.verbHeal', { n: -amt });
   if (comb) {
     adjustHp(comb.entity_id, -amt); // -amt : dégâts si amt>0, soin si amt<0
     return;
@@ -738,14 +738,14 @@ export function applyDmgToTarget(p) {
   if (ch && ch.data?.hp != null) {
     const r = _hpAfter(Number(ch.data.hp) || 0, ch.data.hpMax, Number(ch.data.hpTmp) || 0, amt);
     updateCharacter(ch.id, { hp: r.hp, hpTmp: r.temp });
-    logCombat(`${name} ${verb}.`, true);
+    logCombat(tr('clog.nameVerb', { name, verb }), true);
     return;
   }
   const tok = p.target?.tokenId ? (store.get().map?.tokens || []).find((t) => t.id === p.target.tokenId) : null;
   if (tok && (tok.hp != null || tok.hpMax != null)) {
     const r = _hpAfter(Number(tok.hp) || 0, tok.hpMax, Number(tok.hpTemp) || 0, amt);
     updateToken(tok.id, { hp: r.hp, hpTemp: r.temp });
-    logCombat(`${name} ${verb}.`, true);
+    logCombat(tr('clog.nameVerb', { name, verb }), true);
   }
 }
 
@@ -764,7 +764,7 @@ function applyCondToTargets(p) {
       updateCombatant(comb.entity_id, { conditions: [...set] });
     }
   }
-  logCombat(`🩹 ${cond} appliqué à ${(p.targets || []).length} cible(s).`);
+  logCombat(tr('clog.condApplied', { cond, n: (p.targets || []).length }));
 }
 
 /* Anti‑spam : limite le débit des requêtes appliquées par le MJ, par expéditeur.

@@ -420,7 +420,7 @@ function renderList(container) {
       if (set.has(id)) set.delete(id);
       else set.add(id);
       store.set({ targets: [...set] });
-      showToast(set.has(id) ? `🎯 ${c.name} ciblé (${set.size})` : `Cible retirée (${set.size})`, { timeout: 1400 });
+      showToast(set.has(id) ? t('map.toast.targeted', { label: c.name, n: set.size }) : t('map.toast.untargeted', { n: set.size }), { timeout: 1400 });
     })
   );
 
