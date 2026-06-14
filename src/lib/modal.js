@@ -1,4 +1,5 @@
 import { escapeHtml } from './utils.js';
+import { t } from './i18n.js';
 
 /**
  * Modales applicatives (remplacent alert / confirm / prompt natifs).
@@ -45,7 +46,7 @@ function build({ title, message, kind, fields, okLabel, cancelLabel, danger }) {
       ${message ? `<p class="modal-msg">${escapeHtml(message)}</p>` : ''}
       ${fields || ''}
       <div class="modal-actions">
-        ${kind !== 'alert' ? `<button class="modal-btn modal-cancel">${escapeHtml(cancelLabel || 'Annuler')}</button>` : ''}
+        ${kind !== 'alert' ? `<button class="modal-btn modal-cancel">${escapeHtml(cancelLabel || t('common.cancel'))}</button>` : ''}
         <button class="modal-btn modal-ok ${danger ? 'danger' : ''}">${escapeHtml(okLabel || 'OK')}</button>
       </div>
     </div>
@@ -117,11 +118,11 @@ export function modalAlert(message, { title = '', okLabel = 'OK' } = {}) {
   return modalBase({ kind: 'alert', title, message, okLabel }, () => undefined);
 }
 
-export function modalConfirm(message, { title = '', okLabel = 'Confirmer', cancelLabel = 'Annuler', danger = false } = {}) {
+export function modalConfirm(message, { title = '', okLabel = t('common.confirm'), cancelLabel = t('common.cancel'), danger = false } = {}) {
   return modalBase({ kind: 'confirm', title, message, okLabel, cancelLabel, danger }, () => true);
 }
 
-export function modalPrompt(message, { title = '', defaultValue = '', placeholder = '', okLabel = 'Valider', cancelLabel = 'Annuler', multiline = false } = {}) {
+export function modalPrompt(message, { title = '', defaultValue = '', placeholder = '', okLabel = t('common.validate'), cancelLabel = t('common.cancel'), multiline = false } = {}) {
   const fields = multiline
     ? `<textarea class="modal-input modal-textarea" placeholder="${escapeHtml(placeholder)}">${escapeHtml(defaultValue)}</textarea>`
     : `<input class="modal-input" type="text" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />`;

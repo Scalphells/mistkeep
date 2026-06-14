@@ -2,6 +2,7 @@ import { store } from '../state.js';
 import { showToast } from './toast.js';
 import { sendRoll } from '../features/dice.js';
 import { navigateTo } from '../features/nav.js';
+import { t } from './i18n.js';
 
 /**
  * Gestion globale des liens enrichis du Markdown (cf. lib/markdown.js) :
@@ -15,7 +16,7 @@ export function initMdLinks() {
     if (roll) {
       e.preventDefault();
       const expr = roll.dataset.roll;
-      sendRoll(expr, 'public', `Jet en ligne (${expr})`).catch(() => {});
+      sendRoll(expr, 'public', t('mdlinks.inlineRoll', { expr })).catch(() => {});
       showToast(`🎲 ${expr}`, { timeout: 1500 });
       return;
     }
@@ -28,7 +29,7 @@ export function initMdLinks() {
         store.set({ compendiumOpenId: entry.id });
         navigateTo('compendium');
       } else {
-        showToast(`🔗 « ${ref.dataset.ref} » introuvable dans le compendium.`, { timeout: 2200 });
+        showToast(t('mdlinks.notFound', { ref: ref.dataset.ref }), { timeout: 2200 });
       }
     }
   });

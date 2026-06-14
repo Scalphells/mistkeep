@@ -1,6 +1,7 @@
 import { escapeHtml } from './utils.js';
 import { sendRoll } from '../features/dice.js';
 import { modalPrompt } from './modal.js';
+import { t } from './i18n.js';
 
 /**
  * Barre de raccourcis (hotbar) façon Foundry : 10 emplacements (1–0) persistés
@@ -33,7 +34,7 @@ function render() {
   host.innerHTML = `<div class="hotbar">${slots
     .map(
       (s, i) =>
-        `<button class="hotbar-slot ${s ? 'filled' : ''}" data-i="${i}" title="${s ? escapeHtml(`${s.label} — ${s.notation}`) : 'Vide — clic pour assigner'}">
+        `<button class="hotbar-slot ${s ? 'filled' : ''}" data-i="${i}" title="${s ? escapeHtml(`${s.label} — ${s.notation}`) : t('hotbar.empty.title')}">
            <span class="hotbar-key">${(i + 1) % 10}</span>
            ${s ? `<span class="hotbar-lbl">${escapeHtml(s.label || s.notation)}</span>` : '<span class="hotbar-plus">+</span>'}
          </button>`
@@ -57,9 +58,9 @@ async function trigger(i) {
     sendRoll(s.notation, 'public', s.label).catch(() => {});
     return;
   }
-  const notation = await modalPrompt('Notation du dé (ex : 1d20+5, 2d6) :', { title: '⌨ Raccourci' });
+  const notation = await modalPrompt(t('hotbar.notation.prompt'), { title: t('hotbar.title') });
   if (!notation || !notation.trim()) return;
-  const label = await modalPrompt('Nom (optionnel) :', { title: '⌨ Raccourci', defaultValue: notation.trim() });
+  const label = await modalPrompt(t('hotbar.name.prompt'), { title: t('hotbar.title'), defaultValue: notation.trim() });
   slots[i] = { notation: notation.trim(), label: (label || notation).trim() };
   save();
   render();

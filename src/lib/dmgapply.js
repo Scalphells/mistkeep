@@ -1,4 +1,5 @@
 import { escapeHtml } from './utils.js';
+import { t } from './i18n.js';
 
 /**
  * Modale MJ : appliquer des dégâts à des cibles, avec réduction éventuelle pour
@@ -32,23 +33,23 @@ export function openDamageApply({ amount, targets, who, nm, crit, apply }) {
   const quarter = Math.floor(amt / 4);
   const dbl = amt * 2;
   const list = targets || [];
-  const names = list.map((t) => t.name || 'cible').join(', ');
+  const names = list.map((x) => x.name || t('applyroll.target')).join(', ');
 
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card dmg-apply" role="dialog" aria-modal="true">
-      <h3 class="modal-title">💥 Appliquer les dégâts</h3>
-      <div class="ac-sub">${escapeHtml(who || '')}${nm ? ` — ${escapeHtml(nm)}` : ''}${crit ? ' · ⭐ critique' : ''}</div>
-      <p class="modal-msg"><strong class="ac-dmg-total">${amt}</strong> dégâts → <strong>${escapeHtml(names || 'aucune cible')}</strong></p>
+      <h3 class="modal-title">${t('dmgapply.title')}</h3>
+      <div class="ac-sub">${escapeHtml(who || '')}${nm ? ` — ${escapeHtml(nm)}` : ''}${crit ? t('dmgapply.critSuffix') : ''}</div>
+      <p class="modal-msg"><strong class="ac-dmg-total">${amt}</strong> ${t('ac.dmgWord')} → <strong>${escapeHtml(names || t('dmgapply.noTarget'))}</strong></p>
       <div class="dmg-apply-btns">
-        <button class="modal-btn" data-amt="${amt}">Plein <span class="da-n">${amt}</span></button>
-        <button class="modal-btn" data-amt="${dbl}" title="Vulnérabilité : dégâts doublés">×2 Vulnérable <span class="da-n">${dbl}</span></button>
-        <button class="modal-btn" data-amt="${half}" title="Résistance : moitié des dégâts">½ Résistance <span class="da-n">${half}</span></button>
+        <button class="modal-btn" data-amt="${amt}">${t('dmgapply.full')} <span class="da-n">${amt}</span></button>
+        <button class="modal-btn" data-amt="${dbl}" title="${t('dmgapply.double.title')}">${t('dmgapply.double')} <span class="da-n">${dbl}</span></button>
+        <button class="modal-btn" data-amt="${half}" title="${t('dmgapply.half.title')}">${t('dmgapply.half')} <span class="da-n">${half}</span></button>
         <button class="modal-btn" data-amt="${quarter}">¼ <span class="da-n">${quarter}</span></button>
-        <button class="modal-btn" data-amt="0" title="Immunité : aucun dégât">0 Immunité</button>
+        <button class="modal-btn" data-amt="0" title="${t('dmgapply.immune.title')}">${t('dmgapply.immune')}</button>
       </div>
-      <div class="modal-actions"><button class="modal-btn dmg-cancel">Annuler</button></div>
+      <div class="modal-actions"><button class="modal-btn dmg-cancel">${t('common.cancel')}</button></div>
     </div>`;
   document.body.appendChild(ov);
   _ov = ov;
@@ -60,7 +61,7 @@ export function openDamageApply({ amount, targets, who, nm, crit, apply }) {
   ov.querySelectorAll('[data-amt]').forEach((b) =>
     b.addEventListener('click', () => {
       const a = Number(b.dataset.amt) || 0;
-      for (const t of list) apply(t, a);
+      for (const tg of list) apply(tg, a);
       close();
     })
   );

@@ -6,6 +6,7 @@ import { fireHotbarKey } from './hotbar.js';
 import { modalPrompt } from './modal.js';
 import { sendRoll } from '../features/dice.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * Raccourcis clavier globaux. Inactifs quand le focus est dans un champ de
@@ -21,16 +22,16 @@ import { showToast } from './toast.js';
 
 /** Jet de dés rapide : demande une notation et la publie dans le chat. */
 async function quickRoll() {
-  const notation = await modalPrompt('Notation (ex. 1d20+3, 2d6, 1d100) :', {
-    title: '🎲 Jet rapide',
+  const notation = await modalPrompt(t('hotkeys.notation.prompt'), {
+    title: t('hotkeys.quick.title'),
     defaultValue: '1d20',
-    okLabel: 'Lancer',
+    okLabel: t('dice.roll'),
   });
   if (!notation) return;
   try {
     await sendRoll(notation.trim(), 'public');
   } catch {
-    showToast('Notation de dés invalide.', { timeout: 2200 });
+    showToast(t('hotkeys.invalid'), { timeout: 2200 });
   }
 }
 
@@ -52,25 +53,25 @@ function toggleHelp() {
     return;
   }
   const rows = [
-    ['Alt + 1…0', 'Changer d’onglet'],
-    ['1…0', 'Lancer un raccourci de la barre (hotbar)'],
-    ['Ctrl / ⌘ + K', 'Recherche globale'],
-    ['R', 'Jet de dés rapide'],
-    [']', 'Combat : tour suivant (MJ)'],
-    ['[', 'Combat : tour précédent (MJ)'],
-    ['Ctrl / ⌘ + Z', 'Carte : annuler la dernière modification (MJ)'],
-    ['Échap', 'Fermer fenêtre / cible'],
-    ['?', 'Afficher cette aide'],
+    ['Alt + 1…0', t('hotkeys.h.tab')],
+    ['1…0', t('hotkeys.h.hotbar')],
+    ['Ctrl / ⌘ + K', t('hotkeys.h.search')],
+    ['R', t('hotkeys.h.quick')],
+    [']', t('hotkeys.h.next')],
+    ['[', t('hotkeys.h.prev')],
+    ['Ctrl / ⌘ + Z', t('hotkeys.h.undo')],
+    [t('hotkeys.k.esc'), t('hotkeys.h.esc')],
+    ['?', t('hotkeys.h.help')],
   ];
   const el = document.createElement('div');
   el.className = 'modal-overlay show';
   el.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:360px;max-width:94vw">
-      <h3 class="modal-title">⌨ Raccourcis clavier</h3>
+      <h3 class="modal-title">${t('hotkeys.title')}</h3>
       <div class="hk-list">
         ${rows.map(([k, d]) => `<div class="hk-row"><kbd>${k}</kbd><span>${d}</span></div>`).join('')}
       </div>
-      <div class="modal-actions"><button class="modal-btn modal-ok hk-close">Fermer</button></div>
+      <div class="modal-actions"><button class="modal-btn modal-ok hk-close">${t('common.close')}</button></div>
     </div>`;
   document.body.appendChild(el);
   _helpEl = el;

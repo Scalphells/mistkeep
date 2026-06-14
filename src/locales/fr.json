@@ -865,5 +865,45 @@
   "picker.msg": "Coche les cibles puis applique.",
   "picker.heal": "Soigner",
   "picker.apply": "Appliquer",
-  "picker.pickOne": "Coche au moins une cible."
+  "picker.pickOne": "Coche au moins une cible.",
+
+  "common.confirm": "Confirmer",
+  "common.validate": "Valider",
+
+  "dmgapply.title": "💥 Appliquer les dégâts",
+  "dmgapply.critSuffix": " · ⭐ critique",
+  "dmgapply.noTarget": "aucune cible",
+  "dmgapply.full": "Plein",
+  "dmgapply.double": "×2 Vulnérable",
+  "dmgapply.double.title": "Vulnérabilité : dégâts doublés",
+  "dmgapply.half": "½ Résistance",
+  "dmgapply.half.title": "Résistance : moitié des dégâts",
+  "dmgapply.immune": "0 Immunité",
+  "dmgapply.immune.title": "Immunité : aucun dégât",
+
+  "hotbar.title": "⌨ Raccourci",
+  "hotbar.empty.title": "Vide — clic pour assigner",
+  "hotbar.notation.prompt": "Notation du dé (ex : 1d20+5, 2d6) :",
+  "hotbar.name.prompt": "Nom (optionnel) :",
+
+  "mdlinks.inlineRoll": "Jet en ligne ({expr})",
+  "mdlinks.notFound": "🔗 « {ref} » introuvable dans le compendium.",
+
+  "hotkeys.quick.title": "🎲 Jet rapide",
+  "hotkeys.notation.prompt": "Notation (ex. 1d20+3, 2d6, 1d100) :",
+  "hotkeys.invalid": "Notation de dés invalide.",
+  "hotkeys.title": "⌨ Raccourcis clavier",
+  "hotkeys.k.esc": "Échap",
+  "hotkeys.h.tab": "Changer d’onglet",
+  "hotkeys.h.hotbar": "Lancer un raccourci de la barre (hotbar)",
+  "hotkeys.h.search": "Recherche globale",
+  "hotkeys.h.quick": "Jet de dés rapide",
+  "hotkeys.h.next": "Combat : tour suivant (MJ)",
+  "hotkeys.h.prev": "Combat : tour précédent (MJ)",
+  "hotkeys.h.undo": "Carte : annuler la dernière modification (MJ)",
+  "hotkeys.h.esc": "Fermer fenêtre / cible",
+  "hotkeys.h.help": "Afficher cette aide",
+
+  "pwa.offline": "⚠ Hors ligne — vos changements pourraient ne pas être enregistrés.",
+  "pwa.update": "🔄 Nouvelle version disponible — touchez pour recharger."
 }

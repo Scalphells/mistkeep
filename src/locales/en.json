@@ -865,5 +865,45 @@
   "picker.msg": "Check the targets then apply.",
   "picker.heal": "Heal",
   "picker.apply": "Apply",
-  "picker.pickOne": "Check at least one target."
+  "picker.pickOne": "Check at least one target.",
+
+  "common.confirm": "Confirm",
+  "common.validate": "OK",
+
+  "dmgapply.title": "💥 Apply damage",
+  "dmgapply.critSuffix": " · ⭐ critical",
+  "dmgapply.noTarget": "no target",
+  "dmgapply.full": "Full",
+  "dmgapply.double": "×2 Vulnerable",
+  "dmgapply.double.title": "Vulnerability: doubled damage",
+  "dmgapply.half": "½ Resistance",
+  "dmgapply.half.title": "Resistance: half damage",
+  "dmgapply.immune": "0 Immunity",
+  "dmgapply.immune.title": "Immunity: no damage",
+
+  "hotbar.title": "⌨ Shortcut",
+  "hotbar.empty.title": "Empty — click to assign",
+  "hotbar.notation.prompt": "Die notation (e.g. 1d20+5, 2d6):",
+  "hotbar.name.prompt": "Name (optional):",
+
+  "mdlinks.inlineRoll": "Inline roll ({expr})",
+  "mdlinks.notFound": "🔗 \"{ref}\" not found in the compendium.",
+
+  "hotkeys.quick.title": "🎲 Quick roll",
+  "hotkeys.notation.prompt": "Notation (e.g. 1d20+3, 2d6, 1d100):",
+  "hotkeys.invalid": "Invalid dice notation.",
+  "hotkeys.title": "⌨ Keyboard shortcuts",
+  "hotkeys.k.esc": "Esc",
+  "hotkeys.h.tab": "Switch tab",
+  "hotkeys.h.hotbar": "Trigger a hotbar shortcut",
+  "hotkeys.h.search": "Global search",
+  "hotkeys.h.quick": "Quick dice roll",
+  "hotkeys.h.next": "Combat: next turn (GM)",
+  "hotkeys.h.prev": "Combat: previous turn (GM)",
+  "hotkeys.h.undo": "Map: undo the last change (GM)",
+  "hotkeys.h.esc": "Close window / target",
+  "hotkeys.h.help": "Show this help",
+
+  "pwa.offline": "⚠ Offline — your changes might not be saved.",
+  "pwa.update": "🔄 New version available — tap to reload."
 }

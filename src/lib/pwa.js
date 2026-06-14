@@ -1,6 +1,7 @@
 import { store } from '../state.js';
 import { flushOutbox, pendingCount } from './outbox.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /* Identifiant de build injecté par Vite (cf. vite.config.js). */
 export const BUILD_ID = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
@@ -33,7 +34,7 @@ function renderBanner(online) {
   if (bannerEl) return;
   bannerEl = document.createElement('div');
   bannerEl.className = 'offline-banner';
-  bannerEl.textContent = '⚠ Hors ligne — vos changements pourraient ne pas être enregistrés.';
+  bannerEl.textContent = t('pwa.offline');
   document.body.appendChild(bannerEl);
 }
 
@@ -45,7 +46,7 @@ export function initPWA() {
     const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!hadController) return;
-      showToast('🔄 Nouvelle version disponible — touchez pour recharger.', {
+      showToast(t('pwa.update'), {
         type: 'info',
         timeout: 0,
         onClick: () => window.location.reload(),
