@@ -1,6 +1,7 @@
 import { backend } from './backend.js';
 import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
+import { t } from './i18n.js';
 
 /**
  * Pause de partie (façon Foundry « GAME PAUSED »). Le MJ bascule l'état, partagé
@@ -13,7 +14,7 @@ function render() {
   if (paused && !_banner) {
     _banner = document.createElement('div');
     _banner.className = 'pause-banner';
-    _banner.innerHTML = '<span>⏸ JEU EN PAUSE</span>';
+    _banner.innerHTML = `<span>${t('pause.banner')}</span>`;
     document.body.appendChild(_banner);
   } else if (!paused && _banner) {
     _banner.remove();

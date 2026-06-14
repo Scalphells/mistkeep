@@ -1,6 +1,7 @@
 import { backend } from './backend.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * Notifications globales : abonnement aux nouveaux messages privés et handouts
@@ -31,7 +32,7 @@ export function initNotify() {
       const onChat = store.get().sideTab === 'chat';
       if (!onChat) store.set({ unreadMessages: (store.get().unreadMessages || 0) + 1 });
       if (m.channel === 'dm') {
-        showToast(`Message privé de ${m.sender_name || 'Anonyme'}`, {
+        showToast(t('notify.dm', { name: m.sender_name || t('dock.anon') }), {
           type: 'info',
           icon: '🎭',
           onClick: () => _navigate?.('chat'),
@@ -42,7 +43,7 @@ export function initNotify() {
       if (!h || h.pushed_by === myId) return;
       const onHandouts = store.get().sideTab === 'handouts';
       if (!onHandouts) store.set({ unreadHandouts: (store.get().unreadHandouts || 0) + 1 });
-      showToast(`Nouveau document : ${h.title || 'Handout'}`, {
+      showToast(t('notify.handout', { title: h.title || t('notify.handoutDefault') }), {
         type: 'success',
         icon: '🖼',
         onClick: () => _navigate?.('handouts'),

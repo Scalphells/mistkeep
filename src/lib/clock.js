@@ -1,6 +1,7 @@
 import { backend } from './backend.js';
 import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
+import { t } from './i18n.js';
 
 /**
  * Horloge / calendrier in-game (façon Simple Calendar). Le MJ fait avancer le
@@ -20,10 +21,10 @@ function fmt(min) {
 /** Phase de la journée (icône + libellé) à partir des minutes. */
 function phase(min) {
   const h = Math.floor(min / 60) % 24;
-  if (h < 5 || h >= 21) return { icon: '🌙', label: 'Nuit' };
-  if (h < 8) return { icon: '🌅', label: 'Aube' };
-  if (h < 18) return { icon: '☀', label: 'Jour' };
-  return { icon: '🌆', label: 'Crépuscule' };
+  if (h < 5 || h >= 21) return { icon: '🌙', label: t('clock.phase.night') };
+  if (h < 8) return { icon: '🌅', label: t('clock.phase.dawn') };
+  if (h < 18) return { icon: '☀', label: t('clock.phase.day') };
+  return { icon: '🌆', label: t('clock.phase.dusk') };
 }
 
 function render() {
@@ -34,20 +35,20 @@ function render() {
   const { day = 1, min = 0 } = store.get().clock || {};
   const p = phase(min);
   _el.innerHTML = `
-    <div class="clock-head">${p.icon} Temps<button class="clock-x" title="Fermer">✕</button></div>
+    <div class="clock-head">${p.icon} ${t('clock.time')}<button class="clock-x" title="${t('common.close')}">✕</button></div>
     <div class="clock-big">${fmt(min)}</div>
-    <div class="clock-sub">Jour ${day} · ${p.label}</div>
+    <div class="clock-sub">${t('clock.dayLine', { day, phase: p.label })}</div>
     ${
       isDM
         ? `<div class="clock-ctrls">
-             <button data-adv="-60">−1 h</button>
-             <button data-adv="-10">−10 min</button>
-             <button data-adv="10">+10 min</button>
-             <button data-adv="60">+1 h</button>
+             <button data-adv="-60">${t('clock.dec.hour')}</button>
+             <button data-adv="-10">${t('clock.dec.ten')}</button>
+             <button data-adv="10">${t('clock.inc.ten')}</button>
+             <button data-adv="60">${t('clock.inc.hour')}</button>
            </div>
            <div class="clock-ctrls">
-             <button data-adv="480" title="Repos long (8 h)">🛌 +8 h</button>
-             <button data-set="1" title="Régler l'heure">🕐 Régler</button>
+             <button data-adv="480" title="${t('clock.rest8.title')}">${t('clock.rest8')}</button>
+             <button data-set="1" title="${t('clock.setBtn.title')}">${t('clock.setBtn')}</button>
            </div>`
         : ''
     }`;
@@ -85,7 +86,7 @@ function advance(delta) {
 async function setTimePrompt() {
   const { modalPrompt } = await import('./modal.js');
   const cur = store.get().clock || { day: 1, min: 0 };
-  const v = await modalPrompt('Heure (HH:MM) :', { title: '🕐 Régler le temps', defaultValue: fmt(cur.min) });
+  const v = await modalPrompt(t('clock.set.prompt'), { title: t('clock.set.title'), defaultValue: fmt(cur.min) });
   if (!v) return;
   const m = v.match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return;

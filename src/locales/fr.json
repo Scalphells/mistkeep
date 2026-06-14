@@ -905,5 +905,52 @@
   "hotkeys.h.help": "Afficher cette aide",
 
   "pwa.offline": "⚠ Hors ligne — vos changements pourraient ne pas être enregistrés.",
-  "pwa.update": "🔄 Nouvelle version disponible — touchez pour recharger."
+  "pwa.update": "🔄 Nouvelle version disponible — touchez pour recharger.",
+
+  "sfx.title": "🔊 Sons",
+  "sfx.empty": "Aucun son. Ajoute-en par URL ou fichier.",
+  "sfx.addUrl": "＋ URL",
+  "sfx.file": "📁 Fichier",
+  "sfx.url.prompt": "URL du son (.mp3, .ogg…) :",
+  "sfx.add.title": "🔊 Ajouter un son",
+  "sfx.name.prompt": "Nom du son :",
+  "sfx.defaultName": "Son",
+  "sfx.err.import": "Import impossible : ",
+  "sfx.modalTitle": "Son",
+
+  "clock.time": "Temps",
+  "clock.dayLine": "Jour {day} · {phase}",
+  "clock.phase.night": "Nuit",
+  "clock.phase.dawn": "Aube",
+  "clock.phase.day": "Jour",
+  "clock.phase.dusk": "Crépuscule",
+  "clock.dec.hour": "−1 h",
+  "clock.dec.ten": "−10 min",
+  "clock.inc.ten": "+10 min",
+  "clock.inc.hour": "+1 h",
+  "clock.rest8": "🛌 +8 h",
+  "clock.rest8.title": "Repos long (8 h)",
+  "clock.setBtn": "🕐 Régler",
+  "clock.setBtn.title": "Régler l'heure",
+  "clock.set.prompt": "Heure (HH:MM) :",
+  "clock.set.title": "🕐 Régler le temps",
+
+  "notify.dm": "Message privé de {name}",
+  "notify.handout": "Nouveau document : {title}",
+  "notify.handoutDefault": "Handout",
+
+  "export.done": "Sauvegarde JSON téléchargée.",
+
+  "rr.toast.sent": "📣 Demande de jet envoyée aux joueurs.",
+  "rr.label.save": "Sauvegarde de {label}",
+  "rr.label.ability": "Test de {label}",
+  "rr.label.roll": "Jet",
+  "rr.title": "📣 Le MJ demande un jet",
+  "rr.dcSuffix": " — DD {dc}",
+  "rr.noChar": "(aucune fiche liée — jet à +0)",
+  "rr.ignore": "Ignorer",
+  "rr.pc": "PJ",
+  "rr.dcParen": " (DD {dc})",
+
+  "pause.banner": "⏸ JEU EN PAUSE"
 }

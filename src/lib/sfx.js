@@ -4,6 +4,7 @@ import { uploadMedia } from './media.js';
 import { campaignId, loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * Sons ponctuels (« soundboard » façon Foundry). Le MJ constitue sa planche de
@@ -57,7 +58,7 @@ function render() {
   if (!_open) return;
   const pads = board();
   _el.innerHTML = `
-    <div class="sfx-head">🔊 Sons<button class="sfx-x" title="Fermer">✕</button></div>
+    <div class="sfx-head">${t('sfx.title')}<button class="sfx-x" title="${t('common.close')}">✕</button></div>
     <div class="sfx-pads">
       ${
         pads.length
@@ -65,16 +66,16 @@ function render() {
               .map(
                 (p) => `<div class="sfx-pad" data-play="${p.id}" title="${escapeAttr(p.name)}">
                   <span class="sfx-pad-nm">${escapeHtml(p.name)}</span>
-                  <button class="sfx-pad-x" data-del="${p.id}" title="Retirer">×</button>
+                  <button class="sfx-pad-x" data-del="${p.id}" title="${t('common.remove')}">×</button>
                 </div>`
               )
               .join('')
-          : '<div class="sfx-empty">Aucun son. Ajoute-en par URL ou fichier.</div>'
+          : `<div class="sfx-empty">${t('sfx.empty')}</div>`
       }
     </div>
     <div class="sfx-ctrls">
-      <button data-add>＋ URL</button>
-      <label class="sfx-up">📁 Fichier<input type="file" accept="audio/*" hidden></label>
+      <button data-add>${t('sfx.addUrl')}</button>
+      <label class="sfx-up">${t('sfx.file')}<input type="file" accept="audio/*" hidden></label>
     </div>`;
   _el.querySelector('.sfx-x')?.addEventListener('click', () => setOpen(false));
   _el.querySelectorAll('[data-play]').forEach((pad) =>
@@ -93,11 +94,11 @@ function render() {
 
 async function addByUrl() {
   const { modalPrompt } = await import('./modal.js');
-  const url = await modalPrompt('URL du son (.mp3, .ogg…) :', { title: '🔊 Ajouter un son' });
+  const url = await modalPrompt(t('sfx.url.prompt'), { title: t('sfx.add.title') });
   if (!url || !url.trim()) return;
-  const name = await modalPrompt('Nom du son :', { title: '🔊 Ajouter un son', defaultValue: 'Son' });
+  const name = await modalPrompt(t('sfx.name.prompt'), { title: t('sfx.add.title'), defaultValue: t('sfx.defaultName') });
   if (name === null) return;
-  persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name: (name || 'Son').trim(), url: url.trim() }]);
+  persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name: (name || t('sfx.defaultName')).trim(), url: url.trim() }]);
 }
 
 async function onUpload(e) {
@@ -112,7 +113,7 @@ async function onUpload(e) {
     persistBoard([...board(), { id: `sfx_${crypto.randomUUID().slice(0, 8)}`, name, url: ref }]);
   } catch (err) {
     const { modalAlert } = await import('./modal.js');
-    await modalAlert('Import impossible : ' + err.message, { title: 'Son' });
+    await modalAlert(t('sfx.err.import') + err.message, { title: t('sfx.modalTitle') });
   }
 }
 

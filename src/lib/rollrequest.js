@@ -5,6 +5,7 @@ import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { showToast } from './toast.js';
 import { sendD20Check } from '../features/dice.js';
+import { t } from './i18n.js';
 
 /**
  * Demande de jet aux joueurs (façon Foundry).
@@ -42,15 +43,15 @@ export function requestRoll({ kind, key, dc }) {
     event: 'req',
     payload: { kind, key, dc: dc || null, by: store.get().user?.id },
   });
-  showToast('📣 Demande de jet envoyée aux joueurs.', { timeout: 1800 });
+  showToast(t('rr.toast.sent'), { timeout: 1800 });
 }
 
 function labelFor(kind, key) {
   const s = sys();
-  if (kind === 'save') return `Sauvegarde de ${s.saveOptions.find((a) => a.key === key)?.label || key}`;
+  if (kind === 'save') return t('rr.label.save', { label: s.saveOptions.find((a) => a.key === key)?.label || key });
   if (kind === 'skill') return s.skills[key]?.label || key;
-  if (kind === 'ability') return `Test de ${s.abilities.find((a) => a.key === key)?.label || key}`;
-  return 'Jet';
+  if (kind === 'ability') return t('rr.label.ability', { label: s.abilities.find((a) => a.key === key)?.label || key });
+  return t('rr.label.roll');
 }
 function bonusFor(kind, key, data) {
   if (!data) return 0;
@@ -81,11 +82,11 @@ function promptRoll(p) {
   overlay.className = 'modal-overlay show';
   overlay.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:340px;max-width:92vw">
-      <h3 class="modal-title">📣 Le MJ demande un jet</h3>
-      <p class="modal-msg"><b>${escapeHtml(lbl)}</b>${p.dc ? ` — DD ${p.dc}` : ''}${ch ? `<br><span style="color:var(--muted)">${escapeHtml(ch.name)}</span>` : '<br><span style="color:var(--muted)">(aucune fiche liée — jet à +0)</span>'}</p>
+      <h3 class="modal-title">${t('rr.title')}</h3>
+      <p class="modal-msg"><b>${escapeHtml(lbl)}</b>${p.dc ? t('rr.dcSuffix', { dc: p.dc }) : ''}${ch ? `<br><span style="color:var(--muted)">${escapeHtml(ch.name)}</span>` : `<br><span style="color:var(--muted)">${t('rr.noChar')}</span>`}</p>
       <div class="modal-actions">
-        <button class="modal-btn rr-ignore">Ignorer</button>
-        <button class="modal-btn modal-ok rr-go">🎲 Lancer</button>
+        <button class="modal-btn rr-ignore">${t('rr.ignore')}</button>
+        <button class="modal-btn modal-ok rr-go">🎲 ${t('dice.roll')}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -97,7 +98,7 @@ function promptRoll(p) {
   overlay.querySelector('.rr-go').addEventListener('click', async () => {
     const bonus = bonusFor(p.kind, p.key, ch?.data);
     try {
-      await sendD20Check(bonus, `${ch?.name || 'PJ'} — ${lbl}${p.dc ? ` (DD ${p.dc})` : ''}`);
+      await sendD20Check(bonus, `${ch?.name || t('rr.pc')} — ${lbl}${p.dc ? t('rr.dcParen', { dc: p.dc }) : ''}`);
     } catch {
       /* affiché ailleurs */
     }

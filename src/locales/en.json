@@ -905,5 +905,52 @@
   "hotkeys.h.help": "Show this help",
 
   "pwa.offline": "⚠ Offline — your changes might not be saved.",
-  "pwa.update": "🔄 New version available — tap to reload."
+  "pwa.update": "🔄 New version available — tap to reload.",
+
+  "sfx.title": "🔊 Sounds",
+  "sfx.empty": "No sound. Add some by URL or file.",
+  "sfx.addUrl": "＋ URL",
+  "sfx.file": "📁 File",
+  "sfx.url.prompt": "Sound URL (.mp3, .ogg…):",
+  "sfx.add.title": "🔊 Add a sound",
+  "sfx.name.prompt": "Sound name:",
+  "sfx.defaultName": "Sound",
+  "sfx.err.import": "Import failed: ",
+  "sfx.modalTitle": "Sound",
+
+  "clock.time": "Time",
+  "clock.dayLine": "Day {day} · {phase}",
+  "clock.phase.night": "Night",
+  "clock.phase.dawn": "Dawn",
+  "clock.phase.day": "Day",
+  "clock.phase.dusk": "Dusk",
+  "clock.dec.hour": "−1 hr",
+  "clock.dec.ten": "−10 min",
+  "clock.inc.ten": "+10 min",
+  "clock.inc.hour": "+1 hr",
+  "clock.rest8": "🛌 +8 hr",
+  "clock.rest8.title": "Long rest (8 hr)",
+  "clock.setBtn": "🕐 Set",
+  "clock.setBtn.title": "Set the time",
+  "clock.set.prompt": "Time (HH:MM):",
+  "clock.set.title": "🕐 Set the time",
+
+  "notify.dm": "Private message from {name}",
+  "notify.handout": "New document: {title}",
+  "notify.handoutDefault": "Handout",
+
+  "export.done": "JSON backup downloaded.",
+
+  "rr.toast.sent": "📣 Roll request sent to the players.",
+  "rr.label.save": "{label} save",
+  "rr.label.ability": "{label} check",
+  "rr.label.roll": "Roll",
+  "rr.title": "📣 The GM requests a roll",
+  "rr.dcSuffix": " — DC {dc}",
+  "rr.noChar": "(no linked sheet — roll at +0)",
+  "rr.ignore": "Ignore",
+  "rr.pc": "PC",
+  "rr.dcParen": " (DC {dc})",
+
+  "pause.banner": "⏸ GAME PAUSED"
 }

@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * Export / sauvegarde : télécharge un JSON de toutes les données accessibles
@@ -10,9 +11,9 @@ const TABLES = ['characters', 'compendium', 'scenes', 'session_notes', 'handouts
 
 export async function exportData() {
   const out = { app: 'mistkeep', exportedAt: new Date().toISOString() };
-  for (const t of TABLES) {
-    const { data, error } = await backend.db.from(t).select('*');
-    out[t] = error ? [] : data;
+  for (const tbl of TABLES) {
+    const { data, error } = await backend.db.from(tbl).select('*');
+    out[tbl] = error ? [] : data;
   }
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -23,5 +24,5 @@ export async function exportData() {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  showToast('Sauvegarde JSON téléchargée.', { type: 'success', icon: '💾' });
+  showToast(t('export.done'), { type: 'success', icon: '💾' });
 }

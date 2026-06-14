@@ -3,6 +3,7 @@ import { cachedSignedUrl } from './signed-urls.js';
 import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
+import { t } from './i18n.js';
 
 /**
  * « Montrer aux joueurs » : le MJ pousse une image (handout) en plein écran chez
@@ -37,7 +38,7 @@ function show(url, name) {
   overlay.innerHTML = `
     <img class="spotlight-img" src="${url}" alt="">
     ${name ? `<div class="spotlight-cap">${escapeHtml(name)}</div>` : ''}
-    <button class="spotlight-close" title="Fermer">✕</button>`;
+    <button class="spotlight-close" title="${t('common.close')}">✕</button>`;
   overlay.querySelector('.spotlight-close').addEventListener('click', () => {
     if (store.get().isDM) hideSpotlight();
     else hide();
