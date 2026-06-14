@@ -62,7 +62,7 @@ function questRow(q, isDM) {
       </div>
       ${
         isDM
-          ? `<textarea class="quest-note-in" data-q-note="${q.id}" rows="1" placeholder="Détails (Markdown, facultatif)">${escapeHtml(q.note || '')}</textarea>`
+          ? `<textarea class="quest-note-in" data-q-note="${q.id}" rows="1" placeholder="${t('quests.notePh')}">${escapeHtml(q.note || '')}</textarea>`
           : note
       }
     </div>`;

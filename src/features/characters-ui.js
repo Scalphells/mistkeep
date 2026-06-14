@@ -1084,9 +1084,9 @@ function renderSheet(scrollTop = false) {
   const { isDM, players } = store.get();
   const ownerRow = isDM
     ? `<div class="sheet-owner">
-         <label>Joueur :</label>
+         <label>${t('char.owner.label')}</label>
          <select class="sf" data-owner>
-           <option value="">— Non attribuée —</option>
+           <option value="">${t('char.owner.none')}</option>
            ${players
              .map(
                (p) =>
