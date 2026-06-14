@@ -1,4 +1,5 @@
 import { escapeHtml } from './utils.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Tirage Tarokka (deck de divination générique). On tire au hasard des
@@ -8,13 +9,14 @@ import { escapeHtml } from './utils.js';
  * Deck : 40 cartes communes (4 enseignes × As→10) + 14 hautes cartes = 54.
  */
 
-const SUITS = ['Pièces', 'Étoiles', 'Épées', 'Glyphes'];
+const SUIT_KEYS = ['coins', 'stars', 'swords', 'glyphs'];
 const RANKS = ['As', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+const rankLabel = (r) => (r === 'As' ? tr('tarokka.rank.ace') : r);
 
 function buildDeck() {
   const deck = [];
-  for (const s of SUITS) for (const r of RANKS) deck.push(`${r} de ${s}`);
-  for (let i = 1; i <= 14; i++) deck.push(`Haute carte ${i}`);
+  for (const s of SUIT_KEYS) for (const r of RANKS) deck.push(tr('tarokka.card', { rank: rankLabel(r), suit: tr('tarokka.suit.' + s) }));
+  for (let i = 1; i <= 14; i++) deck.push(tr('tarokka.highCard', { n: i }));
   return deck;
 }
 
@@ -36,12 +38,12 @@ function draw(n) {
 }
 
 // Positions neutres : le sens de chaque carte/position vient du livre du MJ.
-const POSITIONS = [
-  '① Première carte',
-  '② Deuxième carte',
-  '③ Troisième carte',
-  '④ Quatrième carte',
-  '⑤ Cinquième carte',
+const POSITION_KEYS = [
+  'tarokka.pos.gen.1',
+  'tarokka.pos.gen.2',
+  'tarokka.pos.gen.3',
+  'tarokka.pos.gen.4',
+  'tarokka.pos.gen.5',
 ];
 
 let _ov = null;
@@ -51,21 +53,21 @@ export function openTarokka() {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card" role="dialog" aria-modal="true" style="width:420px;max-width:94vw">
-      <h3 class="modal-title">🃏 Tirage de cartes</h3>
-      <p class="modal-msg">Tirage de 5 cartes. Reporte-toi à ton livre / ta table pour l'interprétation.</p>
+      <h3 class="modal-title">${tr('tarokka.title.generic')}</h3>
+      <p class="modal-msg">${tr('tarokka.intro.generic')}</p>
       <div class="tarokka-list" id="tarokka-list"></div>
       <div class="modal-actions">
-        <button class="modal-btn tk-close">Fermer</button>
-        <button class="modal-btn modal-ok tk-draw">🔀 Tirer</button>
+        <button class="modal-btn tk-close">${tr('common.close')}</button>
+        <button class="modal-btn modal-ok tk-draw">${tr('tarokka.draw')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
   _ov = ov;
   const list = ov.querySelector('#tarokka-list');
   const roll = () => {
-    const cards = draw(POSITIONS.length);
-    list.innerHTML = POSITIONS.map(
-      (p, i) => `<div class="tarokka-row"><span class="tk-pos">${escapeHtml(p)}</span><span class="tk-card">${escapeHtml(cards[i])}</span></div>`
+    const cards = draw(POSITION_KEYS.length);
+    list.innerHTML = POSITION_KEYS.map(
+      (k, i) => `<div class="tarokka-row"><span class="tk-pos">${escapeHtml(tr(k))}</span><span class="tk-card">${escapeHtml(cards[i])}</span></div>`
     ).join('');
   };
   roll();
