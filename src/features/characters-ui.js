@@ -91,24 +91,26 @@ function srdContent() {
 
 function classByLabel(label) {
   const c = srdContent();
-  return c ? c.classes.find((x) => x.label === label) || null : classByLabel5e(label);
+  return c ? c.classes.find((x) => x.label === label || x.key === label) || null : classByLabel5e(label);
 }
 
 function raceByLabel(label) {
   const c = srdContent();
-  return c ? c.races.find((x) => x.label === label) || null : raceByLabel5e(label);
+  return c ? c.races.find((x) => x.label === label || x.key === label) || null : raceByLabel5e(label);
 }
 
 function backgroundByLabel(label) {
   const c = srdContent();
-  return c ? c.backgrounds.find((x) => x.label === label) || null : backgroundByLabel5e(label);
+  return c ? c.backgrounds.find((x) => x.label === label || x.key === label) || null : backgroundByLabel5e(label);
 }
 
 function subclassByLabel(label) {
   const c = srdContent();
   if (!c) return subclassByLabel5e(label);
-  const e = label && c.subclasses ? c.subclasses[label] : null;
-  return e ? { label, ...e } : null;
+  if (!label || !c.subclasses) return null;
+  // c.subclasses : objet indexé par libellé ; data.sub peut être une clé OU un libellé.
+  const hit = Object.entries(c.subclasses).find(([lab, s]) => lab === label || s.key === label);
+  return hit ? { label: hit[0], ...hit[1] } : null;
 }
 
 /**
@@ -250,7 +252,7 @@ function renderList() {
             <strong>${escapeHtml(c.name)}</strong>
             ${mine ? '<span class="char-mine">★</span>' : ''}
           </div>
-          <div class="char-card-sub">${escapeHtml(d.cls || '')} ${d.lvl ? `${t('sheet.lvl')}${d.lvl}` : ''}</div>
+          <div class="char-card-sub">${escapeHtml(classByLabel(d.cls)?.label || d.cls || '')} ${d.lvl ? `${t('sheet.lvl')}${d.lvl}` : ''}</div>
           <div class="char-hpbar"><span style="width:${hpPct}%"></span></div>
           <div class="char-card-hp">${d.hp ?? '?'} / ${d.hpMax ?? '?'} ${t('combat.add.hp')}</div>
         </button>`;
@@ -851,17 +853,20 @@ function multiclassSection(d, ed) {
   const rows = mc
     .map((e, i) => {
       if (!ed) {
-        return `<div class="mc-line">${escapeHtml(e.cls || '—')}${e.sub ? ` (${escapeHtml(e.sub)})` : ''} · ${t('sheet.lvl')}${num(e.lvl) || 1}</div>`;
+        const clsLab = classByLabel(e.cls)?.label || e.cls || '—';
+        const subLab = e.sub ? (subclassByLabel(e.sub)?.label || e.sub) : '';
+        return `<div class="mc-line">${escapeHtml(clsLab)}${subLab ? ` (${escapeHtml(subLab)})` : ''} · ${t('sheet.lvl')}${num(e.lvl) || 1}</div>`;
       }
-      const subs = (CLASSES.find((c) => c.label === e.cls)?.subclasses) || [];
+      const clsEntry = CLASSES.find((c) => c.label === e.cls || c.key === e.cls);
+      const subOpts = (clsEntry?.subclasses || []).map((s) => { const sc = subclassByLabel(s); return { key: sc ? sc.key : s, label: s }; });
       return `<div class="mc-edit">
         <select class="sf" data-mc-i="${i}" data-mc-k="cls">
           <option value="">${t('mc.classOpt')}</option>
-          ${CLASSES.map((c) => `<option value="${escapeHtml(c.label)}" ${c.label === e.cls ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+          ${CLASSES.map((c) => `<option value="${escapeHtml(c.key)}" ${(c.key === e.cls || c.label === e.cls) ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
         </select>
         <select class="sf" data-mc-i="${i}" data-mc-k="sub">
           <option value="">${t('mc.subOpt')}</option>
-          ${subs.map((s) => `<option value="${escapeHtml(s)}" ${s === e.sub ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+          ${subOpts.map((o) => `<option value="${escapeHtml(o.key)}" ${(o.key === e.sub || o.label === e.sub) ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
         </select>
         <input type="number" class="sf-num mc-lvl" min="1" max="20" value="${num(e.lvl) || 1}" data-mc-i="${i}" data-mc-k="lvl"/>
         <button class="mini-del" data-mc-del="${i}">×</button>
@@ -1102,7 +1107,7 @@ function renderSheet(scrollTop = false) {
   const sheet = sys.sheet || { tabs: Object.keys(TAB_DEFS), rail: ['hp', 'hitdice', 'stats', 'extras', 'saves'], identity: 'srd5e' };
   if (!sheet.tabs.includes(sheetTab)) sheetTab = sheet.tabs[0];
   const TABS = sheet.tabs.map((id) => ({ id, label: t(TAB_DEFS[id] || id) }));
-  const subline = `${escapeHtml(d.cls || t('field.cls'))}${d.sub ? ` (${escapeHtml(d.sub)})` : ''} · ${t('sheet.lvl')} ${num(d.lvl) || 1}`;
+  const subline = `${escapeHtml(classByLabel(d.cls)?.label || d.cls || t('field.cls'))}${d.sub ? ` (${escapeHtml(subclassByLabel(d.sub)?.label || d.sub)})` : ''} · ${t('sheet.lvl')} ${num(d.lvl) || 1}`;
 
   el.innerHTML = `
     <div class="sheet5e">
@@ -1366,11 +1371,12 @@ function stat(label, key, val, ro, suffix = '', signed = false) {
  */
 function idSelect(kind, label, entries, value, ro, ed) {
   const cur = String(value || '');
-  const inList = entries.some((e) => e.label === cur);
+  const match = (e) => e.key === cur || e.label === cur;
+  const inList = entries.some(match);
   const opts = [`<option value="">— ${label} —</option>`]
     .concat(
       entries.map(
-        (e) => `<option value="${escapeHtml(e.label)}" ${e.label === cur ? 'selected' : ''}>${escapeHtml(e.label)}</option>`
+        (e) => `<option value="${escapeHtml(e.key)}" ${match(e) ? 'selected' : ''}>${escapeHtml(e.label)}</option>`
       )
     );
   if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
@@ -1386,9 +1392,12 @@ function subSelect(d, ro, ed) {
   const cls = classByLabel(d.cls);
   const cur = String(d.sub || '');
   const subs = cls ? cls.subclasses : [];
-  const inList = subs.includes(cur);
+  // subclasses = tableau de libellés ; on résout la clé stable de chacune pour la valeur d'option.
+  const subOpts = subs.map((s) => { const sc = subclassByLabel(s); return { key: sc ? sc.key : s, label: s }; });
+  const match = (o) => o.key === cur || o.label === cur;
+  const inList = subOpts.some(match);
   const opts = [`<option value="">${t('mc.subOpt')}</option>`]
-    .concat(subs.map((s) => `<option value="${escapeHtml(s)}" ${s === cur ? 'selected' : ''}>${escapeHtml(s)}</option>`));
+    .concat(subOpts.map((o) => `<option value="${escapeHtml(o.key)}" ${match(o) ? 'selected' : ''}>${escapeHtml(o.label)}</option>`));
   if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
   const known = subclassByLabel(cur);
   return `<span class="sf-derive">
@@ -1401,9 +1410,10 @@ function subSelect(d, ro, ed) {
  *  l'application du gabarit Remaster via data-pfderive (flux séparé du 5e). */
 function pf2eSelect(kind, label, entries, value, ro, ed) {
   const cur = String(value || '');
-  const inList = entries.some((e) => e.label === cur);
+  const match = (e) => e.key === cur || e.label === cur;
+  const inList = entries.some(match);
   const opts = [`<option value="">— ${label} —</option>`].concat(
-    entries.map((e) => `<option value="${escapeHtml(e.label)}" ${e.label === cur ? 'selected' : ''}>${escapeHtml(e.label)}</option>`)
+    entries.map((e) => `<option value="${escapeHtml(e.key)}" ${match(e) ? 'selected' : ''}>${escapeHtml(e.label)}</option>`)
   );
   if (cur && !inList) opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} ${t('sheet.custom')}</option>`);
   return `<span class="sf-derive">

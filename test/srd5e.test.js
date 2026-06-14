@@ -27,8 +27,30 @@ import {
   deriveProficiencies,
   SRD_OPEN,
   SRD_CLOSE,
+  subSlug,
 } from '../src/lib/srd5e.js';
 import { dnd5e2024 } from '../src/lib/systems/dnd5e2024.js';
+
+describe('résolution par clé (refactor clés Phase 1)', () => {
+  it('subSlug produit des slugs ASCII stables et sans accent', () => {
+    expect(subSlug('Voie du Berserker')).toBe('voie-du-berserker');
+    expect(subSlug('Collège du Savoir')).toBe('college-du-savoir');
+  });
+  it('classByLabel/raceByLabel/backgroundByLabel résolvent clé ET libellé (bi-clé)', () => {
+    expect(classByLabel('barbare')).toBe(classByLabel('Barbare'));
+    expect(raceByLabel('humain')).toBe(raceByLabel('Humain'));
+    expect(backgroundByLabel(BACKGROUNDS[0].key)).toBe(backgroundByLabel(BACKGROUNDS[0].label));
+  });
+  it('subclassByLabel résout par clé comme par libellé et expose .key', () => {
+    const byLabel = subclassByLabel('Voie du Berserker');
+    expect(byLabel?.key).toBe('voie-du-berserker');
+    expect(subclassByLabel(byLabel.key)).toBe(byLabel);
+  });
+  it('toutes les clés de sous-classe sont uniques', () => {
+    const slugs = Object.keys(SUBCLASSES).map(subSlug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+  });
+});
 
 describe('classByLabel / raceByLabel', () => {
   it('reconnaît les noms FR du seed (accents inclus)', () => {

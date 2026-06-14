@@ -632,12 +632,18 @@ export function backgroundByLabel(label) {
   return BG_INDEX.get(n) || null;
 }
 
+// Clé de sous-classe = slug ASCII déterministe du libellé (les sous-classes SRD
+// n'ont pas de clé propre). Index bi-clé : par clé ET par libellé normalisé.
+export const subSlug = (s) =>
+  String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const SUBCLASS_INDEX = new Map();
 for (const [label, sc] of Object.entries(SUBCLASSES)) {
-  SUBCLASS_INDEX.set(norm(label), { label, ...sc });
+  const entry = { key: subSlug(label), label, ...sc };
+  SUBCLASS_INDEX.set(norm(label), entry);
+  SUBCLASS_INDEX.set(entry.key, entry);
 }
 
-/** Entrée de sous-classe à partir d'un libellé exact (ou null). */
+/** Entrée de sous-classe à partir d'une clé OU d'un libellé (ou null). */
 export function subclassByLabel(label) {
   const n = norm(label);
   if (!n) return null;

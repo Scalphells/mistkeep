@@ -21,7 +21,7 @@
  * pas sa place dans un résumé.
  */
 
-import { CLASSES as CLASSES_5E } from './srd5e.js';
+import { CLASSES as CLASSES_5E, subSlug } from './srd5e.js';
 
 /* ── Espèces (SRD 5.2) ──────────────────────────────────────── */
 
@@ -309,6 +309,6 @@ export const CLASSES_2024 = CLASSES_5E.map((c) => ({
 export const SUBCLASSES_2024 = Object.fromEntries(
   Object.entries(SUBCLASS_BY_CLASS).map(([classKey, label]) => [
     label,
-    { classKey, features: SUBCLASS_FEATURES_2024[label] || [] },
+    { key: subSlug(label), classKey, features: SUBCLASS_FEATURES_2024[label] || [] },
   ])
 );

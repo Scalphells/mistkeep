@@ -130,9 +130,9 @@ export const CLASSES_PF2E = [
 ];
 
 /* ── Lookups ────────────────────────────────────────────────── */
-export const ancestryByLabel = (label) => ANCESTRIES.find((a) => a.label === label) || null;
-export const backgroundByLabelPf2e = (label) => BACKGROUNDS_PF2E.find((b) => b.label === label) || null;
-export const classByLabelPf2e = (label) => CLASSES_PF2E.find((c) => c.label === label) || null;
+export const ancestryByLabel = (v) => ANCESTRIES.find((a) => a.label === v || a.key === v) || null;
+export const backgroundByLabelPf2e = (v) => BACKGROUNDS_PF2E.find((b) => b.label === v || b.key === v) || null;
+export const classByLabelPf2e = (v) => CLASSES_PF2E.find((c) => c.label === v || c.key === v) || null;
 
 /* ── Dérivations PURES ──────────────────────────────────────── */
 
