@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { modalConfirm, modalAlert } from '../lib/modal.js';
@@ -65,16 +66,16 @@ function render(container) {
     <div class="camp2">
       <aside class="camp2-tree">
         <div class="camp2-head">
-          <span class="camp2-title">📖 Campagne</span>
+          <span class="camp2-title">${t('nav.campaign')}</span>
           <div class="camp2-prog" title="${done}/${total}"><span style="width:${pct}%"></span></div>
         </div>
         <div class="camp2-toolbar2">
-          <button class="camp-mini" data-add-root title="Nouvelle section racine">＋ Section</button>
-          <button class="camp-mini" data-sort-all title="Trier tout l'arbre par nom (A→Z, ordre naturel)">⇅ A→Z</button>
-          <label class="camp-mini" title="Importer un dossier de notes (.md)">📁<input type="file" id="camp-md" webkitdirectory directory multiple hidden></label>
+          <button class="camp-mini" data-add-root title="${t('camp.addRoot.title')}">${t('camp.addRoot')}</button>
+          <button class="camp-mini" data-sort-all title="${t('camp.sortAll.title')}">${t('camp.sortAll')}</button>
+          <label class="camp-mini" title="${t('camp.importMd.title')}">📁<input type="file" id="camp-md" webkitdirectory directory multiple hidden></label>
         </div>
         <div class="camp2-list" id="camp2-list">
-          ${nodes.map((n) => rowView(n, 0)).join('') || '<div class="camp-empty">Classeur vide.</div>'}
+          ${nodes.map((n) => rowView(n, 0)).join('') || `<div class="camp-empty">${t('camp.empty')}</div>`}
         </div>
       </aside>
       <main class="camp2-main" id="camp2-main">${docView()}</main>
@@ -91,12 +92,12 @@ function rowView(n, depth) {
     <div class="camp2-row ${selectedId === n.id ? 'active' : ''} ${n.done ? 'done' : ''}" data-node="${n.id}" draggable="true" style="padding-left:${6 + depth * 15}px">
       <button class="camp2-tw" data-toggle="${n.id}">${tw}</button>
       <span class="camp2-name" data-open="${n.id}" title="${escapeHtml(n.name)}">${escapeHtml(n.name)}</span>
-      ${n.sceneId ? '<span class="camp2-sc" title="Scène liée">🗺</span>' : ''}
+      ${n.sceneId ? `<span class="camp2-sc" title="${t('camp.sceneLinked')}">🗺</span>` : ''}
       <span class="camp2-acts">
-        <button class="camp2-act" data-up="${n.id}" title="Monter">▲</button>
-        <button class="camp2-act" data-down="${n.id}" title="Descendre">▼</button>
-        <button class="camp2-act" data-addchild="${n.id}" title="Ajouter un sous-élément">＋</button>
-        <button class="camp2-act danger" data-del="${n.id}" title="Supprimer">×</button>
+        <button class="camp2-act" data-up="${n.id}" title="${t('camp.up')}">▲</button>
+        <button class="camp2-act" data-down="${n.id}" title="${t('camp.down')}">▼</button>
+        <button class="camp2-act" data-addchild="${n.id}" title="${t('camp.addChild.title')}">＋</button>
+        <button class="camp2-act danger" data-del="${n.id}" title="${t('common.delete')}">×</button>
       </span>
     </div>`;
   const kids = isOpen ? (n.children || []).map((c) => rowView(c, depth + 1)).join('') : '';
@@ -106,7 +107,7 @@ function rowView(n, depth) {
 function docView() {
   const nodes = store.get().campaign || [];
   const n = selectedId ? findNode(nodes, selectedId) : null;
-  if (!n) return `<div class="camp2-empty">Sélectionne une page à gauche, ou crée-en une.</div>`;
+  if (!n) return `<div class="camp2-empty">${t('camp.pickPage')}</div>`;
   const comp = store.get().compendium || [];
   const path = (pathTo(nodes, n.id) || []).map((id) => findNode(nodes, id)).filter(Boolean);
   const crumbs = path
@@ -120,22 +121,22 @@ function docView() {
   return `
     <div class="camp2-doc">
       <div class="camp2-bc">${crumbs}</div>
-      <input class="camp2-doctitle" data-title="${n.id}" value="${escapeHtml(n.name)}" placeholder="Titre de la page"/>
+      <input class="camp2-doctitle" data-title="${n.id}" value="${escapeHtml(n.name)}" placeholder="${t('camp.pageTitle.ph')}"/>
       <div class="camp2-docbar">
-        <label class="camp2-done"><input type="checkbox" data-done="${n.id}" ${n.done ? 'checked' : ''}/> Terminé</label>
-        <button class="camp-mini" data-preview="${n.id}">${editMode ? '👁 Aperçu' : '✏ Éditer'}</button>
-        <button class="camp-mini" data-linkscene="${n.id}">${n.sceneId ? '🗺 Aller à la scène' : '🗺 Lier la scène'}</button>
+        <label class="camp2-done"><input type="checkbox" data-done="${n.id}" ${n.done ? 'checked' : ''}/> ${t('camp.done')}</label>
+        <button class="camp-mini" data-preview="${n.id}">${editMode ? t('camp.preview') : t('camp.edit')}</button>
+        <button class="camp-mini" data-linkscene="${n.id}">${n.sceneId ? t('camp.sceneGo') : t('camp.sceneLink')}</button>
         <select class="camp-linksel" data-linkentry="${n.id}">
-          <option value="">🔗 Lier une entrée…</option>
+          <option value="">${t('camp.linkEntry')}</option>
           ${comp.map((e) => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('')}
         </select>
-        <button class="camp-mini" data-addchild="${n.id}" title="Ajouter un sous-élément">＋ Sous-page</button>
+        <button class="camp-mini" data-addchild="${n.id}" title="${t('camp.addChild.title')}">${t('camp.addSub')}</button>
       </div>
       ${links ? `<div class="camp-chips">${links}</div>` : ''}
       ${
         editMode
-          ? `<textarea class="camp2-body" data-body="${n.id}" placeholder="Notes (Markdown, optionnel) : résumé, PNJ, scènes, jets…">${escapeHtml(n.body || '')}</textarea>`
-          : `<div class="camp2-md md">${n.body && n.body.trim() ? renderMarkdown(n.body) : '<span class="camp2-empty-note">Page sans note. Clique sur ✏ Éditer pour en ajouter.</span>'}</div>`
+          ? `<textarea class="camp2-body" data-body="${n.id}" placeholder="${t('camp.body.ph')}">${escapeHtml(n.body || '')}</textarea>`
+          : `<div class="camp2-md md">${n.body && n.body.trim() ? renderMarkdown(n.body) : `<span class="camp2-empty-note">${t('camp.noNote')}</span>`}</div>`
       }
     </div>`;
 }
@@ -196,7 +197,7 @@ function rerender() {
 
 function wire(container) {
   container.querySelector('[data-add-root]')?.addEventListener('click', () => {
-    const node = campNode('Nouvelle section');
+    const node = campNode(t('camp.newSection'));
     mutate((tree) => tree.push(node), true);
     expanded.add(node.id);
     selectNode(node.id, true);
@@ -204,7 +205,7 @@ function wire(container) {
   });
   container.querySelector('#camp-md')?.addEventListener('change', (e) => importCampaignFolder(e.target.files, container));
   container.querySelector('[data-sort-all]')?.addEventListener('click', async () => {
-    if (!(await modalConfirm("Trier tout l'arbre par nom (A→Z) ? L'ordre manuel actuel sera remplacé.", { title: '⇅ Trier', okLabel: 'Trier' }))) return;
+    if (!(await modalConfirm(t('camp.sort.confirm'), { title: t('camp.sort.title'), okLabel: t('camp.sort.ok') }))) return;
     mutate((tree) => sortTreeNatural(tree), true);
     rerender();
   });
@@ -245,7 +246,7 @@ function wire(container) {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       const pid = b.dataset.addchild;
-      const child = campNode('Nouvelle page');
+      const child = campNode(t('camp.newPage'));
       mutate((tree) => {
         const p = findNode(tree, pid);
         if (p) p.children.push(child);
@@ -260,7 +261,9 @@ function wire(container) {
       e.stopPropagation();
       const node = findNode(store.get().campaign, b.dataset.del);
       const kids = node?.children?.length;
-      if (await modalConfirm(`Supprimer « ${node?.name || 'cet élément'} »${kids ? ' et ses sous-éléments' : ''} ?`, { title: 'Campagne', danger: true, okLabel: 'Supprimer' })) {
+      const nm = node?.name || t('camp.thisItem');
+      const msg = kids ? t('camp.del.confirmKids', { name: nm }) : t('camp.del.confirm', { name: nm });
+      if (await modalConfirm(msg, { title: t('camp.modalTitle'), danger: true, okLabel: t('common.delete') })) {
         if (selectedId === b.dataset.del) selectedId = null;
         mutate((tree) => removeNode(tree, b.dataset.del), true);
         rerender();
@@ -397,8 +400,8 @@ function parseCampMd(filename, text) {
   const fm = body.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (fm) {
     body = body.slice(fm[0].length);
-    const t = fm[1].match(/(?:^|\n)\s*(?:title|nom)\s*:\s*(.+)/i);
-    if (t) name = t[1].trim().replace(/^["']|["']$/g, '');
+    const tm = fm[1].match(/(?:^|\n)\s*(?:title|nom)\s*:\s*(.+)/i);
+    if (tm) name = tm[1].trim().replace(/^["']|["']$/g, '');
   }
   body = body
     .replace(/!\[\[[^\]]*\]\]/g, '')
@@ -410,7 +413,7 @@ function parseCampMd(filename, text) {
 async function importCampaignFolder(fileList, container) {
   const files = [...(fileList || [])].filter((f) => /\.(md|markdown)$/i.test(f.name));
   if (!files.length) {
-    await modalAlert('Aucun fichier .md trouvé dans le dossier.', { title: '📁 Import campagne' });
+    await modalAlert(t('camp.import.none'), { title: t('camp.import.title') });
     return;
   }
   const tree = cloneCampaign();
@@ -443,5 +446,5 @@ async function importCampaignFolder(fileList, container) {
   sortTreeNatural(tree); // ordre naturel (B0→B5…) quel que soit l'ordre des fichiers
   setCampaign(tree, true);
   rerender();
-  await modalAlert(`${n} note(s) importée(s), en respectant l'arborescence des dossiers.`, { title: '📁 Import campagne' });
+  await modalAlert(t('camp.import.done', { n }), { title: t('camp.import.title') });
 }

@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { backend } from '../lib/backend.js';
 import { campaignId, createCampaign, switchCampaign, deleteCampaign, DEFAULT_CAMPAIGN_ID, generateInviteCode, setInviteCode, joinCampaignByCode } from '../lib/campaigns.js';
@@ -49,40 +50,40 @@ export function openCampaignManager() {
     const active = campaignId();
     ov.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:520px">
-        <h3 class="modal-title">🏰 Campagnes</h3>
+        <h3 class="modal-title">${t('campaigns.title')}</h3>
         <div id="camp-list">
           ${campaigns
             .map(
               (c) => `
             <div class="camp-row" data-id="${c.id}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border,#333)">
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600">${escapeHtml(c.name)} ${c.id === active ? '<span style="font-size:11px;color:var(--accent,#7c6af7)">● active</span>' : ''}</div>
+                <div style="font-weight:600">${escapeHtml(c.name)} ${c.id === active ? `<span style="font-size:11px;color:var(--accent,#7c6af7)">${t('campaigns.active')}</span>` : ''}</div>
                 <div style="font-size:11px;opacity:.7">${escapeHtml(sysLabel(c.system))}</div>
               </div>
-              ${c.id !== active ? `<button class="modal-btn" data-switch="${c.id}">Activer</button>` : ''}
-              ${managesCampaign(c) ? `<button class="modal-btn" data-members="${c.id}" title="Gérer les membres">👥</button>` : ''}
-              ${c.id === active && c.system === 'custom' && managesCampaign(c) ? `<button class="modal-btn" data-syscfg title="Configurer le système (caractéristiques / compétences)">🎲</button>` : ''}
-              ${c.id === active && managesCampaign(c) ? `<button class="modal-btn" data-export-camp title="Exporter cette campagne (sauvegarde JSON complète)">💾</button>` : ''}
-              ${c.owner_id === store.get().user?.id && c.id !== active && c.id !== DEFAULT_CAMPAIGN_ID ? `<button class="modal-btn" data-del="${c.id}" title="Supprimer la campagne (définitif)">🗑</button>` : ''}
+              ${c.id !== active ? `<button class="modal-btn" data-switch="${c.id}">${t('campaigns.activate')}</button>` : ''}
+              ${managesCampaign(c) ? `<button class="modal-btn" data-members="${c.id}" title="${t('campaigns.members.title')}">👥</button>` : ''}
+              ${c.id === active && c.system === 'custom' && managesCampaign(c) ? `<button class="modal-btn" data-syscfg title="${t('campaigns.syscfg.title')}">🎲</button>` : ''}
+              ${c.id === active && managesCampaign(c) ? `<button class="modal-btn" data-export-camp title="${t('campaigns.export.title')}">💾</button>` : ''}
+              ${c.owner_id === store.get().user?.id && c.id !== active && c.id !== DEFAULT_CAMPAIGN_ID ? `<button class="modal-btn" data-del="${c.id}" title="${t('campaigns.del.title')}">🗑</button>` : ''}
             </div>
             <div class="camp-members" data-members-panel="${c.id}" style="display:none;padding:6px 6px 10px;font-size:12px"></div>`
             )
-            .join('') || '<p style="opacity:.7">Aucune campagne visible.</p>'}
+            .join('') || `<p style="opacity:.7">${t('campaigns.none')}</p>`}
         </div>
         ${
           canCreate
             ? `<div style="margin-top:14px;border-top:1px solid var(--border,#333);padding-top:10px">
-                 <label class="prof-label">Nouvelle campagne</label>
+                 <label class="prof-label">${t('campaigns.new')}</label>
                  <div style="display:flex;gap:8px">
-                   <input class="modal-input" id="camp-name" type="text" placeholder="Nom de la campagne" maxlength="60" style="flex:1" />
+                   <input class="modal-input" id="camp-name" type="text" placeholder="${t('campaigns.name.ph')}" maxlength="60" style="flex:1" />
                    <select class="modal-input" id="camp-system" style="width:auto">
                      ${listSystems().map((s) => `<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('')}
                    </select>
-                   <button class="modal-btn modal-ok" id="camp-create">Créer</button>
+                   <button class="modal-btn modal-ok" id="camp-create">${t('campaigns.create')}</button>
                  </div>
-                 <div style="font-size:11px;opacity:.7;margin-top:6px">⚠ Avant de jouer sur une 2ᵉ campagne, applique la migration des clés composites (Supabase 0025 / SQLite v4 — automatique sur le binaire).</div>
+                 <div style="font-size:11px;opacity:.7;margin-top:6px">${t('campaigns.migrateWarn')}</div>
                  <div style="display:flex;gap:8px;margin-top:8px">
-                   <label class="modal-btn" style="cursor:pointer">📥 Importer une campagne (.json)…
+                   <label class="modal-btn" style="cursor:pointer">${t('campaigns.import')}
                      <input type="file" id="camp-import" accept="application/json,.json" hidden />
                    </label>
                    <span id="camp-import-status" style="font-size:11px;opacity:.75;align-self:center"></span>
@@ -91,14 +92,14 @@ export function openCampaignManager() {
             : ''
         }
         <div style="margin-top:10px;border-top:1px solid var(--border,#333);padding-top:10px">
-          <label class="prof-label">Rejoindre une campagne</label>
+          <label class="prof-label">${t('campaigns.join')}</label>
           <div style="display:flex;gap:8px">
-            <input class="modal-input" id="camp-join-code" type="text" placeholder="Code d'invitation (XXXX-XXXX)" maxlength="9" style="flex:1;text-transform:uppercase" />
-            <button class="modal-btn" id="camp-join">Rejoindre</button>
+            <input class="modal-input" id="camp-join-code" type="text" placeholder="${t('campaigns.code.ph')}" maxlength="9" style="flex:1;text-transform:uppercase" />
+            <button class="modal-btn" id="camp-join">${t('campaigns.joinBtn')}</button>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="modal-btn modal-cancel">Fermer</button>
+          <button class="modal-btn modal-cancel">${t('common.close')}</button>
         </div>
       </div>`;
 
@@ -110,7 +111,7 @@ export function openCampaignManager() {
       try {
         await joinCampaignByCode(code); // bascule + reload en cas de succès
       } catch (e) {
-        showToast('Impossible de rejoindre : ' + e.message, { type: 'warn', icon: '⚠️' });
+        showToast(t('campaigns.err.join') + e.message, { type: 'warn', icon: '⚠️' });
       }
     });
 
@@ -118,14 +119,14 @@ export function openCampaignManager() {
       b.addEventListener('click', async () => {
         const c = campaigns.find((x) => x.id === b.dataset.switch);
         const ok = await modalConfirm(
-          `Basculer sur « ${c?.name || '?'} » ? L'application va se recharger.`,
-          { title: 'Changer de campagne', okLabel: 'Basculer' }
+          t('campaigns.switch.confirm', { name: c?.name || '?' }),
+          { title: t('campaigns.switch.title'), okLabel: t('campaigns.switch.ok') }
         );
         if (!ok) return;
         try {
           await switchCampaign(b.dataset.switch);
         } catch (e) {
-          showToast('Échec de la bascule : ' + e.message, { type: 'warn', icon: '⚠️' });
+          showToast(t('campaigns.err.switch') + e.message, { type: 'warn', icon: '⚠️' });
         }
       })
     );
@@ -144,9 +145,9 @@ export function openCampaignManager() {
       btn.disabled = true;
       try {
         await downloadActiveCampaign();
-        showToast('Campagne exportée (fichier téléchargé).', { type: 'info', icon: '💾' });
+        showToast(t('campaigns.export.done'), { type: 'info', icon: '💾' });
       } catch (err) {
-        showToast('Export impossible : ' + err.message, { type: 'warn', icon: '⚠️' });
+        showToast(t('campaigns.err.export') + err.message, { type: 'warn', icon: '⚠️' });
       } finally {
         btn.disabled = false;
       }
@@ -161,21 +162,21 @@ export function openCampaignManager() {
       try {
         payload = JSON.parse(await file.text());
       } catch {
-        showToast('Fichier illisible (JSON attendu).', { type: 'warn', icon: '⚠️' });
+        showToast(t('campaigns.err.unreadable'), { type: 'warn', icon: '⚠️' });
         return;
       }
       const ok = await modalConfirm(
-        `Importer « ${payload?.campaign?.name || '?'} » dans une NOUVELLE campagne ? Les fiches seront à réattribuer aux joueurs.`,
-        { title: 'Importer une campagne', okLabel: 'Importer' }
+        t('campaigns.import.confirm', { name: payload?.campaign?.name || '?' }),
+        { title: t('campaigns.import.title'), okLabel: t('campaigns.import.ok') }
       );
       if (!ok) return;
       try {
         await importCampaignPayload(payload, (table, done, total) => {
-          if (status) status.textContent = `${table} ${done}/${total}…`;
+          if (status) status.textContent = t('campaigns.import.progress', { table, done, total });
         }); // bascule + reload en cas de succès
       } catch (err) {
         if (status) status.textContent = '';
-        showToast('Import échoué : ' + err.message + ' — supprime la campagne partielle avant de réessayer.', { type: 'warn', icon: '⚠️', timeout: 8000 });
+        showToast(t('campaigns.err.importPre') + err.message + t('campaigns.err.importPost'), { type: 'warn', icon: '⚠️', timeout: 8000 });
       }
     });
 
@@ -183,16 +184,16 @@ export function openCampaignManager() {
       b.addEventListener('click', async () => {
         const c = campaigns.find((x) => x.id === b.dataset.del);
         const ok = await modalConfirm(
-          `Supprimer définitivement « ${c?.name || '?'} » ?\nToutes ses données (fiches, scènes, chat, notes, combat…) seront effacées. Cette action est irréversible.`,
-          { title: 'Supprimer la campagne', okLabel: 'Supprimer', danger: true }
+          t('campaigns.del.confirm', { name: c?.name || '?' }),
+          { title: t('campaigns.del.modalTitle'), okLabel: t('common.delete'), danger: true }
         );
         if (!ok) return;
         try {
           await deleteCampaign(b.dataset.del);
-          showToast('Campagne supprimée.', { type: 'info', icon: '🗑' });
+          showToast(t('campaigns.del.done'), { type: 'info', icon: '🗑' });
           render();
         } catch (e) {
-          showToast('Suppression impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
+          showToast(t('campaigns.err.del') + e.message, { type: 'warn', icon: '⚠️' });
         }
       })
     );
@@ -207,7 +208,7 @@ export function openCampaignManager() {
         await createCampaign(name, system); // bascule + reload en cas de succès
       } catch (e) {
         btn.disabled = false;
-        showToast('Création impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
+        showToast(t('campaigns.err.create') + e.message, { type: 'warn', icon: '⚠️' });
       }
     });
   }
@@ -221,7 +222,7 @@ export function openCampaignManager() {
       return;
     }
     panel.style.display = 'block';
-    panel.innerHTML = 'Chargement…';
+    panel.innerHTML = t('common.loading');
 
     const [mRes, pRes] = await Promise.all([
       backend.db.from('campaign_members').select('*').eq('campaign_id', cid),
@@ -239,17 +240,17 @@ export function openCampaignManager() {
 
     panel.innerHTML = `
       <div style="display:flex;gap:6px;align-items:center;padding:2px 0 8px">
-        <span style="opacity:.7">Code d'invitation :</span>
+        <span style="opacity:.7">${t('campaigns.inviteCode')}</span>
         ${camp?.invite_code ? `<code>${escapeHtml(camp.invite_code)}</code>
-          <button class="modal-btn" data-code-copy="${escapeHtml(camp.invite_code)}" style="padding:1px 8px" title="Copier le code">📋</button>` : '<em style="opacity:.6">aucun</em>'}
-        <button class="modal-btn" data-code-gen style="padding:1px 8px" title="${camp?.invite_code ? 'Régénérer (l’ancien code cesse de fonctionner)' : 'Générer un code'}">${camp?.invite_code ? '♻' : '➕'}</button>
+          <button class="modal-btn" data-code-copy="${escapeHtml(camp.invite_code)}" style="padding:1px 8px" title="${t('campaigns.copyCode')}">📋</button>` : `<em style="opacity:.6">${t('campaigns.codeNone')}</em>`}
+        <button class="modal-btn" data-code-gen style="padding:1px 8px" title="${camp?.invite_code ? t('campaigns.regen') : t('campaigns.gen')}">${camp?.invite_code ? '♻' : '➕'}</button>
       </div>
       ${members
         .map(
           (m) => `
         <div style="display:flex;align-items:center;gap:8px;padding:2px 0">
           <span style="flex:1">${escapeHtml(nameOf(m.user_id))}</span>
-          <span style="opacity:.7">${m.role === 'dm' ? '🎭 MJ' : '🎲 Joueur'}</span>
+          <span style="opacity:.7">${m.role === 'dm' ? `🎭 ${t('common.gm')}` : `🎲 ${t('common.player')}`}</span>
           ${m.user_id !== myId ? `<button class="modal-btn" data-rm="${m.user_id}" style="padding:1px 8px">✕</button>` : ''}
         </div>`
         )
@@ -261,10 +262,10 @@ export function openCampaignManager() {
                  ${notMember.map((p) => `<option value="${p.id}">${escapeHtml(p.display_name || p.email || '?')}</option>`).join('')}
                </select>
                <select class="modal-input" data-add-role style="width:auto">
-                 <option value="player">Joueur</option>
-                 <option value="dm">MJ</option>
+                 <option value="player">${t('common.player')}</option>
+                 <option value="dm">${t('common.gm')}</option>
                </select>
-               <button class="modal-btn" data-add-btn>Ajouter</button>
+               <button class="modal-btn" data-add-btn>${t('common.add')}</button>
              </div>`
           : ''
       }`;
@@ -272,9 +273,9 @@ export function openCampaignManager() {
     panel.querySelector('[data-code-copy]')?.addEventListener('click', async (e) => {
       try {
         await navigator.clipboard.writeText(e.currentTarget.dataset.codeCopy);
-        showToast('Code copié.', { type: 'info', icon: '📋', timeout: 1500 });
+        showToast(t('campaigns.codeCopied'), { type: 'info', icon: '📋', timeout: 1500 });
       } catch {
-        showToast('Copie impossible — sélectionne le code à la main.', { type: 'warn', icon: '⚠️' });
+        showToast(t('campaigns.err.copy'), { type: 'warn', icon: '⚠️' });
       }
     });
     panel.querySelector('[data-code-gen]')?.addEventListener('click', async () => {
@@ -283,7 +284,7 @@ export function openCampaignManager() {
         panel.style.display = 'none';
         toggleMembers(cid); // ré-affiche avec le nouveau code
       } catch (e) {
-        showToast('Génération impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
+        showToast(t('campaigns.err.gen') + e.message, { type: 'warn', icon: '⚠️' });
       }
     });
 
@@ -294,7 +295,7 @@ export function openCampaignManager() {
       const { error } = await backend.db
         .from('campaign_members')
         .insert({ campaign_id: cid, user_id: userId, role });
-      if (error) showToast('Ajout impossible : ' + error.message, { type: 'warn', icon: '⚠️' });
+      if (error) showToast(t('campaigns.err.addMember') + error.message, { type: 'warn', icon: '⚠️' });
       panel.style.display = 'none';
       toggleMembers(cid);
     });
@@ -306,7 +307,7 @@ export function openCampaignManager() {
           .delete()
           .eq('campaign_id', cid)
           .eq('user_id', b.dataset.rm);
-        if (error) showToast('Retrait impossible : ' + error.message, { type: 'warn', icon: '⚠️' });
+        if (error) showToast(t('campaigns.err.rmMember') + error.message, { type: 'warn', icon: '⚠️' });
         panel.style.display = 'none';
         toggleMembers(cid);
       })
@@ -347,10 +348,10 @@ export async function openSystemEditor() {
   function render() {
     ov.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:560px">
-        <h3 class="modal-title">🎲 Système de la campagne</h3>
-        <p style="font-size:12px;opacity:.75;margin:4px 0 10px">Caractéristiques et compétences des fiches de CETTE campagne. Les scores des caractéristiques supprimées sont ignorés (rien n'est effacé des fiches).</p>
+        <h3 class="modal-title">${t('sys.title')}</h3>
+        <p style="font-size:12px;opacity:.75;margin:4px 0 10px">${t('sys.intro')}</p>
 
-        <label class="prof-label">Caractéristiques</label>
+        <label class="prof-label">${t('sys.abilities')}</label>
         ${work.abilities
           .map(
             (a, i) => `
@@ -362,20 +363,20 @@ export async function openSystemEditor() {
           )
           .join('')}
         <div style="display:flex;gap:6px;margin:4px 0 12px">
-          <input class="modal-input" id="syscfg-new-ab" placeholder="Nouvelle caractéristique (ex. FOR)" maxlength="12" style="flex:1" />
-          <button class="modal-btn" id="syscfg-add-ab">Ajouter</button>
+          <input class="modal-input" id="syscfg-new-ab" placeholder="${t('sys.ab.ph')}" maxlength="12" style="flex:1" />
+          <button class="modal-btn" id="syscfg-add-ab">${t('common.add')}</button>
         </div>
 
-        <label class="prof-label">Dé de test</label>
+        <label class="prof-label">${t('sys.die')}</label>
         <div style="display:flex;gap:8px;align-items:center;margin:0 0 12px">
           <input class="modal-input" id="syscfg-die" list="syscfg-die-suggest" value="${escapeHtml(work.testDie)}" maxlength="7" style="width:110px" />
           <datalist id="syscfg-die-suggest">
             <option value="1d20"></option><option value="1d100"></option><option value="2d6"></option><option value="3d6"></option><option value="1d12"></option>
           </datalist>
-          <span style="font-size:11px;opacity:.7">Formule lancée pour les tests de caractéristique / compétence (ex. 1d20, 1d100, 2d6).</span>
+          <span style="font-size:11px;opacity:.7">${t('sys.die.hint')}</span>
         </div>
 
-        <label class="prof-label">Compétences</label>
+        <label class="prof-label">${t('sys.skills')}</label>
         ${work.skills
           .map(
             (s, i) => `
@@ -389,13 +390,13 @@ export async function openSystemEditor() {
           )
           .join('')}
         <div style="display:flex;gap:6px;margin:4px 0 12px">
-          <input class="modal-input" id="syscfg-new-sk" placeholder="Nouvelle compétence" maxlength="30" style="flex:1" />
-          <button class="modal-btn" id="syscfg-add-sk">Ajouter</button>
+          <input class="modal-input" id="syscfg-new-sk" placeholder="${t('sys.sk.ph')}" maxlength="30" style="flex:1" />
+          <button class="modal-btn" id="syscfg-add-sk">${t('common.add')}</button>
         </div>
 
         <div class="modal-actions">
-          <button class="modal-btn modal-cancel">Annuler</button>
-          <button class="modal-btn modal-ok" id="syscfg-save">Enregistrer</button>
+          <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+          <button class="modal-btn modal-ok" id="syscfg-save">${t('common.save')}</button>
         </div>
       </div>`;
 
@@ -423,8 +424,8 @@ export async function openSystemEditor() {
     ov.querySelector('#syscfg-add-ab').addEventListener('click', () => {
       const label = ov.querySelector('#syscfg-new-ab').value.trim();
       const key = slugKey(label);
-      if (!label || !key) return showToast('Libellé invalide.', { type: 'warn', icon: '⚠️' });
-      if (work.abilities.some((a) => a.key === key)) return showToast('Cette caractéristique existe déjà.', { type: 'warn', icon: '⚠️' });
+      if (!label || !key) return showToast(t('sys.err.label'), { type: 'warn', icon: '⚠️' });
+      if (work.abilities.some((a) => a.key === key)) return showToast(t('sys.err.abDup'), { type: 'warn', icon: '⚠️' });
       work.abilities.push({ key, label });
       render();
     });
@@ -448,8 +449,8 @@ export async function openSystemEditor() {
     ov.querySelector('#syscfg-add-sk').addEventListener('click', () => {
       const label = ov.querySelector('#syscfg-new-sk').value.trim();
       const key = slugKey(label);
-      if (!label || !key) return showToast('Libellé invalide.', { type: 'warn', icon: '⚠️' });
-      if (work.skills.some((s) => s.key === key)) return showToast('Cette compétence existe déjà.', { type: 'warn', icon: '⚠️' });
+      if (!label || !key) return showToast(t('sys.err.label'), { type: 'warn', icon: '⚠️' });
+      if (work.skills.some((s) => s.key === key)) return showToast(t('sys.err.skDup'), { type: 'warn', icon: '⚠️' });
       work.skills.push({ key, label, ability: work.abilities[0]?.key || '' });
       render();
     });
@@ -457,7 +458,7 @@ export async function openSystemEditor() {
     ov.querySelector('#syscfg-save').addEventListener('click', async () => {
       const die = normalizeTestDie(ov.querySelector('#syscfg-die')?.value || work.testDie);
       if (!die) {
-        showToast('Dé de test invalide — attendu : NdM (ex. 1d20, 1d100, 2d6).', { type: 'warn', icon: '⚠️' });
+        showToast(t('sys.err.die'), { type: 'warn', icon: '⚠️' });
         return;
       }
       const cfg = {
@@ -466,15 +467,15 @@ export async function openSystemEditor() {
         testDie: die,
       };
       if (!normalizeConfig(cfg)) {
-        showToast('Config invalide : il faut au moins une caractéristique.', { type: 'warn', icon: '⚠️' });
+        showToast(t('sys.err.config'), { type: 'warn', icon: '⚠️' });
         return;
       }
       try {
         await saveSystemConfig(cfg);
-        showToast('Système de la campagne enregistré.', { type: 'info', icon: '🎲' });
+        showToast(t('sys.saved'), { type: 'info', icon: '🎲' });
         close();
       } catch (e) {
-        showToast('Enregistrement impossible : ' + e.message, { type: 'warn', icon: '⚠️' });
+        showToast(t('sys.err.save') + e.message, { type: 'warn', icon: '⚠️' });
       }
     });
   }
