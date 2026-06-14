@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { addCombatant } from './initiative.js';
 import { getSystem } from '../lib/systems/index.js';
@@ -58,16 +59,16 @@ export function openEncounterBuilder() {
   ov.className = 'enc-overlay';
   ov.innerHTML = `
     <div class="enc-box">
-      <header class="enc-head"><strong>🐉 Constructeur de rencontre</strong><button class="enc-close" title="Fermer">✕</button></header>
+      <header class="enc-head"><strong>${t('enc.title')}</strong><button class="enc-close" title="${t('common.close')}">✕</button></header>
       <div class="enc-cols">
         <div class="enc-pick">
-          <input class="enc-search" id="enc-search" type="search" placeholder="Rechercher un monstre…" />
+          <input class="enc-search" id="enc-search" type="search" placeholder="${t('enc.search')}" />
           <div class="enc-list" id="enc-list"></div>
         </div>
         <div class="enc-summary" id="enc-summary"></div>
       </div>
       <footer class="enc-foot">
-        <button class="btn" id="enc-launch">Lancer la rencontre</button>
+        <button class="btn" id="enc-launch">${t('enc.launch')}</button>
       </footer>
     </div>`;
   document.body.appendChild(ov);
@@ -85,13 +86,13 @@ export function openEncounterBuilder() {
 
   const partyThresholds = () => {
     const chars = store.get().characters;
-    const t = [0, 0, 0, 0];
+    const th = [0, 0, 0, 0];
     for (const c of chars) {
       const lvl = Math.max(1, Math.min(20, Number(c.data?.lvl) || 1));
       const row = THRESH[lvl];
-      for (let i = 0; i < 4; i++) t[i] += row[i];
+      for (let i = 0; i < 4; i++) th[i] += row[i];
     }
-    return { count: chars.length, t };
+    return { count: chars.length, th };
   };
 
   const renderList = () => {
@@ -104,7 +105,7 @@ export function openEncounterBuilder() {
           .map((m) => {
             const n = sel.get(m.id) || 0;
             const meta = budget
-              ? ` <em>FP ${escapeHtml(String(m.data?.cr ?? '?'))} · ${crToXp(m.data?.cr)} XP</em>`
+              ? ` <em>${t('enc.cr')} ${escapeHtml(String(m.data?.cr ?? '?'))} · ${crToXp(m.data?.cr)} XP</em>`
               : '';
             return `<div class="enc-row">
               <span class="enc-name">${escapeHtml(m.name)}${meta}</span>
@@ -116,7 +117,7 @@ export function openEncounterBuilder() {
             </div>`;
           })
           .join('')
-      : `<div class="enc-empty">Aucun monstre dans le compendium. Importe-en via le SRD.</div>`;
+      : `<div class="enc-empty">${t('enc.empty')}</div>`;
     listEl.querySelectorAll('[data-inc]').forEach((b) =>
       b.addEventListener('click', () => {
         sel.set(b.dataset.inc, (sel.get(b.dataset.inc) || 0) + 1);
@@ -150,26 +151,26 @@ export function openEncounterBuilder() {
     // Hors 5e : pas de barème de difficulté, juste la liste à lancer.
     if (!budget) {
       sumEl.innerHTML = `
-        <h4>Rencontre</h4>
-        ${lines.join('') || '<div class="enc-muted">Ajoute des monstres à gauche.</div>'}
-        ${totalCount ? `<div class="enc-xp"><strong>${totalCount}</strong> créature(s) à lancer dans le combat</div>` : ''}
+        <h4>${t('enc.h.encounter')}</h4>
+        ${lines.join('') || `<div class="enc-muted">${t('enc.addLeft')}</div>`}
+        ${totalCount ? `<div class="enc-xp">${t('enc.creatures', { n: `<strong>${totalCount}</strong>` })}</div>` : ''}
       `;
       return;
     }
-    const { count, t } = partyThresholds();
+    const { count, th } = partyThresholds();
     const adj = Math.round(rawXp * multiplier(totalCount));
-    let diff = 'Triviale';
-    if (adj >= t[3]) diff = 'Mortelle ☠️';
-    else if (adj >= t[2]) diff = 'Difficile';
-    else if (adj >= t[1]) diff = 'Moyenne';
-    else if (adj >= t[0]) diff = 'Facile';
+    let diffKey = 'triviale';
+    if (adj >= th[3]) diffKey = 'mortelle';
+    else if (adj >= th[2]) diffKey = 'difficile';
+    else if (adj >= th[1]) diffKey = 'moyenne';
+    else if (adj >= th[0]) diffKey = 'facile';
     sumEl.innerHTML = `
-      <h4>Groupe</h4>
-      <div class="enc-party">${count} PJ · seuils : ${t[0]} / ${t[1]} / ${t[2]} / ${t[3]} XP</div>
-      <h4>Rencontre</h4>
-      ${lines.join('') || '<div class="enc-muted">Ajoute des monstres à gauche.</div>'}
-      <div class="enc-xp">XP brut : ${rawXp} · ×${multiplier(totalCount)} = <strong>${adj} XP</strong></div>
-      <div class="enc-diff enc-diff-${diff.split(' ')[0].toLowerCase()}">Difficulté : <strong>${diff}</strong></div>
+      <h4>${t('enc.h.party')}</h4>
+      <div class="enc-party">${t('enc.party', { count, a: th[0], b: th[1], c: th[2], d: th[3] })}</div>
+      <h4>${t('enc.h.encounter')}</h4>
+      ${lines.join('') || `<div class="enc-muted">${t('enc.addLeft')}</div>`}
+      <div class="enc-xp">${t('enc.xpline', { raw: rawXp, mult: multiplier(totalCount) })}<strong>${adj} XP</strong></div>
+      <div class="enc-diff enc-diff-${diffKey}">${t('enc.diff')} <strong>${t('enc.diff.' + diffKey)}</strong></div>
     `;
   };
 

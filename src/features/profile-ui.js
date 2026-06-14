@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { PALETTE, colorFor, initials, updateMyProfile } from '../lib/profile.js';
 import { changePassword } from '../lib/auth.js';
@@ -28,30 +29,30 @@ export function openProfileEditor(onSaved) {
   ov.className = 'modal-overlay';
   ov.innerHTML = `
     <div class="modal-card prof-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">Mon profil</h3>
+      <h3 class="modal-title">${t('profile.title')}</h3>
 
       <div class="prof-hero">
         <span class="prof-avatar prof-avatar-lg" id="prof-av">${escapeHtml(initials(prof.display_name))}</span>
         <div class="prof-hero-meta">
-          <div class="prof-hero-name" id="prof-hero-name">${escapeHtml(prof.display_name || 'Sans nom')}</div>
-          <div class="prof-hero-role">${role === 'dm' ? '🎭 Maître du jeu' : '🎲 Joueur'}</div>
+          <div class="prof-hero-name" id="prof-hero-name">${escapeHtml(prof.display_name || t('profile.noname'))}</div>
+          <div class="prof-hero-role">${role === 'dm' ? t('profile.role.dm') : t('profile.role.player')}</div>
         </div>
       </div>
 
-      <label class="prof-label">Nom affiché</label>
-      <input class="modal-input" id="prof-name" type="text" value="${escapeHtml(prof.display_name || '')}" placeholder="Nom affiché" maxlength="40" />
+      <label class="prof-label">${t('profile.name')}</label>
+      <input class="modal-input" id="prof-name" type="text" value="${escapeHtml(prof.display_name || '')}" placeholder="${t('profile.name')}" maxlength="40" />
 
-      <label class="prof-label">Couleur d'identité</label>
+      <label class="prof-label">${t('profile.color')}</label>
       <div class="prof-swatches" id="prof-swatches">
         ${PALETTE.map(
           (c) =>
-            `<button class="prof-sw ${taken.has(c.toLowerCase()) ? 'taken' : ''}" data-c="${c}" style="background:${c}" title="${taken.has(c.toLowerCase()) ? 'Déjà utilisée par un autre joueur' : c}"></button>`
+            `<button class="prof-sw ${taken.has(c.toLowerCase()) ? 'taken' : ''}" data-c="${c}" style="background:${c}" title="${taken.has(c.toLowerCase()) ? t('profile.color.taken') : c}"></button>`
         ).join('')}
       </div>
       <div class="prof-custom">
-        <input type="color" id="prof-color" value="${color}" title="Couleur personnalisée" />
+        <input type="color" id="prof-color" value="${color}" title="${t('profile.color.custom')}" />
         <input class="modal-input prof-hex" id="prof-hex" type="text" value="${color}" maxlength="7" placeholder="#7c6af7" />
-        <span class="prof-custom-lbl">Couleur libre</span>
+        <span class="prof-custom-lbl">${t('profile.color.free')}</span>
       </div>
 
       <div class="prof-previews">
@@ -60,18 +61,18 @@ export function openProfileEditor(onSaved) {
       </div>
 
       <details class="prof-pwd">
-        <summary>🔑 Changer le mot de passe</summary>
-        <input class="modal-input" id="prof-pwd0" type="password" autocomplete="current-password" placeholder="Mot de passe actuel" />
-        <input class="modal-input" id="prof-pwd1" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe (min. 6)" />
-        <input class="modal-input" id="prof-pwd2" type="password" autocomplete="new-password" placeholder="Confirmer le mot de passe" />
-        <button class="modal-btn" id="prof-pwd-btn">Mettre à jour le mot de passe</button>
+        <summary>${t('profile.pwd.summary')}</summary>
+        <input class="modal-input" id="prof-pwd0" type="password" autocomplete="current-password" placeholder="${t('profile.pwd.current')}" />
+        <input class="modal-input" id="prof-pwd1" type="password" autocomplete="new-password" placeholder="${t('profile.pwd.new')}" />
+        <input class="modal-input" id="prof-pwd2" type="password" autocomplete="new-password" placeholder="${t('profile.pwd.confirm')}" />
+        <button class="modal-btn" id="prof-pwd-btn">${t('profile.pwd.btn')}</button>
         <div class="prof-pwd-msg" id="prof-pwd-msg"></div>
       </details>
 
       <div class="prof-err" id="prof-err"></div>
       <div class="modal-actions">
-        <button class="modal-btn modal-cancel">Annuler</button>
-        <button class="modal-btn modal-ok">Enregistrer</button>
+        <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok">${t('common.save')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -87,14 +88,14 @@ export function openProfileEditor(onSaved) {
   const prevDice = ov.querySelector('#prof-prev-dice');
 
   function renderPreviews() {
-    const nm = nameInput.value.trim() || 'Vous';
+    const nm = nameInput.value.trim() || t('profile.you');
     const ini = initials(nm);
     prevChat.innerHTML = `
       <span class="prof-chip-av" style="background:${color}">${escapeHtml(ini)}</span>
-      <span class="prof-bubble"><b style="color:${color}">${escapeHtml(nm)}</b> Bonjour la table !</span>`;
+      <span class="prof-bubble"><b style="color:${color}">${escapeHtml(nm)}</b> ${t('profile.prev.chat')}</span>`;
     prevDice.innerHTML = `
       <span class="prof-chip-av" style="background:${color}">${escapeHtml(ini)}</span>
-      <span class="prof-dice"><b style="color:${color}">${escapeHtml(nm)}</b> — Test de Perception : <b>d20 → 17</b></span>`;
+      <span class="prof-dice"><b style="color:${color}">${escapeHtml(nm)}</b> — ${t('profile.prev.dice')} <b>d20 → 17</b></span>`;
   }
 
   const applyColor = (c) => {
@@ -117,7 +118,7 @@ export function openProfileEditor(onSaved) {
   });
   nameInput.addEventListener('input', () => {
     av.textContent = initials(nameInput.value);
-    heroName.textContent = nameInput.value.trim() || 'Sans nom';
+    heroName.textContent = nameInput.value.trim() || t('profile.noname');
     renderPreviews();
   });
 
@@ -130,17 +131,17 @@ export function openProfileEditor(onSaved) {
     const p1 = ov.querySelector('#prof-pwd1').value;
     const p2 = ov.querySelector('#prof-pwd2').value;
     if (!p0) {
-      pwdMsg.textContent = 'Saisis ton mot de passe actuel.';
+      pwdMsg.textContent = t('profile.pwd.err.current');
       pwdMsg.classList.add('err');
       return;
     }
     if (p1.length < 6) {
-      pwdMsg.textContent = 'Mot de passe trop court (min. 6 caractères).';
+      pwdMsg.textContent = t('profile.pwd.err.short');
       pwdMsg.classList.add('err');
       return;
     }
     if (p1 !== p2) {
-      pwdMsg.textContent = 'Les deux mots de passe ne correspondent pas.';
+      pwdMsg.textContent = t('profile.pwd.err.mismatch');
       pwdMsg.classList.add('err');
       return;
     }
@@ -150,10 +151,10 @@ export function openProfileEditor(onSaved) {
       ov.querySelector('#prof-pwd0').value = '';
       ov.querySelector('#prof-pwd1').value = '';
       ov.querySelector('#prof-pwd2').value = '';
-      pwdMsg.textContent = '✓ Mot de passe mis à jour.';
+      pwdMsg.textContent = t('profile.pwd.ok');
       pwdMsg.classList.add('ok');
     } catch (e) {
-      pwdMsg.textContent = e.message || 'Échec de la mise à jour.';
+      pwdMsg.textContent = e.message || t('profile.pwd.err.fail');
       pwdMsg.classList.add('err');
     } finally {
       pwdBtn.disabled = false;
@@ -171,7 +172,7 @@ export function openProfileEditor(onSaved) {
   ov.querySelector('.modal-ok').addEventListener('click', async () => {
     err.textContent = '';
     if (!nameInput.value.trim()) {
-      err.textContent = 'Le nom ne peut pas être vide.';
+      err.textContent = t('profile.err.noname');
       return;
     }
     try {
@@ -179,7 +180,7 @@ export function openProfileEditor(onSaved) {
       onSaved?.();
       close();
     } catch (e) {
-      err.textContent = e.message || 'Échec de la sauvegarde.';
+      err.textContent = e.message || t('profile.err.save');
     }
   });
   nameInput.focus();
