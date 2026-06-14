@@ -13,6 +13,8 @@
  */
 
 import { abilityMod } from './rules.js';
+import { getLocale } from './i18n.js';
+import * as EN5 from './srd5e.en.js';
 
 const norm = (s) => String(s || '').normalize('NFC').trim().toLowerCase();
 
@@ -25,7 +27,7 @@ export const SRD_CLOSE = '⟦/SRD⟧';
  *   | null), skillCount, skillList:[clés], armorProf, weaponProf,
  *   features:[{name,desc}], subclasses:[labels] }
  */
-export const CLASSES = [
+const CLASSES_FR = [
   {
     key: 'barbare', label: 'Barbare', hd: 12, saves: ['str', 'con'], sc: null,
     skillCount: 2, skillList: ['animal', 'athletics', 'intimidation', 'nature', 'perception', 'survival'],
@@ -165,7 +167,7 @@ export const CLASSES = [
  * { key, label, ability:{bonus}, abilityChoose?:{count,from[],amount},
  *   speed(m), darkvision(m), size('P'|'M'), traits:[{name,desc}], fixedSkills:[] }
  */
-export const RACES = [
+const RACES_FR = [
   {
     key: 'humain', label: 'Humain', ability: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 },
     speed: 9, darkvision: 0, size: 'M', fixedSkills: [],
@@ -298,7 +300,7 @@ export const RACES = [
  * { choose:[{label, items:[items]}] } (un choix à faire). item = {nm, qty}.
  */
 const I = (nm, qty = 1) => ({ nm, qty });
-export const CLASS_EQUIPMENT = {
+const CLASS_EQUIPMENT_FR = {
   barbare: [
     { choose: [{ label: 'Une hache à deux mains', items: [I('Hache à deux mains')] }, { label: 'Une arme de guerre de corps à corps', items: [I('Arme de guerre (corps à corps)')] }] },
     { choose: [{ label: 'Deux hachettes', items: [I('Hachette', 2)] }, { label: 'Une arme courante', items: [I('Arme courante')] }] },
@@ -373,7 +375,7 @@ export const CLASS_EQUIPMENT = {
  * { key, label, skills:[2 clés], tools, languages, feature:{name,desc},
  *   equipment:[[nm,qty]], gold } — gold en pièces d'or (data.coins.po).
  */
-export const BACKGROUNDS = [
+const BACKGROUNDS_FR = [
   { key: 'acolyte', label: 'Acolyte', skills: ['insight', 'religion'], tools: '', languages: '2 au choix',
     feature: { name: 'Abri du fidèle', desc: 'Toi et tes compagnons recevez soins et accueil gratuits dans un temple de ta foi.' },
     equipment: [['Symbole sacré', 1], ['Livre de prières', 1], ["Bâton d'encens", 5], ['Habits de cérémonie', 1], ['Habits communs', 1]], gold: 15 },
@@ -417,7 +419,7 @@ export const BACKGROUNDS = [
  * Le niveau d'accès est porté par chaque aptitude (la sous-classe débloque au fil
  * des niveaux). Descriptions condensées, conformes au SRD 5.1 / aidedd.
  */
-export const SUBCLASSES = {
+const SUBCLASSES_FR = {
   'Voie du Berserker': { classKey: 'barbare', features: [
     { level: 3, name: 'Frénésie', desc: 'En rage, une attaque supplémentaire à mains armées en action bonus ; épuisement à la fin de la rage.' },
     { level: 6, name: 'Rage inébranlable', desc: 'Pendant ta rage, tu ne peux pas être charmé ni effrayé.' },
@@ -571,6 +573,14 @@ const PACT_SLOTS = [
 ];
 
 /* ── Index normalisés ─────────────────────────────────────────────────── */
+/* ── Sélection par locale (données EN générées : srd5e.en.js) ──────────── */
+const _enLoc = () => getLocale() === 'en';
+export const CLASSES = _enLoc() ? EN5.CLASSES : CLASSES_FR;
+export const RACES = _enLoc() ? EN5.RACES : RACES_FR;
+export const CLASS_EQUIPMENT = _enLoc() ? EN5.CLASS_EQUIPMENT : CLASS_EQUIPMENT_FR;
+export const BACKGROUNDS = _enLoc() ? EN5.BACKGROUNDS : BACKGROUNDS_FR;
+export const SUBCLASSES = _enLoc() ? EN5.SUBCLASSES : SUBCLASSES_FR;
+
 const CLASS_INDEX = new Map();
 for (const c of CLASSES) {
   CLASS_INDEX.set(norm(c.label), c);
@@ -638,7 +648,7 @@ export const subSlug = (s) =>
   String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const SUBCLASS_INDEX = new Map();
 for (const [label, sc] of Object.entries(SUBCLASSES)) {
-  const entry = { key: subSlug(label), label, ...sc };
+  const entry = { label, ...sc, key: sc.key || subSlug(label) };
   SUBCLASS_INDEX.set(norm(label), entry);
   SUBCLASS_INDEX.set(entry.key, entry);
 }

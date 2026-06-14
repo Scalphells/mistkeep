@@ -22,10 +22,12 @@
  */
 
 import { CLASSES as CLASSES_5E, subSlug } from './srd5e.js';
+import { getLocale } from './i18n.js';
+import * as EN24 from './srd2024.en.js';
 
 /* ── Espèces (SRD 5.2) ──────────────────────────────────────── */
 
-export const SPECIES = [
+const SPECIES_FR = [
   {
     key: 'humain', label: 'Humain', ability: {},
     speed: 9, darkvision: 0, size: 'M', fixedSkills: [],
@@ -110,7 +112,7 @@ export const SPECIES = [
 // +1/+1/+1) parmi TROIS caractéristiques fixes, plus un don d'origine. Le
 // choix appartient au joueur — résumé dans `feature`, non auto-appliqué.
 
-export const BACKGROUNDS_2024 = [
+const BACKGROUNDS_2024_FR = [
   {
     key: 'acolyte', label: 'Acolyte', skills: ['insight', 'religion'],
     tools: 'Matériel de calligraphie', languages: '',
@@ -300,15 +302,22 @@ const SUBCLASS_FEATURES_2024 = {
 };
 
 // Classes 2024 : aptitudes de niveau 1 version 2024, sous-classe unique au niveau 3.
-export const CLASSES_2024 = CLASSES_5E.map((c) => ({
+const CLASSES_2024_FR = CLASSES_5E.map((c) => ({
   ...c,
   features: CLASS_FEATURES_2024[c.key] || [],
   subclasses: SUBCLASS_BY_CLASS[c.key] ? [SUBCLASS_BY_CLASS[c.key]] : [],
 }));
 
-export const SUBCLASSES_2024 = Object.fromEntries(
+const SUBCLASSES_2024_FR = Object.fromEntries(
   Object.entries(SUBCLASS_BY_CLASS).map(([classKey, label]) => [
     label,
     { key: subSlug(label), classKey, features: SUBCLASS_FEATURES_2024[label] || [] },
   ])
 );
+
+/* ── Sélection par locale (données EN générées : srd2024.en.js) ─────────── */
+const _enLoc = () => getLocale() === 'en';
+export const SPECIES = _enLoc() ? EN24.SPECIES : SPECIES_FR;
+export const BACKGROUNDS_2024 = _enLoc() ? EN24.BACKGROUNDS_2024 : BACKGROUNDS_2024_FR;
+export const CLASSES_2024 = _enLoc() ? EN24.CLASSES_2024 : CLASSES_2024_FR;
+export const SUBCLASSES_2024 = _enLoc() ? EN24.SUBCLASSES_2024 : SUBCLASSES_2024_FR;

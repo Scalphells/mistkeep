@@ -52,6 +52,16 @@ describe('résolution par clé (refactor clés Phase 1)', () => {
   });
 });
 
+describe('miroir EN (Phase 2 — fichiers par langue)', () => {
+  it('traduit la prose, préserve les mécaniques + clé de sous-classe stable', async () => {
+    const en = await import('../src/lib/srd5e.en.js');
+    const barb = en.CLASSES.find((c) => c.key === 'barbare');
+    expect(barb?.label).toBe('Barbarian');
+    expect(barb?.hd).toBe(12);
+    expect(en.SUBCLASSES['Path of the Berserker']?.key).toBe('voie-du-berserker');
+  });
+});
+
 describe('classByLabel / raceByLabel', () => {
   it('reconnaît les noms FR du seed (accents inclus)', () => {
     expect(classByLabel('Barbare').key).toBe('barbare');

@@ -19,6 +19,9 @@
  * (les « flaws » encore visibles sur AoN sont l'héritage legacy).
  */
 
+import { getLocale } from './i18n.js';
+import * as ENPF from './pf2e-srd.en.js';
+
 // Conversion pieds → mètres utilisée par l'app (25 ft ≈ 7,5 m).
 const FT = { 20: 6, 25: 7.5, 30: 9 };
 
@@ -27,7 +30,7 @@ const FT = { 20: 6, 25: 7.5, 30: 9 };
  * darkvision en mètres (0 = pas de vision dans le noir, la vision faible est
  * notée en trait) ; boosts = boosts d'attribut FIXES (un boost libre s'ajoute
  * presque toujours, laissé au joueur). */
-export const ANCESTRIES = [
+const ANCESTRIES_FR = [
   {
     key: 'nain', label: 'Nain', hp: 10, size: 'M', speed: FT[20], darkvision: 18,
     boosts: ['con', 'wis'], traits: [
@@ -88,7 +91,7 @@ export const ANCESTRIES = [
 /* ── Historiques (exemples Player Core) ─────────────────────────
  * boosts = deux boosts (souvent une carac. fixe + un libre) ; skills = une
  * compétence entraînée + une compétence de Lore (au choix, libre). */
-export const BACKGROUNDS_PF2E = [
+const BACKGROUNDS_PF2E_FR = [
   { key: 'acolyte', label: 'Acolyte', boosts: ['int', 'wis'], skills: ['religion'], feat: 'Étudiant de la nature ou Connaissances (Religion).' },
   { key: 'artisan', label: 'Artisan', boosts: ['str', 'int'], skills: ['artisanat'], feat: 'Spécialiste de l’artisanat.' },
   { key: 'criminel', label: 'Criminel', boosts: ['dex', 'int'], skills: ['discretion'], feat: 'Expert en filouterie.' },
@@ -102,7 +105,7 @@ export const BACKGROUNDS_PF2E = [
  * keyAbility = attribut(s) de prédilection (boost de classe) ; hp = PV de
  * classe par niveau ; perception/saves en RANGS (1 Qualifié, 2 Expert) ;
  * skills = nombre de compétences entraînées de départ (en plus du mod. INT). */
-export const CLASSES_PF2E = [
+const CLASSES_PF2E_FR = [
   { key: 'barbare', label: 'Barbare', keyAbility: ['str'], hp: 12, perception: 2, saves: { fort: 2, ref: 1, will: 2 }, skills: 3,
     features: [{ name: 'Rage', desc: 'Action : tu entres en rage (dégâts supplémentaires, PV temporaires), 1 min, puis fatigue.' }, { name: 'Instinct', desc: 'Ton instinct (animal, dragon, géant…) façonne ta rage.' }] },
   { key: 'barde', label: 'Barde', keyAbility: ['cha'], hp: 8, perception: 2, saves: { fort: 1, ref: 1, will: 2 }, skills: 4,
@@ -130,6 +133,12 @@ export const CLASSES_PF2E = [
 ];
 
 /* ── Lookups ────────────────────────────────────────────────── */
+/* ── Sélection par locale (données EN générées : pf2e-srd.en.js) ────────── */
+const _enLoc = () => getLocale() === 'en';
+export const ANCESTRIES = _enLoc() ? ENPF.ANCESTRIES : ANCESTRIES_FR;
+export const BACKGROUNDS_PF2E = _enLoc() ? ENPF.BACKGROUNDS_PF2E : BACKGROUNDS_PF2E_FR;
+export const CLASSES_PF2E = _enLoc() ? ENPF.CLASSES_PF2E : CLASSES_PF2E_FR;
+
 export const ancestryByLabel = (v) => ANCESTRIES.find((a) => a.label === v || a.key === v) || null;
 export const backgroundByLabelPf2e = (v) => BACKGROUNDS_PF2E.find((b) => b.label === v || b.key === v) || null;
 export const classByLabelPf2e = (v) => CLASSES_PF2E.find((c) => c.label === v || c.key === v) || null;

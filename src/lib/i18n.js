@@ -25,6 +25,14 @@ export const LOCALES = [
 
 export const DEFAULT_LOCALE = 'fr';
 let _locale = DEFAULT_LOCALE;
+// Boot : lit la locale en cache (localStorage) AVANT l'init des autres modules,
+// pour que la sélection de données par locale (srd*.js) soit déjà correcte au
+// premier chargement. Essaie les deux clés de marque ; ignoré sans localStorage.
+try {
+  const raw = typeof localStorage !== 'undefined' && (localStorage.getItem('vaultmj_prefs') || localStorage.getItem('mistkeep_prefs'));
+  const cached = raw && JSON.parse(raw).locale;
+  if (cached && DICTS[cached]) _locale = cached;
+} catch { /* tests/SSR : pas de localStorage, on garde le défaut */ }
 
 /** Langue active (code ISO court, ex. 'fr'). */
 export function getLocale() {
