@@ -1,6 +1,7 @@
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * Sélecteur rapide de cibles (MJ) pour appliquer des dégâts/soins SANS avoir à
@@ -29,7 +30,7 @@ function _key(e) {
 export function openApplyPicker({ amount, heal, onApply }) {
   const combs = store.get().initiative || [];
   if (!combs.length) {
-    showToast('Aucun combattant — ajoute des combattants ou cible un jeton (🎯).', { timeout: 3600 });
+    showToast(t('picker.empty'), { timeout: 3600 });
     return;
   }
   close();
@@ -39,12 +40,12 @@ export function openApplyPicker({ amount, heal, onApply }) {
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card apply-picker" role="dialog" aria-modal="true">
-      <h3 class="modal-title">${heal ? '💚 Soigner' : '💥 Infliger'} ${amt}</h3>
-      <p class="modal-msg">Coche les cibles puis applique.</p>
+      <h3 class="modal-title">${heal ? t('picker.title.heal') : t('picker.title.dmg')} ${amt}</h3>
+      <p class="modal-msg">${t('picker.msg')}</p>
       <div class="ap-list">
         ${combs
           .map((c) => {
-            const hp = c.hp != null ? `${c.hp}${c.hp_max != null ? `/${c.hp_max}` : ''} PV` : '';
+            const hp = c.hp != null ? `${c.hp}${c.hp_max != null ? `/${c.hp_max}` : ''} ${t('combat.add.hp')}` : '';
             return `<label class="ap-row">
               <input type="checkbox" data-pick="${escapeHtml(c.entity_id)}">
               <span class="ap-name">${escapeHtml(c.name)}</span>
@@ -54,8 +55,8 @@ export function openApplyPicker({ amount, heal, onApply }) {
           .join('')}
       </div>
       <div class="modal-actions">
-        <button class="modal-btn modal-cancel">Annuler</button>
-        <button class="modal-btn modal-ok">${heal ? 'Soigner' : 'Appliquer'}</button>
+        <button class="modal-btn modal-cancel">${t('common.cancel')}</button>
+        <button class="modal-btn modal-ok">${heal ? t('picker.heal') : t('picker.apply')}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -68,7 +69,7 @@ export function openApplyPicker({ amount, heal, onApply }) {
   ov.querySelector('.modal-ok').addEventListener('click', () => {
     const ids = [...ov.querySelectorAll('[data-pick]:checked')].map((b) => b.dataset.pick);
     if (!ids.length) {
-      showToast('Coche au moins une cible.', { timeout: 2000 });
+      showToast(t('picker.pickOne'), { timeout: 2000 });
       return;
     }
     const picked = combs.filter((c) => ids.includes(c.entity_id));

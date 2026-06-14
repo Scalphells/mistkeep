@@ -6,6 +6,7 @@ import { parseDice } from '../features/dice.js';
 import { showToast } from './toast.js';
 import { openDamageApply } from './dmgapply.js';
 import { openApplyPicker } from './applypicker.js';
+import { t } from './i18n.js';
 
 function rng(min, max) {
   const range = max - min + 1;
@@ -44,10 +45,10 @@ function rollDmg(notation, crit) {
  * ciblés sur la carte). Le MJ applique directement ; un joueur diffuse au MJ.
  */
 
-function tokenName(t) {
-  if (!t) return 'cible';
-  const ch = t.charId ? store.get().characters.find((c) => c.id === t.charId) : null;
-  return t.label || ch?.name || 'cible';
+function tokenName(tok) {
+  if (!tok) return t('applyroll.target');
+  const ch = tok.charId ? store.get().characters.find((c) => c.id === tok.charId) : null;
+  return tok.label || ch?.name || t('applyroll.target');
 }
 function combatantForToken(t) {
   const init = store.get().initiative;
@@ -59,29 +60,29 @@ function combatantForToken(t) {
 }
 
 /** Applique un delta de PV (négatif = dégâts, positif = soin) à un jeton (MJ). */
-function applyDeltaDM(t, delta) {
-  const comb = combatantForToken(t);
+function applyDeltaDM(tok, delta) {
+  const comb = combatantForToken(tok);
   if (comb) {
     adjustHp(comb.entity_id, delta); // gère PV temp / soin / journal
     return;
   }
-  const ch = t.charId ? store.get().characters.find((c) => c.id === t.charId) : null;
+  const ch = tok.charId ? store.get().characters.find((c) => c.id === tok.charId) : null;
   if (ch && ch.data?.hp != null) {
     const before = Number(ch.data.hp) || 0;
     let hp = before + delta;
     if (ch.data.hpMax != null) hp = Math.min(Number(ch.data.hpMax), hp);
     hp = Math.max(0, hp);
     updateCharacter(ch.id, { hp });
-    logCombat(`${delta < 0 ? '💥' : '💚'} ${tokenName(t)} : PV ${before}→${hp}.`);
+    logCombat(`${delta < 0 ? '💥' : '💚'} ${t('applyroll.log.hp', { name: tokenName(tok), before, after: hp })}`);
     return;
   }
-  if (t.hp != null || t.hpMax != null) {
-    const before = Number(t.hp) || 0;
+  if (tok.hp != null || tok.hpMax != null) {
+    const before = Number(tok.hp) || 0;
     let hp = before + delta;
-    if (t.hpMax != null) hp = Math.min(Number(t.hpMax), hp);
+    if (tok.hpMax != null) hp = Math.min(Number(tok.hpMax), hp);
     hp = Math.max(0, hp);
-    updateToken(t.id, { hp });
-    logCombat(`${delta < 0 ? '💥' : '💚'} ${tokenName(t)} : PV ${before}→${hp}.`);
+    updateToken(tok.id, { hp });
+    logCombat(`${delta < 0 ? '💥' : '💚'} ${t('applyroll.log.hp', { name: tokenName(tok), before, after: hp })}`);
   }
 }
 
@@ -100,7 +101,7 @@ export function applyToTargets(rawAmount, kind) {
     if (isDM) {
       openApplyPicker({ amount: amt, heal, onApply: (combs) => combs.forEach((c) => adjustHp(c.entity_id, heal ? amt : -amt)) });
     } else {
-      showToast('Cible d’abord un ou des jetons (clic droit → 🎯) sur la carte.', { timeout: 2800 });
+      showToast(t('applyroll.toast.targetFirstMap'), { timeout: 2800 });
     }
     return;
   }
@@ -108,24 +109,24 @@ export function applyToTargets(rawAmount, kind) {
   const tokens = store.get().map?.tokens || [];
   let n = 0;
   for (const tid of targets) {
-    const t = tokens.find((x) => x.id === tid);
-    if (!t) continue;
+    const tok = tokens.find((x) => x.id === tid);
+    if (!tok) continue;
     if (isDM) {
-      applyDeltaDM(t, delta);
+      applyDeltaDM(tok, delta);
     } else {
       // Joueur : délégué au MJ (montant signé : négatif = soin).
-      sendPlayerRequest({ kind: 'dmg', target: { entityId: t.entityId || null, charId: t.charId || null, tokenId: t.id, name: tokenName(t) }, amount: heal ? -amt : amt });
+      sendPlayerRequest({ kind: 'dmg', target: { entityId: tok.entityId || null, charId: tok.charId || null, tokenId: tok.id, name: tokenName(tok) }, amount: heal ? -amt : amt });
     }
     n++;
   }
-  showToast(`${heal ? '💚 Soin' : '💥 Dégâts'} ${amt} → ${n} cible(s)`, { timeout: 2200 });
+  showToast(`${heal ? t('applyroll.heal') : t('applyroll.dmg')} ${amt} → ${t('ac.targets', { n })}`, { timeout: 2200 });
 }
 
 /** Résout une attaque sur chaque cible courante (d20+bon vs CA → dégâts). */
 export function attackTargets(bon, dmgNotation, mode = 'normal') {
   const targets = store.get().targets || [];
   if (!targets.length) {
-    showToast('Cible d’abord un ou des jetons (clic droit → 🎯).', { timeout: 2800 });
+    showToast(t('applyroll.toast.targetFirst'), { timeout: 2800 });
     return;
   }
   const tokens = store.get().map?.tokens || [];
@@ -133,8 +134,8 @@ export function attackTargets(bon, dmgNotation, mode = 'normal') {
   let touched = 0;
   let count = 0;
   for (const tid of targets) {
-    const t = tokens.find((x) => x.id === tid);
-    if (!t) continue;
+    const tok = tokens.find((x) => x.id === tid);
+    if (!tok) continue;
     count++;
     let nat;
     if (mode === 'adv' || mode === 'dis') {
@@ -142,7 +143,7 @@ export function attackTargets(bon, dmgNotation, mode = 'normal') {
       const b = rng(1, 20);
       nat = mode === 'adv' ? Math.max(a, b) : Math.min(a, b);
     } else nat = rng(1, 20);
-    const ac = acOf(t);
+    const ac = acOf(tok);
     const total = nat + (Number(bon) || 0);
     const crit = nat === 20;
     const fumble = nat === 1;
@@ -151,14 +152,15 @@ export function attackTargets(bon, dmgNotation, mode = 'normal') {
     if (hit && dmgNotation) {
       dmg = rollDmg(dmgNotation, crit);
       if (dmg > 0) {
-        if (isDM) applyDeltaDM(t, -dmg);
-        else sendPlayerRequest({ kind: 'dmg', target: { entityId: t.entityId || null, charId: t.charId || null, tokenId: t.id, name: tokenName(t) }, amount: dmg });
+        if (isDM) applyDeltaDM(tok, -dmg);
+        else sendPlayerRequest({ kind: 'dmg', target: { entityId: tok.entityId || null, charId: tok.charId || null, tokenId: tok.id, name: tokenName(tok) }, amount: dmg });
       }
     }
     if (hit) touched++;
-    logCombat(`⚔ → ${tokenName(t)} : ${total}${ac != null ? ` vs CA ${ac}` : ''} → ${crit ? 'CRITIQUE' : fumble ? 'échec critique' : hit ? 'touché' : 'raté'}${hit && dmg ? `, ${dmg} dégâts` : ''}.`);
+    const verdict = crit ? t('applyroll.v.crit') : fumble ? t('applyroll.v.fumble') : hit ? t('applyroll.v.hit') : t('applyroll.v.miss');
+    logCombat(`⚔ → ${tokenName(tok)} : ${total}${ac != null ? ` ${t('applyroll.vsAc', { ac })}` : ''} → ${verdict}${hit && dmg ? t('applyroll.dmgSuffix', { dmg }) : ''}.`);
   }
-  showToast(`⚔ ${count} cible(s) — ${touched} touchée(s)`, { timeout: 3200 });
+  showToast(t('applyroll.toast.attackResult', { count, touched }), { timeout: 3200 });
 }
 
 /**
@@ -174,7 +176,7 @@ export function resolveAttackVsTargets(d20, who, nm, listOverride) {
   const raw = listOverride || (store.get().targets || []).map((tid) => tokens.find((x) => x.id === tid)).filter(Boolean);
   // Dédoublonnage défensif (un même jeton ne doit pas être résolu deux fois).
   const seen = new Set();
-  const list = raw.filter((t) => t && !seen.has(t.id) && seen.add(t.id));
+  const list = raw.filter((x) => x && !seen.has(x.id) && seen.add(x.id));
   if (!list.length) return { any: false };
   const nat = Number(d20?.kept) || 0;
   const total = Number(d20?.total) || nat;
@@ -183,8 +185,8 @@ export function resolveAttackVsTargets(d20, who, nm, listOverride) {
   let anyCrit = crit;
   let anyHit = false;
   let anyUnknownAc = false;
-  for (const t of list) {
-    const ac = acOf(t);
+  for (const tok of list) {
+    const ac = acOf(tok);
     const known = ac != null;
     // Verdict : décisif sur 20/1, sinon comparé à la CA. Si la CA est inconnue,
     // l'app ne tranche PAS (on ne prétend pas « touché ») : le MJ juge.
@@ -192,25 +194,25 @@ export function resolveAttackVsTargets(d20, who, nm, listOverride) {
     let verdict;
     if (crit) {
       hit = true;
-      verdict = 'CRITIQUE ⭐';
+      verdict = t('applyroll.verdict.crit');
     } else if (fumble) {
       hit = false;
-      verdict = 'échec critique';
+      verdict = t('applyroll.v.fumble');
     } else if (!known) {
       hit = null;
       verdict = null;
     } else {
       hit = total >= ac;
-      verdict = hit ? 'touché ✓' : 'raté ✗';
+      verdict = hit ? t('applyroll.verdict.hit') : t('applyroll.verdict.miss');
     }
     if (hit === true) anyHit = true;
     if (!known) anyUnknownAc = true;
     // Le dé + le résultat sont déjà affichés par la carte de jet dans le chat ;
     // ici on ne journalise que le verdict (MJ-only : c'est le MJ qui décide).
     if (verdict) {
-      logAction(`⚔ ${who} → ${tokenName(t)} : ${total} vs CA ${known ? ac : '?'} → ${verdict}`, true);
+      logAction(t('applyroll.log.resolve', { who, name: tokenName(tok), total, ac: known ? ac : '?', verdict }), true);
     } else {
-      logAction(`⚔ ${who} → ${tokenName(t)} : ${total} — CA inconnue, à toi de juger (définis la CA du jeton).`, true);
+      logAction(t('applyroll.log.unknownAc', { who, name: tokenName(tok), total }), true);
     }
   }
   return { any: true, anyHit, anyCrit, anyUnknownAc };
@@ -229,9 +231,9 @@ function openReduction(amount, descriptors, ctx = {}) {
     who: ctx.who,
     nm: ctx.nm,
     crit: ctx.crit,
-    apply: (t, amt) => {
-      if (amt > 0) applyDmgToTarget({ target: t, amount: amt });
-      else logCombat(`🛡 ${t.name || 'cible'} : aucun dégât (immunité).`, true);
+    apply: (tok, amt) => {
+      if (amt > 0) applyDmgToTarget({ target: tok, amount: amt });
+      else logCombat(t('applyroll.log.immune', { name: tok.name || t('applyroll.target') }), true);
     },
   });
 }
@@ -260,7 +262,7 @@ export function applyFromButton(kind, amount) {
 export function applyConditionToTargets(cond) {
   const targets = store.get().targets || [];
   if (!targets.length) {
-    showToast('Cible d’abord un ou des jetons (clic droit → 🎯).', { timeout: 2800 });
+    showToast(t('applyroll.toast.targetFirst'), { timeout: 2800 });
     return;
   }
   const tokens = store.get().map?.tokens || [];
@@ -268,8 +270,8 @@ export function applyConditionToTargets(cond) {
   if (isDM) {
     let n = 0;
     for (const tid of targets) {
-      const t = tokens.find((x) => x.id === tid);
-      const comb = t && combatantForToken(t);
+      const tok = tokens.find((x) => x.id === tid);
+      const comb = tok && combatantForToken(tok);
       if (comb) {
         const set = new Set(comb.conditions || []);
         set.add(cond);
@@ -277,10 +279,10 @@ export function applyConditionToTargets(cond) {
         n++;
       }
     }
-    showToast(n ? `🩹 ${cond} → ${n} cible(s)` : 'Aucune cible en combat.', { timeout: 2400 });
+    showToast(n ? t('applyroll.toast.cond', { cond, n }) : t('applyroll.toast.noCombatTarget'), { timeout: 2400 });
   } else {
-    const list = targets.map((tid) => tokens.find((x) => x.id === tid)).filter(Boolean).map((t) => ({ entityId: t.entityId || null, charId: t.charId || null }));
+    const list = targets.map((tid) => tokens.find((x) => x.id === tid)).filter(Boolean).map((tok) => ({ entityId: tok.entityId || null, charId: tok.charId || null }));
     sendPlayerRequest({ kind: 'tcond', targets: list, cond });
-    showToast('🩹 Demande envoyée au MJ.', { timeout: 1800 });
+    showToast(t('applyroll.toast.reqSent'), { timeout: 1800 });
   }
 }

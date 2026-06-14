@@ -8,6 +8,7 @@ import { logAction, sendPlayerRequest } from '../features/initiative.js';
 import { resolveNotation } from '../features/characters.js';
 import { postCard } from './chatpost.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * Carte d'action (façon Foundry) : clic sur une attaque ou un sort → fenêtre
@@ -115,35 +116,35 @@ export function openActionCard({ charId, who, kind, item }) {
   const cond = (item.cond || '').trim();
   const dc = item.dc || '';
   const lvl = Number(item.lvl) || 0;
-  const nm = item.nm || (isSpell ? 'Sort' : 'Attaque');
+  const nm = item.nm || (isSpell ? t('combat.action.spell') : t('combat.action.attack'));
   const meta = isSpell ? '' : [item.typ, item.prop].filter(Boolean).map(escapeHtml).join(' · ');
 
   const ov = document.createElement('div');
   ov.className = 'modal-overlay show';
   ov.innerHTML = `
     <div class="modal-card atk-card ac-card" role="dialog" aria-modal="true">
-      <h3 class="modal-title">${escapeHtml(nm)}${isSpell && lvl ? ` <small>· niv. ${lvl}</small>` : isSpell ? ' <small>· mineur</small>' : ''}</h3>
+      <h3 class="modal-title">${escapeHtml(nm)}${isSpell && lvl ? ` <small>${t('ac.lvlSmall', { lvl })}</small>` : isSpell ? ` <small>${t('ac.cantrip')}</small>` : ''}</h3>
       <div class="ac-sub">${escapeHtml(who || '')}${meta ? ` — ${meta}` : ''}</div>
       ${item.desc ? `<div class="ac-desc">${renderMarkdown(item.desc)}</div>` : ''}
-      <div class="atk-row"><label>Jet</label>
+      <div class="atk-row"><label>${t('ac.roll')}</label>
         <div class="atk-modes" id="ac-mode">
-          <button data-m="normal" class="active">Normal</button>
-          <button data-m="adv">Avantage</button>
-          <button data-m="dis">Désavantage</button>
+          <button data-m="normal" class="active">${t('ac.mode.normal')}</button>
+          <button data-m="adv">${t('ac.mode.adv')}</button>
+          <button data-m="dis">${t('ac.mode.dis')}</button>
         </div>
       </div>
       <div class="ac-actions">
-        ${hasAtk ? `<button class="modal-btn ac-btn modal-ok" data-do="atk">🎲 Jet d'attaque (${bon >= 0 ? '+' : ''}${bon})${store.get().targets?.length ? ` — ${store.get().targets.length} cible(s)` : ''}</button>` : ''}
-        ${dmg ? `<button class="modal-btn ac-btn" data-do="dmg">💥 Dégâts (${escapeHtml(dmg)})</button>` : ''}
-        ${dmg ? `<button class="modal-btn ac-btn crit" data-do="crit">💥 Critique (${escapeHtml(critNotation(dmg))})</button>` : ''}
-        ${heal ? `<button class="modal-btn ac-btn heal" data-do="heal">💚 Soigner la cible (${escapeHtml(heal)})</button>` : ''}
-        ${cond ? `<button class="modal-btn ac-btn" data-do="cond">🩹 Appliquer « ${escapeHtml(cond)} » à la cible</button>` : ''}
-        ${dc ? `<button class="modal-btn ac-btn" data-do="dc">🛡 Sauvegarde DD ${escapeHtml(String(dc))}</button>` : ''}
-        ${isSpell && lvl ? `<button class="modal-btn ac-btn" data-do="slot">🔮 Consommer emplacement Nv ${lvl}</button>` : ''}
+        ${hasAtk ? `<button class="modal-btn ac-btn modal-ok" data-do="atk">🎲 ${t('ac.atk')} (${bon >= 0 ? '+' : ''}${bon})${store.get().targets?.length ? ` — ${t('ac.targets', { n: store.get().targets.length })}` : ''}</button>` : ''}
+        ${dmg ? `<button class="modal-btn ac-btn" data-do="dmg">💥 ${t('ac.dmg')} (${escapeHtml(dmg)})</button>` : ''}
+        ${dmg ? `<button class="modal-btn ac-btn crit" data-do="crit">💥 ${t('ac.crit')} (${escapeHtml(critNotation(dmg))})</button>` : ''}
+        ${heal ? `<button class="modal-btn ac-btn heal" data-do="heal">💚 ${t('ac.heal')} (${escapeHtml(heal)})</button>` : ''}
+        ${cond ? `<button class="modal-btn ac-btn" data-do="cond">🩹 ${t('ac.applyCond', { cond: escapeHtml(cond) })}</button>` : ''}
+        ${dc ? `<button class="modal-btn ac-btn" data-do="dc">🛡 ${t('ac.saveDC', { dc: escapeHtml(String(dc)) })}</button>` : ''}
+        ${isSpell && lvl ? `<button class="modal-btn ac-btn" data-do="slot">🔮 ${t('ac.consumeSlot', { lvl })}</button>` : ''}
       </div>
       <div class="ac-followup" id="ac-followup"></div>
       <div class="ac-result" id="ac-result"></div>
-      <div class="modal-actions"><button class="modal-btn ac-close">Fermer</button></div>
+      <div class="modal-actions"><button class="modal-btn ac-close">${t('common.close')}</button></div>
     </div>`;
   document.body.appendChild(ov);
   _ov = ov;
@@ -172,7 +173,7 @@ export function openActionCard({ charId, who, kind, item }) {
   async function rollDamage(crit) {
     if (!dmg) return;
     const note = crit ? critNotation(dmg) : dmg;
-    const label = `${who} — ${nm} (dégâts${crit ? ' CRITIQUES' : ''})`;
+    const label = crit ? t('ac.lbl.dmgCrit', { who, nm }) : t('ac.lbl.dmg', { who, nm });
     const outcome = await sendRoll(note, 'public', label).catch(() => null);
     const total = outcome?.total;
     // Pas de doublon : la carte de jet (chat/flux des dés) affiche déjà le total.
@@ -180,11 +181,11 @@ export function openActionCard({ charId, who, kind, item }) {
       const detail = outcome.rolls?.length ? `[${outcome.rolls.join(', ')}]${outcome.modifier ? (outcome.modifier > 0 ? ` +${outcome.modifier}` : ` ${outcome.modifier}`) : ''}` : '';
       const isDM = store.get().isDM;
       const hint = !store.get().targets?.length
-        ? 'Cible un jeton pour appliquer.'
+        ? t('ac.hint.target')
         : isDM
-          ? 'Choisis le montant à appliquer ci-dessous.'
-          : 'Total envoyé au MJ pour application.';
-      resultEl.innerHTML = `<div class="ac-dmg ${crit ? 'crit' : ''}"><span class="ac-dmg-total">${total}</span> dégâts${crit ? ' <span class="ac-crit-tag">⭐ critique</span>' : ''} ${detail ? `<span class="ac-dmg-detail">${escapeHtml(detail)}</span>` : ''}<div class="ac-dmg-hint">${hint}</div></div>`;
+          ? t('ac.hint.dm')
+          : t('ac.hint.player');
+      resultEl.innerHTML = `<div class="ac-dmg ${crit ? 'crit' : ''}"><span class="ac-dmg-total">${total}</span> ${t('ac.dmgWord')}${crit ? ` <span class="ac-crit-tag">${t('ac.critTag')}</span>` : ''} ${detail ? `<span class="ac-dmg-detail">${escapeHtml(detail)}</span>` : ''}<div class="ac-dmg-hint">${hint}</div></div>`;
     }
     if (total == null) return;
     const targets = store.get().targets || [];
@@ -192,13 +193,13 @@ export function openActionCard({ charId, who, kind, item }) {
       if (targets.length) {
         applyDamageRollToTargets({ amount: total, who, nm, crit });
       } else {
-        showToast('🎯 Aucune cible : cible une créature puis applique via 💥 dans le flux des dés.', { timeout: 4200 });
+        showToast(t('ac.toast.noTarget'), { timeout: 4200 });
       }
     } else {
       // Joueur : on délègue TOUJOURS au MJ (qui appliquera sur ses propres cibles
       // si le joueur n'en a pas sélectionné de son côté).
       sendPlayerRequest({ kind: 'dmgask', amount: total, who, nm, crit, tokenIds: [...targets] });
-      showToast('💥 Dégâts envoyés au MJ pour application.', { timeout: 2600 });
+      showToast(t('ac.toast.dmgSent'), { timeout: 2600 });
     }
   }
 
@@ -215,19 +216,19 @@ export function openActionCard({ charId, who, kind, item }) {
     }
     const isDM = store.get().isDM;
     const crit = res.anyCrit;
-    const tip = dmg ? ' Lance les dégâts ci-dessus.' : '';
+    const tip = dmg ? t('ac.follow.tipDmg') : '';
     let cls = 'hit';
     let msg;
     if (!isDM) {
-      msg = `🎲 Attaque envoyée au MJ.${dmg ? ' Lance tes dégâts ci-dessus si le coup porte.' : ''}`;
+      msg = t('ac.follow.sent') + (dmg ? t('ac.follow.sentDmg') : '');
     } else if (res.anyHit) {
-      msg = crit ? `⭐ CRITIQUE !${dmg ? ' Lance les dégâts critiques ci-dessus.' : ''}` : `✓ Touché !${tip}`;
+      msg = crit ? t('ac.follow.crit') + (dmg ? t('ac.follow.critDmg') : '') : t('ac.follow.hit') + tip;
     } else if (res.anyUnknownAc) {
       cls = 'unknown';
-      msg = `🎯 CA inconnue — à toi de juger.${tip}`;
+      msg = t('ac.follow.unknownAc') + tip;
     } else {
       cls = 'miss';
-      msg = '✗ Raté — aucune cible touchée.';
+      msg = t('ac.follow.miss');
     }
     followEl.innerHTML = `<div class="ac-follow ${cls}">${msg}</div>`;
   }
@@ -237,7 +238,7 @@ export function openActionCard({ charId, who, kind, item }) {
   function announce() {
     if (announced) return;
     announced = true;
-    const traits = (isSpell ? [lvl ? `Niv. ${lvl}` : 'Sort mineur'] : ['Attaque'])
+    const traits = (isSpell ? [lvl ? t('ac.trait.lvl', { lvl }) : t('ac.trait.cantrip')] : [t('combat.action.attack')])
       .concat(isSpell ? [] : [item.typ, item.prop])
       .filter(Boolean);
     postCard({ kind: 'action', name: nm, sub: who, traits, desc: item.desc || '' });
@@ -249,7 +250,7 @@ export function openActionCard({ charId, who, kind, item }) {
       if (['atk', 'dmg', 'crit', 'heal', 'cond', 'dc'].includes(act)) announce();
       if (act === 'atk') {
         // On lance le d20 UNE fois (flux des dés) puis on résout avec ce même dé.
-        sendD20Check(bon, `${who} — ${nm} (attaque)`, { mode }).then((d20) => {
+        sendD20Check(bon, t('ac.lbl.atk', { who, nm }), { mode }).then((d20) => {
           if (!d20) return;
           const targets = store.get().targets || [];
           if (!targets.length) {
@@ -272,8 +273,8 @@ export function openActionCard({ charId, who, kind, item }) {
       } else if (act === 'cond') {
         applyConditionToTargets(cond);
       } else if (act === 'dc') {
-        logAction(`✨ ${who} lance ${nm}${lvl ? ` (niv. ${lvl})` : ''} — sauvegarde DD ${dc}.`);
-        showToast(`🛡 ${nm} — DD ${dc}`, { timeout: 2000 });
+        logAction(lvl ? t('ac.log.saveLvl', { who, nm, lvl, dc }) : t('ac.log.save', { who, nm, dc }));
+        showToast(t('ac.toast.save', { nm, dc }), { timeout: 2000 });
       } else if (act === 'slot') {
         consumeSlot(charId, lvl);
       }
@@ -287,11 +288,11 @@ function consumeSlot(charId, lvl) {
   const slots = { ...(cur.data.slots || {}) };
   const s = { ...(slots[lvl] || { m: 0, u: 0 }) };
   if ((s.u || 0) >= (s.m || 0)) {
-    showToast(`Aucun emplacement de niveau ${lvl} disponible.`, { timeout: 2000 });
+    showToast(t('ac.toast.noSlot', { lvl }), { timeout: 2000 });
     return;
   }
   s.u = (s.u || 0) + 1;
   slots[lvl] = s;
   updateCharacter(charId, { slots });
-  showToast(`🔮 Emplacement Nv ${lvl} consommé`, { timeout: 1600 });
+  showToast(t('ac.toast.slotUsed', { lvl }), { timeout: 1600 });
 }
