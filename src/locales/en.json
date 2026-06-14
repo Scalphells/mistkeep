@@ -1632,5 +1632,22 @@
   "atk.log.dmgSuffix": ", {dmg} damage",
   "atk.log.untracked": " (HP not tracked)",
   "atk.multi.title": "⚔ Group attack — {n} targets",
-  "atk.multi.resolve": "🎲 Resolve on {n} targets"
+  "atk.multi.resolve": "🎲 Resolve on {n} targets",
+  "init.err.add": "Failed to add to combat — check your connection.",
+  "init.err.update": "Failed to update combat — check your connection.",
+  "init.err.remove": "Failed to remove the combatant.",
+  "init.err.reset": "Failed to reset combat.",
+  "init.err.updateShort": "Failed to update combat.",
+  "init.toast.yourTurn": "🗡 Your turn!",
+  "init.toast.lootReq": "✋ {name} requests an item from the loot.",
+  "init.toast.dmgApply": "💥 {who} deals {amount} damage — select a target (🎯) to apply it.",
+  "init.aPlayer": "A player",
+  "char.err.save": "Failed to save the sheet — check your connection.",
+  "map.err.save": "Failed to save the scene — check your connection.",
+  "map.scene.default1": "Scene 1",
+  "float.minimize": "Minimize",
+  "presence.online": "🟢 {n} online",
+  "presence.expand": "Expand the list",
+  "presence.collapse": "Collapse the list",
+  "camptx.importedDefault": "Imported campaign"
 }

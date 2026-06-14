@@ -1632,5 +1632,22 @@
   "atk.log.dmgSuffix": ", {dmg} dégâts",
   "atk.log.untracked": " (PV non suivis)",
   "atk.multi.title": "⚔ Attaque groupée — {n} cibles",
-  "atk.multi.resolve": "🎲 Résoudre sur {n} cibles"
+  "atk.multi.resolve": "🎲 Résoudre sur {n} cibles",
+  "init.err.add": "Échec de l'ajout au combat — vérifie ta connexion.",
+  "init.err.update": "Échec de la mise à jour du combat — vérifie ta connexion.",
+  "init.err.remove": "Échec de la suppression du combattant.",
+  "init.err.reset": "Échec de la réinitialisation du combat.",
+  "init.err.updateShort": "Échec de la mise à jour du combat.",
+  "init.toast.yourTurn": "🗡 À toi de jouer !",
+  "init.toast.lootReq": "✋ {name} demande un objet du trésor.",
+  "init.toast.dmgApply": "💥 {who} inflige {amount} dégâts — sélectionne une cible (🎯) pour l'appliquer.",
+  "init.aPlayer": "Un joueur",
+  "char.err.save": "Échec de l'enregistrement de la fiche — vérifie ta connexion.",
+  "map.err.save": "Échec de l'enregistrement de la scène — vérifie ta connexion.",
+  "map.scene.default1": "Scène 1",
+  "float.minimize": "Réduire",
+  "presence.online": "🟢 {n} en ligne",
+  "presence.expand": "Déployer la liste",
+  "presence.collapse": "Réduire la liste",
+  "camptx.importedDefault": "Campagne importée"
 }

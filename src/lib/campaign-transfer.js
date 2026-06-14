@@ -16,6 +16,7 @@ import { backend } from './backend.js';
 import { store } from '../state.js';
 import { activeCampaign, switchCampaign } from './campaigns.js';
 import { TRANSFER_TYPE, TRANSFER_VERSION, TRANSFER_TABLES, remapForImport, sanitizeForImport } from './campaign-remap.js';
+import { t as tr } from './i18n.js';
 
 /** Lit toutes les données de la campagne active et construit le fichier. */
 export async function exportActiveCampaign() {
@@ -84,7 +85,7 @@ export async function importCampaignPayload(payload, onProgress) {
   const { data: camp, error } = await backend.db
     .from('campaigns')
     .insert({
-      name: payload.campaign?.name || 'Campagne importée',
+      name: payload.campaign?.name || tr('camptx.importedDefault'),
       system: payload.campaign?.system || 'dnd5e-2014',
       owner_id: uid,
     })

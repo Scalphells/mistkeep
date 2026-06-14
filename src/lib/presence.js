@@ -3,6 +3,7 @@ import { campaignId } from './campaigns.js';
 import { store } from '../state.js';
 import { escapeHtml } from './utils.js';
 import { colorFor, initials } from './profile.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Présence en ligne (Realtime Presence) : qui est connecté. Liste en bas à
@@ -36,8 +37,8 @@ function render() {
   const onCount = list.filter((p) => set.has(p.id)).length;
   _el.innerHTML = `
     <div class="presence-head">
-      <span class="presence-head-lbl">🟢 ${onCount} en ligne</span>
-      <button class="presence-toggle" title="${collapsed ? 'Déployer la liste' : 'Réduire la liste'}">${collapsed ? '▸' : '▾'}</button>
+      <span class="presence-head-lbl">${tr('presence.online', { n: onCount })}</span>
+      <button class="presence-toggle" title="${collapsed ? tr('presence.expand') : tr('presence.collapse')}">${collapsed ? '▸' : '▾'}</button>
     </div>
     <div class="presence-list">
       ${list

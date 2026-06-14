@@ -7,6 +7,7 @@ import { debounce } from '../lib/utils.js';
 import { abilityMod, resolveNotation, classResources } from '../lib/rules.js';
 import { getSystem } from '../lib/systems/index.js';
 import { showToast } from '../lib/toast.js';
+import { t as tr } from '../lib/i18n.js';
 
 // Réexport pour conserver l'API publique historique (de nombreux modules
 // importent ces règles depuis features/characters.js).
@@ -159,7 +160,7 @@ export function updateCharacter(id, patch) {
           .eq('id', charId);
         if (error) {
           console.error('[characters] save échouée:', error.message);
-          showToast('Échec de l’enregistrement de la fiche — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+          showToast(tr('char.err.save'), { type: 'warn', icon: '⚠️' });
         }
       }, 900)
     );

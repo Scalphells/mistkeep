@@ -6,6 +6,7 @@ import { loadCharacters, updateCharacter } from './characters.js';
 import { rollDice } from './dice.js';
 import { addPin, updatePin, updateToken, toggleDoor } from './map.js';
 import { showToast } from '../lib/toast.js';
+import { t as tr } from '../lib/i18n.js';
 import { getPref } from '../lib/prefs.js';
 import { playTurnChime } from '../lib/turnsound.js';
 import { resolveAttackVsTargets, applyDamageRollToTargets } from '../lib/applyroll.js';
@@ -154,7 +155,7 @@ export async function addCombatant({ name, initiative, hp, hpMax, hpTemp, charId
   const { error } = await backend.db.from('initiative').insert(row);
   if (error) {
     console.error('[init] ajout échoué:', error.message);
-    showToast('Échec de l’ajout au combat — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('init.err.add'), { type: 'warn', icon: '⚠️' });
   }
   await resequence();
   return entity_id;
@@ -198,7 +199,7 @@ export async function updateCombatant(entityId, patch) {
     .eq('entity_id', entityId);
   if (error) {
     console.error('[init] maj échouée:', error.message);
-    showToast('Échec de la mise à jour du combat — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('init.err.update'), { type: 'warn', icon: '⚠️' });
   }
 
   // Synchronise les PV vers la fiche liée.
@@ -440,7 +441,7 @@ export async function removeCombatant(entityId) {
   const { error } = await backend.db.from('initiative').delete().eq('campaign_id', campaignId()).eq('entity_id', entityId);
   if (error) {
     console.error('[init] suppression échouée:', error.message);
-    showToast('Échec de la suppression du combattant.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('init.err.remove'), { type: 'warn', icon: '⚠️' });
     return;
   }
   store.set({
@@ -498,7 +499,7 @@ export async function clearCombat() {
   const { error } = await backend.db.from('initiative').delete().eq('campaign_id', campaignId());
   if (error) {
     console.error('[init] reset échoué:', error.message);
-    showToast('Échec de la réinitialisation du combat.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('init.err.reset'), { type: 'warn', icon: '⚠️' });
   }
   store.set({ initiative: [] });
   await setMeta(0, 1);
@@ -558,7 +559,7 @@ async function setMeta(turn, round) {
   const { error } = await saveSessionValue(META_KEY, { turn, round });
   if (error) {
     console.error('[init] meta échouée:', error.message);
-    showToast('Échec de la mise à jour du combat.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('init.err.updateShort'), { type: 'warn', icon: '⚠️' });
   }
 }
 
@@ -646,7 +647,7 @@ export function subscribeInitiative() {
         if (active?.char_id && !store.get().isDM) {
           const ch = store.get().characters.find((c) => c.id === active.char_id);
           if (ch?.owner_id === store.get().user?.id) {
-            showToast('🗡 À toi de jouer !', { type: 'info', icon: '⚔️', timeout: 6000 });
+            showToast(tr('init.toast.yourTurn'), { type: 'info', icon: '⚔️', timeout: 6000 });
             if (getPref('turnSound')) playTurnChime(); // coupable dans ⚙ Affichage
           }
         }
@@ -805,7 +806,7 @@ async function applyPlayerRequest(p) {
     const ch = store.get().characters.find((c) => c.id === p.charId);
     if (!ch || ch.owner_id !== p.by) return; // contrôle de propriété
     updateLootItem(p.itemId, { reqBy: ch.name, reqCharId: ch.id });
-    showToast(`✋ ${ch.name} demande un objet du trésor.`, { icon: '🪙', timeout: 4000 });
+    showToast(tr('init.toast.lootReq', { name: ch.name }), { icon: '🪙', timeout: 4000 });
     return;
   }
   if (p.kind === 'atkask') {
@@ -822,7 +823,7 @@ async function applyPlayerRequest(p) {
     if (!ids.length) ids = store.get().targets || []; // repli sur les cibles du MJ
     const toks = ids.map((id) => all.find((t) => t.id === id)).filter(Boolean);
     if (toks.length) applyDamageRollToTargets({ amount: p.amount, who: p.who, nm: p.nm, crit: p.crit, tokens: toks });
-    else showToast(`💥 ${p.who || 'Un joueur'} inflige ${p.amount} dégâts — sélectionne une cible (🎯) pour l'appliquer.`, { timeout: 4500 });
+    else showToast(tr('init.toast.dmgApply', { who: p.who || tr('init.aPlayer'), amount: p.amount }), { timeout: 4500 });
     return;
   }
   // Actions liées au personnage du joueur : contrôle de propriété.

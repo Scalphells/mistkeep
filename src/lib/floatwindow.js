@@ -1,4 +1,5 @@
 import { escapeHtml } from './utils.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Gestionnaire de fenêtres flottantes (façon VTT) : chaque vue « lourde » du rail
@@ -81,8 +82,8 @@ export function openWindow(id, { title = 'Fenêtre', mount, width, height } = {}
     <div class="sheet-window-bar" data-drag>
       <span class="sw-title">${escapeHtml(title)}</span>
       <div class="sw-actions">
-        <button class="sw-btn sw-min" title="Réduire">—</button>
-        <button class="sw-btn sw-close" title="Fermer">✕</button>
+        <button class="sw-btn sw-min" title="${tr('float.minimize')}">—</button>
+        <button class="sw-btn sw-close" title="${tr('common.close')}">✕</button>
       </div>
     </div>
     <div class="sheet-window-body"></div>
