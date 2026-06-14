@@ -240,66 +240,66 @@ export async function mountMap(container) {
         </div>
         ${
           isDM
-            ? `<div class="map-tool-group" data-label="Scène active">
-                 <select id="map-scene-sel" class="map-sel" title="Scène active (la sélectionner la rend visible aux joueurs)"></select>
-                 <button class="map-btn" data-act="scene-new" title="Nouvelle scène">➕🗺</button>
-                 <button class="map-btn" data-act="scene-rename" title="Renommer la scène">✏</button>
-                 <button class="map-btn" data-act="scene-del" title="Supprimer la scène">🗑</button>
-                 <button class="map-btn" data-act="scene-export" title="Exporter la scène (JSON)">⬆</button>
-                 <label class="map-btn" title="Importer une scène (JSON)">⬇<input type="file" id="map-scene-file" accept="application/json,.json" hidden></label>
+            ? `<div class="map-tool-group" data-label="${t('map.grp.scene')}">
+                 <select id="map-scene-sel" class="map-sel" title="${t('map.scene.sel')}"></select>
+                 <button class="map-btn" data-act="scene-new" title="${t('map.scene.new')}">➕🗺</button>
+                 <button class="map-btn" data-act="scene-rename" title="${t('map.scene.rename')}">✏</button>
+                 <button class="map-btn" data-act="scene-del" title="${t('map.scene.del')}">🗑</button>
+                 <button class="map-btn" data-act="scene-export" title="${t('map.scene.export')}">⬆</button>
+                 <label class="map-btn" title="${t('map.scene.import')}">⬇<input type="file" id="map-scene-file" accept="application/json,.json" hidden></label>
                </div>
-               <div class="map-tool-group" data-label="Jetons &amp; décor">
-                 <label class="map-btn" title="Importer un fond">🖼<input type="file" id="map-file" accept="image/*" hidden></label>
-                 <button class="map-btn" data-act="add-token" title="Ajouter un jeton">➕</button>
-                 <button class="map-btn" data-act="add-prop" title="Ajouter un décor (image posée sur la carte)">🪟➕</button>
-                 <button class="map-tool" data-tool="tile" title="Décor : déplacer / éditer les props (double-clic = options, clic droit = options)">🪟</button>
-                 <button class="map-btn" data-act="party" title="Importer les PJ">🛡</button>
-                 <button class="map-btn" data-act="token-lib" title="Bibliothèque d'images de jetons">🖼</button>
+               <div class="map-tool-group" data-label="${t('map.grp.tokens')}">
+                 <label class="map-btn" title="${t('map.bg.import')}">🖼<input type="file" id="map-file" accept="image/*" hidden></label>
+                 <button class="map-btn" data-act="add-token" title="${t('map.token.add')}">➕</button>
+                 <button class="map-btn" data-act="add-prop" title="${t('map.prop.add')}">🪟➕</button>
+                 <button class="map-tool" data-tool="tile" title="${t('map.tile.tool')}">🪟</button>
+                 <button class="map-btn" data-act="party" title="${t('map.party')}">🛡</button>
+                 <button class="map-btn" data-act="token-lib" title="${t('map.tokenlib')}">🖼</button>
                </div>
-               <div class="map-tool-group" data-label="Grille">
-                 <button class="map-btn" data-act="grid" title="Grille">▦</button>
-                 <button class="map-btn" data-act="grid-cal" title="Caler la grille (taille + décalage)">📐</button>
-                 <label class="map-num" title="Taille de case (px)">Case<input type="number" id="map-grid" min="10" max="400" step="2"></label>
-                 <label class="map-num" title="Opacité de la grille">Opac<input type="range" id="map-gridop" min="0" max="60" step="2"></label>
-                 <label class="map-num" title="Distance par case">Dist<input type="number" id="map-feet" min="1" max="100"></label>
-                 <select id="map-unit" class="map-sel" title="Unité"><option value="ft">ft</option><option value="m">m</option></select>
+               <div class="map-tool-group" data-label="${t('map.grp.grid')}">
+                 <button class="map-btn" data-act="grid" title="${t('map.grid')}">▦</button>
+                 <button class="map-btn" data-act="grid-cal" title="${t('map.gridcal')}">📐</button>
+                 <label class="map-num" title="${t('map.grid.caseTitle')}">${t('map.grid.case')}<input type="number" id="map-grid" min="10" max="400" step="2"></label>
+                 <label class="map-num" title="${t('map.grid.opacTitle')}">${t('map.grid.opac')}<input type="range" id="map-gridop" min="0" max="60" step="2"></label>
+                 <label class="map-num" title="${t('map.grid.distTitle')}">${t('map.grid.dist')}<input type="number" id="map-feet" min="1" max="100"></label>
+                 <select id="map-unit" class="map-sel" title="${t('map.grid.unitTitle')}"><option value="ft">ft</option><option value="m">m</option></select>
                </div>
-               <div class="map-tool-group" data-label="Brouillard">
-                 <button class="map-tool" data-tool="reveal" title="Révéler le brouillard (pinceau)">🔦</button>
-                 <button class="map-tool" data-tool="hide" title="Masquer (brouillard, pinceau)">🌑</button>
-                 <button class="map-btn" data-act="fog" title="Activer/désactiver le brouillard">🌫</button>
-                 <button class="map-btn" data-act="fog-mode" id="map-fogmode" title="Pinceau (clic) ↔ Rectangle (glisser)">▣</button>
-                 <button class="map-btn" data-act="reveal-all" title="Tout révéler">☀</button>
-                 <button class="map-btn" data-act="hide-all" title="Tout masquer">🕳</button>
+               <div class="map-tool-group" data-label="${t('map.grp.fog')}">
+                 <button class="map-tool" data-tool="reveal" title="${t('map.fog.reveal')}">🔦</button>
+                 <button class="map-tool" data-tool="hide" title="${t('map.fog.hide')}">🌑</button>
+                 <button class="map-btn" data-act="fog" title="${t('map.fog.toggle')}">🌫</button>
+                 <button class="map-btn" data-act="fog-mode" id="map-fogmode" title="${t('map.fog.mode')}">▣</button>
+                 <button class="map-btn" data-act="reveal-all" title="${t('map.fog.revealAll')}">☀</button>
+                 <button class="map-btn" data-act="hide-all" title="${t('map.fog.hideAll')}">🕳</button>
                </div>
-               <div class="map-tool-group" data-label="Murs &amp; lumière">
-                 <button class="map-tool" data-tool="wall" title="Murs : clic = point, enchaîne les segments, double-clic / clic droit = fin">🧱</button>
-                 <button class="map-tool" data-tool="door" title="Porte : glisser = créer, clic = ouvrir/fermer">🚪</button>
-                 <button class="map-tool" data-tool="light" title="Lumière : glisser = rayon, clic = poser/retirer">🕯</button>
-                 <button class="map-btn" data-act="lighting" id="map-lighting" title="Lumière dynamique (vision + murs)">💡</button>
-                 <button class="map-btn" data-act="wall-undo" title="Annuler le dernier mur">↶🧱</button>
-                 <button class="map-btn" data-act="wall-clear" title="Effacer tous les murs">🧹🧱</button>
-                 <button class="map-btn" data-act="light-clear" title="Effacer toutes les lumières">🧹🕯</button>
-                 <button class="map-btn" data-act="explored-clear" title="Réinitialiser la mémoire d'exploration">🌑👁</button>
+               <div class="map-tool-group" data-label="${t('map.grp.walls')}">
+                 <button class="map-tool" data-tool="wall" title="${t('map.wall')}">🧱</button>
+                 <button class="map-tool" data-tool="door" title="${t('map.door')}">🚪</button>
+                 <button class="map-tool" data-tool="light" title="${t('map.light')}">🕯</button>
+                 <button class="map-btn" data-act="lighting" id="map-lighting" title="${t('map.lighting')}">💡</button>
+                 <button class="map-btn" data-act="wall-undo" title="${t('map.wall.undo')}">↶🧱</button>
+                 <button class="map-btn" data-act="wall-clear" title="${t('map.wall.clear')}">🧹🧱</button>
+                 <button class="map-btn" data-act="light-clear" title="${t('map.light.clear')}">🧹🕯</button>
+                 <button class="map-btn" data-act="explored-clear" title="${t('map.explored.clear')}">🌑👁</button>
                </div>
-               <div class="map-tool-group" data-label="Ambiance">
-                 <label class="map-num" title="Obscurité (jour → nuit)">🌙<input type="range" id="map-dark" min="0" max="100" step="5"></label>
-                 <select id="map-weather-sel" class="map-sel" title="Météo">
-                   <option value="none">☀ Clair</option>
-                   <option value="rain">🌧 Pluie</option>
-                   <option value="snow">❄ Neige</option>
-                   <option value="fog">🌫 Brume</option>
+               <div class="map-tool-group" data-label="${t('map.grp.atmo')}">
+                 <label class="map-num" title="${t('map.dark')}">🌙<input type="range" id="map-dark" min="0" max="100" step="5"></label>
+                 <select id="map-weather-sel" class="map-sel" title="${t('map.weather')}">
+                   <option value="none">${t('map.weather.none')}</option>
+                   <option value="rain">${t('map.weather.rain')}</option>
+                   <option value="snow">${t('map.weather.snow')}</option>
+                   <option value="fog">${t('map.weather.fog')}</option>
                  </select>
-                 <button class="map-btn" data-act="soundscape" id="map-soundscape" title="Lier l'ambiance sonore à cette scène : mémorise les pistes en cours de lecture ; elles se relanceront à l'activation de la scène">🔊</button>
+                 <button class="map-btn" data-act="soundscape" id="map-soundscape" title="${t('map.soundscape')}">🔊</button>
                </div>
-               <div class="map-tool-group" data-label="Calques">
-                 <button class="map-btn layer-btn active" data-layer="grid" title="Calque grille">▦</button>
-                 <button class="map-btn layer-btn active" data-layer="tokens" title="Calque jetons">🎭</button>
-                 <button class="map-btn layer-btn active" data-layer="tiles" title="Calque décors">🪟</button>
-                 <button class="map-btn layer-btn active" data-layer="walls" title="Calque murs/portes">🧱</button>
-                 <button class="map-btn layer-btn active" data-layer="lights" title="Calque lumières">🕯</button>
-                 <button class="map-btn layer-btn active" data-layer="fog" title="Calque brouillard">🌫</button>
-                 <button class="map-btn layer-btn active" data-layer="draw" title="Calque dessins">✏</button>
+               <div class="map-tool-group" data-label="${t('map.grp.layers')}">
+                 <button class="map-btn layer-btn active" data-layer="grid" title="${t('map.layer.grid')}">▦</button>
+                 <button class="map-btn layer-btn active" data-layer="tokens" title="${t('map.layer.tokens')}">🎭</button>
+                 <button class="map-btn layer-btn active" data-layer="tiles" title="${t('map.layer.tiles')}">🪟</button>
+                 <button class="map-btn layer-btn active" data-layer="walls" title="${t('map.layer.walls')}">🧱</button>
+                 <button class="map-btn layer-btn active" data-layer="lights" title="${t('map.layer.lights')}">🕯</button>
+                 <button class="map-btn layer-btn active" data-layer="fog" title="${t('map.layer.fog')}">🌫</button>
+                 <button class="map-btn layer-btn active" data-layer="draw" title="${t('map.layer.draw')}">✏</button>
                </div>`
             : ''
         }
