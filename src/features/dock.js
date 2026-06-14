@@ -1,4 +1,5 @@
 import { store } from '../state.js';
+import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/utils.js';
 import { colorFor, initials } from '../lib/profile.js';
 import { condIcon, condIconHtml } from '../lib/conditions.js';
@@ -59,32 +60,32 @@ function renderTabs() {
   const vtt = document.documentElement.dataset.vttrail === '1';
   if (!vtt) {
     el.innerHTML =
-      railTab('dock', 'fiche', '🛡', 'Mon perso') +
-      railTab('dock', 'combat', '⚔', 'Combat') +
-      railTab('dock', 'chat', '💬', 'Chat') +
-      railTab('dock', 'dice', '🎲', 'Dés') +
-      railTab('dock', 'notes', '📝', 'Notes / Journal') +
-      railTab('dock', 'compendium', '📚', 'Compendium') +
-      (isDM ? railTab('dock', 'campagne', '📖', 'Campagne') : '') +
-      railTab('dock', 'settings', '⚙', 'Paramètres');
+      railTab('dock', 'fiche', '🛡', t('dock.tab.fiche')) +
+      railTab('dock', 'combat', '⚔', t('dock.tab.combat')) +
+      railTab('dock', 'chat', '💬', t('dock.tab.chat')) +
+      railTab('dock', 'dice', '🎲', t('dock.tab.dice')) +
+      railTab('dock', 'notes', '📝', t('dock.tab.notesJournal')) +
+      railTab('dock', 'compendium', '📚', t('dock.tab.compendium')) +
+      (isDM ? railTab('dock', 'campagne', '📖', t('dock.tab.campaign')) : '') +
+      railTab('dock', 'settings', '⚙', t('dock.tab.settings'));
   } else {
     // Outils (tiroir, glanceable) + vues lourdes (zone centrale pleine largeur).
     const tools =
-      railTab('dock', 'fiche', '🛡', 'Mon perso') +
-      railTab('dock', 'combat', '⚔', 'Combat') +
-      railTab('dock', 'chat', '💬', 'Chat') +
-      railTab('dock', 'dice', '🎲', 'Dés');
+      railTab('dock', 'fiche', '🛡', t('dock.tab.fiche')) +
+      railTab('dock', 'combat', '⚔', t('dock.tab.combat')) +
+      railTab('dock', 'chat', '💬', t('dock.tab.chat')) +
+      railTab('dock', 'dice', '🎲', t('dock.tab.dice'));
     const views =
-      railTab('nav', 'map', '🗺', 'Carte') +
-      railTab('nav', 'characters', '📋', 'Fiches') +
-      railTab('nav', 'compendium', '📚', 'Compendium') +
-      (isDM ? railTab('nav', 'campaign', '📖', 'Campagne') : '') +
-      railTab('nav', 'handouts', '🖼', 'Handouts') +
-      railTab('nav', 'notes', '📝', 'Notes') +
-      (isDM ? railTab('nav', 'vault', '🧰', 'Banque') : '') +
-      (isDM ? railTab('nav', 'ambience', '🎵', 'Ambiance') : '') +
-      railTab('nav', 'help', '❓', 'Aide') +
-      railTab('dock', 'settings', '⚙', 'Paramètres');
+      railTab('nav', 'map', '🗺', t('dock.tab.map')) +
+      railTab('nav', 'characters', '📋', t('dock.tab.characters')) +
+      railTab('nav', 'compendium', '📚', t('dock.tab.compendium')) +
+      (isDM ? railTab('nav', 'campaign', '📖', t('dock.tab.campaign')) : '') +
+      railTab('nav', 'handouts', '🖼', t('dock.tab.handouts')) +
+      railTab('nav', 'notes', '📝', t('dock.tab.notes')) +
+      (isDM ? railTab('nav', 'vault', '🧰', t('dock.tab.vault')) : '') +
+      (isDM ? railTab('nav', 'ambience', '🎵', t('dock.tab.ambience')) : '') +
+      railTab('nav', 'help', '❓', t('dock.tab.help')) +
+      railTab('dock', 'settings', '⚙', t('dock.tab.settings'));
     el.innerHTML = tools + '<div class="dock-sep"></div>' + views;
   }
   highlightTabs();
@@ -115,7 +116,7 @@ export function mountDock(container) {
     <div class="dock" id="dock">
       <div class="dock-tabs" id="dock-tabs"></div>
       <div class="dock-body" id="dock-body"></div>
-      <div class="dock-resizer" id="dock-resizer" title="Redimensionner"></div>
+      <div class="dock-resizer" id="dock-resizer" title="${t('dock.resize')}"></div>
     </div>
   `;
   const tabsEl = container.querySelector('#dock-tabs');
@@ -219,15 +220,15 @@ function applyOpen() {
 
 function buildPanel(body, which) {
   if (which === 'fiche') {
-    body.innerHTML = `<div class="dock-head">🛡 Ma fiche</div><div class="dock-scroll" id="dk-fiche"></div>`;
+    body.innerHTML = `<div class="dock-head">${t('dock.head.fiche')}</div><div class="dock-scroll" id="dk-fiche"></div>`;
   } else if (which === 'combat') {
-    body.innerHTML = `<div class="dock-head">⚔ Combat</div><div class="dock-scroll" id="dk-combat"></div>`;
+    body.innerHTML = `<div class="dock-head">${t('dock.head.combat')}</div><div class="dock-scroll" id="dk-combat"></div>`;
   } else if (which === 'chat') {
     body.innerHTML = `
-      <div class="dock-head">💬 Chat public</div>
+      <div class="dock-head">${t('dock.head.chat')}</div>
       <div class="dock-scroll" id="dk-chatfeed"></div>
       <form class="dock-chatform" id="dk-chatform">
-        <input id="dk-chatinput" type="text" placeholder="Message…" autocomplete="off" maxlength="2000" />
+        <input id="dk-chatinput" type="text" placeholder="${t('dock.chat.ph')}" autocomplete="off" maxlength="2000" />
         <button class="btn" type="submit">→</button>
       </form>`;
     body.querySelector('#dk-chatfeed').addEventListener('click', applyDelegate);
@@ -245,13 +246,13 @@ function buildPanel(body, which) {
     });
   } else if (which === 'dice') {
     body.innerHTML = `
-      <div class="dock-head">🎲 Dés</div>
+      <div class="dock-head">${t('dock.head.dice')}</div>
       <div class="dock-dice-quick">
         ${DICE.map((d) => `<button class="dice-btn" data-dk-roll="1${d}">${d}</button>`).join('')}
       </div>
       <form class="dock-diceform" id="dk-diceform">
-        <input id="dk-diceinput" type="text" placeholder="2d6+3" autocomplete="off" />
-        <button class="btn" type="submit">Lancer</button>
+        <input id="dk-diceinput" type="text" placeholder="${t('dock.dice.ph')}" autocomplete="off" />
+        <button class="btn" type="submit">${t('dice.roll')}</button>
       </form>
       <div class="dock-scroll" id="dk-dicefeed"></div>`;
     body.querySelector('#dk-dicefeed').addEventListener('click', applyDelegate);
@@ -268,10 +269,10 @@ function buildPanel(body, which) {
     });
   } else if (which === 'notes') {
     body.innerHTML = `
-      <div class="dock-head">📝 Notes</div>
+      <div class="dock-head">${t('dock.head.notes')}</div>
       <form class="dock-chatform" id="dk-noteform">
-        <input id="dk-noteinput" type="text" placeholder="Nouvelle note…" autocomplete="off" maxlength="1000" />
-        <label class="dk-note-share" title="Partager à la table"><input type="checkbox" id="dk-noteshared">👁</label>
+        <input id="dk-noteinput" type="text" placeholder="${t('dock.note.ph')}" autocomplete="off" maxlength="1000" />
+        <label class="dk-note-share" title="${t('dock.note.share')}"><input type="checkbox" id="dk-noteshared">👁</label>
         <button class="btn" type="submit">+</button>
       </form>
       <div class="dock-scroll" id="dk-notes"></div>`;
@@ -290,17 +291,17 @@ function buildPanel(body, which) {
     });
   } else if (which === 'compendium') {
     body.innerHTML = `
-      <div class="dock-head">📚 Compendium</div>
-      <input class="dock-cmp-search" id="dk-cmp-search" type="search" placeholder="Rechercher…" autocomplete="off" />
+      <div class="dock-head">${t('dock.head.compendium')}</div>
+      <input class="dock-cmp-search" id="dk-cmp-search" type="search" placeholder="${t('compendium.search')}" autocomplete="off" />
       <div class="dk-cmp-filters" id="dk-cmp-filters"></div>
       <div class="dock-scroll" id="dk-cmp"></div>`;
     loadCompendium();
     body.querySelector('#dk-cmp-search').addEventListener('input', () => updateCompendium());
   } else if (which === 'campagne') {
     body.innerHTML = `
-      <div class="dock-head">📖 Campagne</div>
-      <button class="dk-action" id="dk-camp-notes" style="margin:8px 10px 4px;width:calc(100% - 20px)">📝 Notes de session</button>
-      <input class="dock-cmp-search" id="dk-camp-search" type="search" placeholder="Rechercher une page…" autocomplete="off" />
+      <div class="dock-head">${t('dock.head.campaign')}</div>
+      <button class="dk-action" id="dk-camp-notes" style="margin:8px 10px 4px;width:calc(100% - 20px)">${t('dock.camp.notes')}</button>
+      <input class="dock-cmp-search" id="dk-camp-search" type="search" placeholder="${t('dock.camp.search')}" autocomplete="off" />
       <div class="dock-scroll" id="dk-camp"></div>`;
     loadCampaign();
     body.querySelector('#dk-camp-search').addEventListener('input', () => updateCampagne());
@@ -309,34 +310,34 @@ function buildPanel(body, which) {
     const isDM = store.get().isDM;
     const layers = store.get().ambience?.layers || [];
     body.innerHTML = `
-      <div class="dock-head">⚙ Paramètres</div>
+      <div class="dock-head">${t('dock.head.settings')}</div>
       <div class="dock-scroll dk-settings">
         <div class="dk-set-ver">Mistkeep · build ${escapeHtml(BUILD_ID)}</div>
-        <div class="dk-set-group">Affichage &amp; compte</div>
-        <button class="dk-set-btn" data-set="prefs">🎛 Préférences d'affichage</button>
-        <button class="dk-set-btn" data-set="profile">🙂 Mon profil &amp; mot de passe</button>
-        <div class="dk-set-group">Outils</div>
-        <button class="dk-set-btn" data-set="search">🔍 Recherche (Ctrl+K)</button>
-        <button class="dk-set-btn" data-set="party">👥 Aperçu du groupe</button>
-        <button class="dk-set-btn" data-set="clock">🕐 Horloge in-game</button>
-        <div class="dk-set-group">Son (cet appareil)</div>
+        <div class="dk-set-group">${t('dock.set.grp.display')}</div>
+        <button class="dk-set-btn" data-set="prefs">${t('dock.set.prefs')}</button>
+        <button class="dk-set-btn" data-set="profile">${t('dock.set.profile')}</button>
+        <div class="dk-set-group">${t('dock.set.grp.tools')}</div>
+        <button class="dk-set-btn" data-set="search">${t('dock.set.search')}</button>
+        <button class="dk-set-btn" data-set="party">${t('dock.set.party')}</button>
+        <button class="dk-set-btn" data-set="clock">${t('dock.set.clock')}</button>
+        <div class="dk-set-group">${t('dock.set.grp.sound')}</div>
         <div class="dk-vol">
-          <div class="dk-vol-row"><span class="dk-vol-lbl">🔊 Maître</span><input type="range" min="0" max="100" value="${getMasterVol()}" data-vmaster><span class="dk-vol-v">${getMasterVol()} %</span></div>
+          <div class="dk-vol-row"><span class="dk-vol-lbl">${t('dock.vol.master')}</span><input type="range" min="0" max="100" value="${getMasterVol()}" data-vmaster><span class="dk-vol-v">${getMasterVol()} %</span></div>
           ${layers
             .map(
               (l) =>
-                `<div class="dk-vol-row"><span class="dk-vol-lbl" title="${escapeHtml(l.name || 'Piste')}">${escapeHtml(l.name || 'Piste')}</span><input type="range" min="0" max="100" value="${getLayerLocal(l.id)}" data-vlayer="${escapeHtml(l.id)}"><span class="dk-vol-v">${getLayerLocal(l.id)} %</span></div>`
+                `<div class="dk-vol-row"><span class="dk-vol-lbl" title="${escapeHtml(l.name || t('amb.track'))}">${escapeHtml(l.name || t('amb.track'))}</span><input type="range" min="0" max="100" value="${getLayerLocal(l.id)}" data-vlayer="${escapeHtml(l.id)}"><span class="dk-vol-v">${getLayerLocal(l.id)} %</span></div>`
             )
-            .join('') || '<div class="dock-empty" style="margin:4px">Aucune piste en cours.</div>'}
+            .join('') || `<div class="dock-empty" style="margin:4px">${t('dock.vol.empty')}</div>`}
         </div>
-        <div class="dk-set-group">Aide</div>
-        <button class="dk-set-btn" data-set="help">📖 Aide &amp; documentation</button>
-        ${isDM ? `<div class="dk-set-group">Partie (MJ)</div>
-          <button class="dk-set-btn" data-set="sfx">🔊 Soundboard</button>
-          <button class="dk-set-btn" data-set="pause">⏸ Mettre en pause</button>
-          <button class="dk-set-btn" data-set="export">💾 Exporter les données (JSON)</button>` : ''}
-        <div class="dk-set-group">Session</div>
-        <button class="dk-set-btn danger" data-set="logout">🚪 Déconnexion</button>
+        <div class="dk-set-group">${t('dock.set.grp.help')}</div>
+        <button class="dk-set-btn" data-set="help">${t('dock.set.help')}</button>
+        ${isDM ? `<div class="dk-set-group">${t('dock.set.grp.game')}</div>
+          <button class="dk-set-btn" data-set="sfx">${t('dock.set.sfx')}</button>
+          <button class="dk-set-btn" data-set="pause">${t('dock.set.pause')}</button>
+          <button class="dk-set-btn" data-set="export">${t('dock.set.export')}</button>` : ''}
+        <div class="dk-set-group">${t('dock.set.grp.session')}</div>
+        <button class="dk-set-btn danger" data-set="logout">${t('dock.set.logout')}</button>
       </div>`;
     body.querySelector('[data-set="prefs"]')?.addEventListener('click', () => openPrefs());
     body.querySelector('[data-set="profile"]')?.addEventListener('click', () => openProfileEditor());
@@ -391,11 +392,11 @@ function updateCampagne() {
     } else {
       el.innerHTML = `
         <div class="dk-camp-detail-head">
-          <button class="dk-camp-back" title="Retour à la liste">← Liste</button>
-          <button class="dk-camp-open" title="Ouvrir en plein écran">⤢</button>
+          <button class="dk-camp-back" title="${t('dock.camp.back.title')}">${t('dock.camp.back')}</button>
+          <button class="dk-camp-open" title="${t('dock.camp.open')}">⤢</button>
         </div>
         <div class="dk-camp-doctitle">${escapeHtml(node.name)}</div>
-        <div class="dk-camp-doc md">${node.body && node.body.trim() ? renderMarkdown(node.body) : '<span class="dock-empty">Page sans note.</span>'}</div>`;
+        <div class="dk-camp-doc md">${node.body && node.body.trim() ? renderMarkdown(node.body) : `<span class="dock-empty">${t('dock.camp.noNote')}</span>`}</div>`;
       el.querySelector('.dk-camp-back').addEventListener('click', () => {
         _dkCampId = null;
         updateCampagne();
@@ -410,7 +411,7 @@ function updateCampagne() {
   const flat = flattenCampaign(store.get().campaign || []);
   const list = flat.filter((x) => !q || x.node.name.toLowerCase().includes(q));
   if (!list.length) {
-    el.innerHTML = `<div class="dock-empty">Aucune page.</div>`;
+    el.innerHTML = `<div class="dock-empty">${t('dock.camp.empty')}</div>`;
     return;
   }
   el.innerHTML = list
@@ -435,15 +436,15 @@ function updateNotes() {
   if (el.contains(document.activeElement)) return;
   const { sessionNotes, players } = store.get();
   if (!sessionNotes.length) {
-    el.innerHTML = `<div class="dock-empty">Aucune note.</div>`;
+    el.innerHTML = `<div class="dock-empty">${t('dock.notes.empty')}</div>`;
     return;
   }
-  const author = (uid) => players.find((p) => p.id === uid)?.display_name || 'Anonyme';
+  const author = (uid) => players.find((p) => p.id === uid)?.display_name || t('dock.anon');
   el.innerHTML = sessionNotes
     .slice(0, 40)
     .map(
       (n) => `<div class="dk-note">
-        <div class="dk-note-meta">${escapeHtml(author(n.created_by))} · ${n.shared ? '👁 partagé' : '🔒 privé'}</div>
+        <div class="dk-note-meta">${escapeHtml(author(n.created_by))} · ${n.shared ? t('dock.note.shared') : t('dock.note.private')}</div>
         <div class="dk-note-body">${renderMarkdown(n.content || '')}</div>
       </div>`
     )
@@ -465,7 +466,7 @@ function renderDkFilters() {
   const chip = (k, label) =>
     `<button class="dk-cmp-filt ${_dkCmpKind === k ? 'active' : ''}" data-kf="${k}">${label}</button>`;
   fl.innerHTML =
-    chip('all', `Tous (${all.length})`) +
+    chip('all', t('dock.cmp.all', { n: all.length })) +
     present.map((k) => chip(k, `${KINDS[k].icon} ${counts[k]}`)).join('');
   fl.querySelectorAll('[data-kf]').forEach((b) =>
     b.addEventListener('click', () => {
@@ -484,7 +485,7 @@ function updateCompendium() {
     (e) => (_dkCmpKind === 'all' || e.kind === _dkCmpKind) && (!q || e.name.toLowerCase().includes(q))
   );
   if (!list.length) {
-    el.innerHTML = `<div class="dock-empty">Aucune entrée.</div>`;
+    el.innerHTML = `<div class="dock-empty">${t('compendium.empty')}</div>`;
     return;
   }
   const detail = _dkCmpId && list.find((e) => e.id === _dkCmpId);
@@ -496,7 +497,7 @@ function updateCompendium() {
           `<button class="dk-cmp-item ${e.id === _dkCmpId ? 'active' : ''}" data-cmp="${e.id}" draggable="true">${KINDS[e.kind]?.icon || '📄'} ${escapeHtml(e.name)}</button>`
       )
       .join('') +
-    (detail ? `<div class="dk-cmp-detail">${renderMarkdown(detail.data?.desc || '*(pas de description)*')}</div>` : '');
+    (detail ? `<div class="dk-cmp-detail">${renderMarkdown(detail.data?.desc || t('dock.cmp.noDesc'))}</div>` : '');
   el.querySelectorAll('[data-cmp]').forEach((b) => {
     b.addEventListener('click', () => {
       _dkCmpId = _dkCmpId === b.dataset.cmp ? null : b.dataset.cmp;
@@ -522,15 +523,15 @@ function updateFiche() {
   // MJ : liste de TOUS les personnages (façon « Acteurs ») → clic = ouvre la fiche.
   if (isDM) {
     if (!characters.length) {
-      el.innerHTML = `<div class="dock-empty">Aucune fiche. Crée-en dans l'onglet Fiches.</div>`;
+      el.innerHTML = `<div class="dock-empty">${t('dock.fiche.emptyDM')}</div>`;
       return;
     }
     el.innerHTML = `<div class="dk-actors">${characters
       .map((ch) => {
         const dd = ch.data || {};
         const url = portraitUrl(dd.portrait);
-        const sub = [dd.cls, dd.lvl ? `niv. ${dd.lvl}` : ''].filter(Boolean).join(' · ');
-        const owner = ch.owner_id ? '' : ' <span class="dk-actor-npc">PNJ</span>';
+        const sub = [dd.cls, dd.lvl ? `${t('sheet.lvl')} ${dd.lvl}` : ''].filter(Boolean).join(' · ');
+        const owner = ch.owner_id ? '' : ` <span class="dk-actor-npc">${t('kind.npc')}</span>`;
         return `<button class="dk-actor ${ch.id === activeChar ? 'active' : ''}" data-actor="${ch.id}">
             <span class="dk-av" style="background:${colorFor(ch.owner_id, ch.name)}">${url ? `<img src="${url}" alt="">` : escapeHtml(initials(ch.name))}</span>
             <span class="dk-actor-id"><strong>${escapeHtml(ch.name)}</strong>${owner}<span class="dk-actor-sub">${escapeHtml(sub)}</span></span>
@@ -551,7 +552,7 @@ function updateFiche() {
   if (!c && !isDM) c = characters.find((x) => x.owner_id === user?.id);
   if (!c) c = characters[0];
   if (!c) {
-    el.innerHTML = `<div class="dock-empty">Aucune fiche disponible.</div>`;
+    el.innerHTML = `<div class="dock-empty">${t('dock.fiche.empty')}</div>`;
     return;
   }
   const d = c.data || {};
@@ -561,24 +562,24 @@ function updateFiche() {
   el.innerHTML = `
     <div class="dk-fiche-head">
       <span class="dk-av lg" style="background:${colorFor(c.owner_id, c.name)}">${url ? `<img src="${url}" alt="">` : escapeHtml(initials(c.name))}</span>
-      <div class="dk-fiche-id"><strong>${escapeHtml(c.name)}</strong><span>${escapeHtml(d.cls || '')}${d.lvl ? ` · Niv. ${d.lvl}` : ''}</span></div>
+      <div class="dk-fiche-id"><strong>${escapeHtml(c.name)}</strong><span>${escapeHtml(d.cls || '')}${d.lvl ? ` · ${t('sheet.lvl')} ${d.lvl}` : ''}</span></div>
     </div>
     <div class="dk-fiche-hp">
       <button class="dk-hpbtn" data-hp="-5">−5</button>
       <button class="dk-hpbtn" data-hp="-1">−1</button>
-      <span class="dk-fiche-hpval">${d.hp ?? '?'} / ${d.hpMax ?? '?'} PV${d.hpTmp ? ` (+${d.hpTmp})` : ''}</span>
+      <span class="dk-fiche-hpval">${d.hp ?? '?'} / ${d.hpMax ?? '?'} ${t('combat.add.hp')}${d.hpTmp ? ` (+${d.hpTmp})` : ''}</span>
       <button class="dk-hpbtn" data-hp="1">+1</button>
       <button class="dk-hpbtn" data-hp="5">+5</button>
     </div>
     <div class="dk-fiche-stats">
-      <span>CA ${escapeHtml(String(d.ac ?? '?'))}</span>
-      <span>Init ${fmtMod(Number(d.initB) || 0)}</span>
-      <span>Vit ${escapeHtml(String(d.spd ?? '?'))}</span>
+      <span>${t('dock.ac')} ${escapeHtml(String(d.ac ?? '?'))}</span>
+      <span>${t('dock.init')} ${fmtMod(Number(d.initB) || 0)}</span>
+      <span>${t('dock.spd')} ${escapeHtml(String(d.spd ?? '?'))}</span>
     </div>
     <div class="dk-fiche-abil">
-      ${sys.abilities.map((a) => `<button data-ab="${a.key}" title="Test de ${a.label} (Maj = avantage, Ctrl = désavantage)">${a.label}<em>${sys.fmtMod(sys.abilityMod(d[a.key]))}</em></button>`).join('')}
+      ${sys.abilities.map((a) => `<button data-ab="${a.key}" title="${t('dock.abTest', { ability: a.label })}">${a.label}<em>${sys.fmtMod(sys.abilityMod(d[a.key]))}</em></button>`).join('')}
     </div>
-    <div class="dk-fiche-hint">Clic = test (Maj = avantage · Ctrl = désavantage)</div>
+    <div class="dk-fiche-hint">${t('dock.abHint')}</div>
     ${dockActions(c)}
     ${dockResources(d)}
     ${dockSlots(d)}
@@ -626,7 +627,7 @@ function updateFiche() {
       const k = b.dataset.ab;
       const mode = e.shiftKey ? 'adv' : e.ctrlKey || e.metaKey ? 'dis' : 'normal';
       const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
-      sendD20Check(sys.abilityMod(d[k]), `${c.name} — Test de ${lbl}`, { mode });
+      sendD20Check(sys.abilityMod(d[k]), t('dock.checkLabel', { name: c.name, ability: lbl }), { mode });
     })
   );
   el.querySelectorAll('[data-slot]').forEach((b) =>
@@ -662,9 +663,9 @@ function dockActions(c) {
   const spells = (c.data?.spells || []).map((s, i) => ({ s, i })).filter((x) => x.s.atk || x.s.dmg);
   if (!atks.length && !spells.length) return '';
   return `<div class="dk-actionlist">
-      <div class="dk-actionlist-h">⚔ Actions</div>
-      ${atks.map((a, i) => `<button class="dk-action" data-act-atk="${i}">⚔ ${escapeHtml(a.nm || 'Attaque')}</button>`).join('')}
-      ${spells.map((x) => `<button class="dk-action" data-act-spell="${x.i}">✨ ${escapeHtml(x.s.nm || 'Sort')}</button>`).join('')}
+      <div class="dk-actionlist-h">${t('dock.actions')}</div>
+      ${atks.map((a, i) => `<button class="dk-action" data-act-atk="${i}">⚔ ${escapeHtml(a.nm || t('combat.action.attack'))}</button>`).join('')}
+      ${spells.map((x) => `<button class="dk-action" data-act-spell="${x.i}">✨ ${escapeHtml(x.s.nm || t('combat.action.spell'))}</button>`).join('')}
     </div>`;
 }
 
@@ -676,11 +677,11 @@ function dockPlayerActions(c) {
       ${
         comb
           ? `<div class="dk-actions-row">
-               <button class="dice-btn" data-pp="rollinit">🎲 Init</button>
-               <button class="dice-btn" data-pp="leave">✖ Quitter</button>
+               <button class="dice-btn" data-pp="rollinit">${t('dock.rollInit')}</button>
+               <button class="dice-btn" data-pp="leave">${t('dock.leave')}</button>
              </div>
              <div class="dk-conds">${CONDITIONS.map((cd) => `<button class="ipp-cond ${conds.includes(cd.n) ? 'on' : ''}" data-cond="${escapeHtml(cd.n)}" title="${escapeHtml(cd.n)}">${cd.i}</button>`).join('')}</div>`
-          : `<button class="dice-btn" data-pp="join">➕ Rejoindre le combat</button>`
+          : `<button class="dice-btn" data-pp="join">${t('dock.join')}</button>`
       }
     </div>`;
 }
@@ -693,7 +694,7 @@ function dockSlots(d) {
       const m = d.slots[lv].m;
       const u = Math.min(d.slots[lv].u || 0, m);
       const pips = Array.from({ length: m }, (_, i) => `<button class="slot-pip ${i < u ? 'used' : ''}" data-slot="${lv}" data-i="${i + 1}"></button>`).join('');
-      return `<div class="dk-slot-row"><span class="dk-slot-lv">N${lv}</span>${pips}</div>`;
+      return `<div class="dk-slot-row"><span class="dk-slot-lv">${t('dock.slotLv', { lv })}</span>${pips}</div>`;
     })
     .join('')}</div>`;
 }
@@ -707,7 +708,7 @@ function dockResources(d) {
       const m = r.max;
       const u = Math.min(r.used || 0, m);
       const pips = Array.from({ length: Math.min(m, 12) }, (_, i) => `<button class="slot-pip ${i < u ? 'used' : ''}" data-res="${ri}" data-i="${i + 1}"></button>`).join('');
-      return `<div class="dk-slot-row"><span class="dk-slot-lv" title="${escapeHtml(r.name || 'Ressource')}">${escapeHtml(r.name || 'Ress.')}</span>${pips}<span class="dk-res-count">${m - u}/${m}</span></div>`;
+      return `<div class="dk-slot-row"><span class="dk-slot-lv" title="${escapeHtml(r.name || t('dock.res.title'))}">${escapeHtml(r.name || t('dock.res'))}</span>${pips}<span class="dk-res-count">${m - u}/${m}</span></div>`;
     })
     .join('')}</div>`;
 }
@@ -737,7 +738,7 @@ function updateCombat() {
               ? ' <span class="dk-comb-ds dead">☠️</span>'
               : ds.s >= 3
                 ? ' <span class="dk-comb-ds stable">🟢</span>'
-                : ` <span class="dk-comb-ds" title="Jets de mort">✔${ds.s}/✘${ds.f}</span>`
+                : ` <span class="dk-comb-ds" title="${t('sheet.death.title')}">✔${ds.s}/✘${ds.f}</span>`
             : '';
           return `<div class="dk-comb ${i === initTurn ? 'active' : ''}">
               <span class="dk-comb-init">${c.initiative}</span>
@@ -746,17 +747,17 @@ function updateCombat() {
             </div>`;
         })
         .join('')
-    : `<div class="dock-empty">Aucun combat en cours.</div>`;
+    : `<div class="dock-empty">${t('dock.combat.empty')}</div>`;
   const log = (store.get().combatLog || []).filter((e) => isDM || !e.dm).slice(-50);
   const logHtml = log.length
     ? log
         .map((e) => {
-          const time = new Date(e.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          const time = new Date(e.t).toLocaleTimeString(t('locale.bcp47'), { hour: '2-digit', minute: '2-digit' });
           return `<div class="dk-logrow"><time>${time}</time> ${escapeHtml(e.text)}</div>`;
         })
         .join('')
-    : `<div class="dock-empty">Aucun événement.</div>`;
-  el.innerHTML = `${rows}<div class="dk-log-h">📜 Journal de combat</div><div class="dk-log" id="dk-log">${logHtml}</div>`;
+    : `<div class="dock-empty">${t('dock.combat.noEvents')}</div>`;
+  el.innerHTML = `${rows}<div class="dk-log-h">${t('combat.log')}</div><div class="dk-log" id="dk-log">${logHtml}</div>`;
   const logEl = el.querySelector('#dk-log');
   if (logEl) logEl.scrollTop = logEl.scrollHeight;
 }
@@ -804,7 +805,7 @@ function updateChat() {
           </div>`;
         })
         .join('')
-    : `<div class="dock-empty">Aucun message.</div>`;
+    : `<div class="dock-empty">${t('dock.chat.empty')}</div>`;
   if (stick) el.scrollTop = el.scrollHeight;
 }
 
@@ -819,5 +820,5 @@ function updateDice() {
     .slice(0, 25);
   el.innerHTML = list.length
     ? list.map((r) => rollCardHtml(r, { isDM, user })).join('')
-    : `<div class="dock-empty">Aucun jet.</div>`;
+    : `<div class="dock-empty">${t('dock.dice.empty')}</div>`;
 }
