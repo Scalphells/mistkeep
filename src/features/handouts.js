@@ -4,6 +4,7 @@ import { uploadMedia } from '../lib/media.js';
 import { campaignId, sameCampaign } from '../lib/campaigns.js';
 import { store } from '../state.js';
 import { showToast } from '../lib/toast.js';
+import { t as tr } from '../lib/i18n.js';
 
 /**
  * Handouts : documents partagés par le MJ aux joueurs.
@@ -102,7 +103,7 @@ export async function deleteHandout(id) {
   const { error } = await backend.db.from('handouts').delete().eq('id', id);
   if (error) {
     console.error('[handouts] suppression échouée:', error.message);
-    showToast('Échec de la suppression du document.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('handouts.err.del'), { type: 'warn', icon: '⚠️' });
     return;
   }
   if (h?.image_url) {

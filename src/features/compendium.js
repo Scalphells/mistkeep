@@ -57,7 +57,7 @@ export async function createEntry(kind, name) {
   const { data, error } = await backend.db.from('compendium').insert(row).select().single();
   if (error) {
     console.error('[compendium] création échouée:', error.message);
-    showToast('Échec de la création de l’entrée — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+    showToast(t('cmp.err.create'), { type: 'warn', icon: '⚠️' });
     return null;
   }
   store.set({ compendium: [...store.get().compendium, data] });
@@ -76,7 +76,7 @@ export async function updateEntry(id, patch) {
     .eq('id', id);
   if (error) {
     console.error('[compendium] mise à jour échouée:', error.message);
-    showToast('Échec de l’enregistrement de l’entrée — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+    showToast(t('cmp.err.save'), { type: 'warn', icon: '⚠️' });
   }
 }
 
@@ -85,7 +85,7 @@ export async function deleteEntry(id) {
   const { error } = await backend.db.from('compendium').delete().eq('id', id);
   if (error) {
     console.error('[compendium] suppression échouée:', error.message);
-    showToast('Échec de la suppression de l’entrée.', { type: 'warn', icon: '⚠️' });
+    showToast(t('cmp.err.del'), { type: 'warn', icon: '⚠️' });
     return;
   }
   store.set({ compendium: store.get().compendium.filter((e) => e.id !== id) });

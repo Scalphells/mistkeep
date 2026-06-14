@@ -361,7 +361,7 @@ export function updateCharPrivate(id, notes) {
           );
         if (error) {
           console.error('[characters] histoire privée save échouée:', error.message);
-          showToast('Échec de l’enregistrement de l’histoire — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+          showToast(tr('char.err.story'), { type: 'warn', icon: '⚠️' });
         }
       }, 900)
     );

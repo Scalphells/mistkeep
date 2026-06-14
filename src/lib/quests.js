@@ -2,6 +2,7 @@ import { backend } from './backend.js';
 import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Journal de quêtes partagé : objectifs visibles de toute la table (actifs /
@@ -46,7 +47,7 @@ async function persist(next) {
   const { error } = await saveSessionValue(KEY, next);
   if (error) {
     console.error('[quests]', error.message);
-    showToast('Échec de la mise à jour des quêtes — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('quests.err.update'), { type: 'warn', icon: '⚠️' });
   }
 }
 

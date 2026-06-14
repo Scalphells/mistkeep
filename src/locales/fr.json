@@ -1739,5 +1739,16 @@
   "camptx.err.notExport": "Fichier invalide : ce n'est pas un export de campagne.",
   "campaigns.err.switchFirst": "Bascule d'abord sur une autre campagne.",
   "campaigns.defaultName": "Campagne",
-  "cmp.err.srdUnavailable": "SRD indisponible"
+  "cmp.err.srdUnavailable": "SRD indisponible",
+  "char.err.story": "Échec de l'enregistrement de l'histoire — vérifie ta connexion.",
+  "cmp.err.create": "Échec de la création de l'entrée — vérifie ta connexion.",
+  "cmp.err.save": "Échec de l'enregistrement de l'entrée — vérifie ta connexion.",
+  "cmp.err.del": "Échec de la suppression de l'entrée.",
+  "handouts.err.del": "Échec de la suppression du document.",
+  "notes.err.save": "Échec de l'enregistrement de la note — vérifie ta connexion.",
+  "notes.err.del": "Échec de la suppression de la note.",
+  "vault.err.save": "Échec de l'enregistrement de la note — vérifie ta connexion.",
+  "vault.err.del": "Échec de la suppression de la note.",
+  "loot.err.update": "Échec de la mise à jour du trésor — vérifie ta connexion.",
+  "quests.err.update": "Échec de la mise à jour des quêtes — vérifie ta connexion."
 }

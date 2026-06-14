@@ -1739,5 +1739,16 @@
   "camptx.err.notExport": "Invalid file: this is not a campaign export.",
   "campaigns.err.switchFirst": "Switch to another campaign first.",
   "campaigns.defaultName": "Campaign",
-  "cmp.err.srdUnavailable": "SRD unavailable"
+  "cmp.err.srdUnavailable": "SRD unavailable",
+  "char.err.story": "Failed to save the story — check your connection.",
+  "cmp.err.create": "Failed to create the entry — check your connection.",
+  "cmp.err.save": "Failed to save the entry — check your connection.",
+  "cmp.err.del": "Failed to delete the entry.",
+  "handouts.err.del": "Failed to delete the handout.",
+  "notes.err.save": "Failed to save the note — check your connection.",
+  "notes.err.del": "Failed to delete the note.",
+  "vault.err.save": "Failed to save the note — check your connection.",
+  "vault.err.del": "Failed to delete the note.",
+  "loot.err.update": "Failed to update the treasure — check your connection.",
+  "quests.err.update": "Failed to update the quests — check your connection."
 }

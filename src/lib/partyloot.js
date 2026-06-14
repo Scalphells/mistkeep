@@ -2,6 +2,7 @@ import { loadSessionValue, saveSessionValue, sameCampaign } from './campaigns.js
 import { backend } from './backend.js';
 import { store } from '../state.js';
 import { showToast } from './toast.js';
+import { t as tr } from './i18n.js';
 
 /**
  * Trésor de groupe partagé : un « pot commun » de pièces et d'objets que le MJ
@@ -54,7 +55,7 @@ async function persist(next) {
   const { error } = await saveSessionValue(KEY, next);
   if (error) {
     console.error('[party loot]', error.message);
-    showToast('Échec de la mise à jour du trésor — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('loot.err.update'), { type: 'warn', icon: '⚠️' });
   }
 }
 

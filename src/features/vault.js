@@ -92,7 +92,7 @@ export function saveNote(path, content) {
         });
         if (error) {
           console.error('[vault] save échouée:', error.message);
-          showToast('Échec de l’enregistrement de la note — vérifie ta connexion.', { type: 'warn', icon: '⚠️' });
+          showToast(tr('vault.err.save'), { type: 'warn', icon: '⚠️' });
         }
       }, 1200)
     );
@@ -138,7 +138,7 @@ export async function deleteNote(path) {
   const { error } = await backend.db.from('vault_notes').delete().eq('campaign_id', campaignId()).eq('path', path);
   if (error) {
     console.error('[vault] suppression échouée:', error.message);
-    showToast('Échec de la suppression de la note.', { type: 'warn', icon: '⚠️' });
+    showToast(tr('vault.err.del'), { type: 'warn', icon: '⚠️' });
   }
 }
 
