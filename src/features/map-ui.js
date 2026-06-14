@@ -7,7 +7,7 @@ import { loadCharacters, updateCharacter, saveBonus } from './characters.js';
 import { loadInitiative, subscribeInitiative, adjustHp, toggleCondition, logCombat, addCombatant, sendPlayerRequest } from './initiative.js';
 import { rollDice } from './dice.js';
 import { condIcon, condIconHtml } from '../lib/conditions.js';
-import { t } from '../lib/i18n.js';
+import { t as tr } from '../lib/i18n.js';
 import { openAttackResolver } from '../lib/attack.js';
 import { openActionCard } from '../lib/actioncard.js';
 import {
@@ -96,23 +96,23 @@ const ZOOM_MAX = 4;
 // Vue (pan/zoom) mémorisée par scène, conservée entre les changements d'onglet.
 const mapViews = {};
 
-// États 5e affichables sur les jetons (clé -> { icône, libellé }).
+// États 5e affichables sur les jetons (clé -> { icône, clé i18n du libellé }).
 const CONDITIONS = {
-  blinded: { icon: '🙈', label: 'Aveuglé' },
-  charmed: { icon: '💗', label: 'Charmé' },
-  deafened: { icon: '🔇', label: 'Assourdi' },
-  frightened: { icon: '😱', label: 'Effrayé' },
-  grappled: { icon: '✊', label: 'Agrippé' },
-  incapacitated: { icon: '💫', label: 'Neutralisé' },
-  invisible: { icon: '👻', label: 'Invisible' },
-  paralyzed: { icon: '🥶', label: 'Paralysé' },
-  petrified: { icon: '🗿', label: 'Pétrifié' },
-  poisoned: { icon: '🤢', label: 'Empoisonné' },
-  prone: { icon: '🛌', label: 'À terre' },
-  restrained: { icon: '⛓', label: 'Entravé' },
-  stunned: { icon: '😵', label: 'Étourdi' },
-  unconscious: { icon: '💤', label: 'Inconscient' },
-  concentration: { icon: '🧠', label: 'Concentration' },
+  blinded: { icon: '🙈', label: 'cond.blinded' },
+  charmed: { icon: '💗', label: 'cond.charmed' },
+  deafened: { icon: '🔇', label: 'cond.deafened' },
+  frightened: { icon: '😱', label: 'cond.frightened' },
+  grappled: { icon: '✊', label: 'cond.grappled' },
+  incapacitated: { icon: '💫', label: 'cond.incapacitated' },
+  invisible: { icon: '👻', label: 'cond.invisible' },
+  paralyzed: { icon: '🥶', label: 'cond.paralyzed' },
+  petrified: { icon: '🗿', label: 'cond.petrified' },
+  poisoned: { icon: '🤢', label: 'cond.poisoned' },
+  prone: { icon: '🛌', label: 'cond.prone' },
+  restrained: { icon: '⛓', label: 'cond.restrained' },
+  stunned: { icon: '😵', label: 'cond.stunned' },
+  unconscious: { icon: '💤', label: 'cond.unconscious' },
+  concentration: { icon: '🧠', label: 'cond.concentration' },
 };
 
 /* Barre d'outils repliable : chaque groupe gagne un en-tête cliquable qui
@@ -197,109 +197,109 @@ export async function mountMap(container) {
   container.innerHTML = `
     <div class="map-root">
       <div class="map-toolbar" id="map-tools">
-        <div class="map-tool-group" data-label="${t('map.grp.nav')}">
-          <button class="map-tool active" data-tool="move" title="${t('map.move.title')}">✋</button>
-          <button class="map-tool" data-tool="ruler" title="${t('map.ruler.title')}">📏</button>
-          ${isDM ? `<button class="map-tool" data-tool="select" title="${t('map.select.title')}">⬚</button>` : ''}
+        <div class="map-tool-group" data-label="${tr('map.grp.nav')}">
+          <button class="map-tool active" data-tool="move" title="${tr('map.move.title')}">✋</button>
+          <button class="map-tool" data-tool="ruler" title="${tr('map.ruler.title')}">📏</button>
+          ${isDM ? `<button class="map-tool" data-tool="select" title="${tr('map.select.title')}">⬚</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${t('map.grp.markers')}">
-          <button class="map-tool" data-tool="ping" title="${t('map.ping.title')}">📍</button>
-          <button class="map-tool" data-tool="pin" title="${t('map.pin.title')}">📌</button>
-          ${isDM ? `<button class="map-tool" data-tool="label" title="${t('map.label.title')}">🏷</button>` : ''}
+        <div class="map-tool-group" data-label="${tr('map.grp.markers')}">
+          <button class="map-tool" data-tool="ping" title="${tr('map.ping.title')}">📍</button>
+          <button class="map-tool" data-tool="pin" title="${tr('map.pin.title')}">📌</button>
+          ${isDM ? `<button class="map-tool" data-tool="label" title="${tr('map.label.title')}">🏷</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${t('map.grp.template')}">
-          <button class="map-tool" data-tool="tmpl" title="${t('map.tmpl.title')}">🎯</button>
-          <select id="map-tmpl-shape" class="map-sel" title="${t('map.tmpl.shapeTitle')}">
-            <option value="circle">${t('map.tmpl.circle')}</option>
-            <option value="cone">${t('map.tmpl.cone')}</option>
-            <option value="line">${t('map.tmpl.line')}</option>
+        <div class="map-tool-group" data-label="${tr('map.grp.template')}">
+          <button class="map-tool" data-tool="tmpl" title="${tr('map.tmpl.title')}">🎯</button>
+          <select id="map-tmpl-shape" class="map-sel" title="${tr('map.tmpl.shapeTitle')}">
+            <option value="circle">${tr('map.tmpl.circle')}</option>
+            <option value="cone">${tr('map.tmpl.cone')}</option>
+            <option value="line">${tr('map.tmpl.line')}</option>
           </select>
-          <label class="map-num" title="${t('map.tmpl.distTitle')}">${t('map.tmpl.dist')}<input type="number" id="map-tmpl-dist" min="0" step="5" placeholder="∞"></label>
-          ${isDM ? `<button class="map-btn" data-act="zone-save" title="${t('map.zonesave.title')}">💥</button>` : ''}
+          <label class="map-num" title="${tr('map.tmpl.distTitle')}">${tr('map.tmpl.dist')}<input type="number" id="map-tmpl-dist" min="0" step="5" placeholder="∞"></label>
+          ${isDM ? `<button class="map-btn" data-act="zone-save" title="${tr('map.zonesave.title')}">💥</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${t('map.grp.view')}">
-          <button class="map-btn" data-act="zoom-out" title="${t('map.zoomout')}">－</button>
+        <div class="map-tool-group" data-label="${tr('map.grp.view')}">
+          <button class="map-btn" data-act="zoom-out" title="${tr('map.zoomout')}">－</button>
           <span class="map-zoom" id="map-zoom">50%</span>
-          <button class="map-btn" data-act="zoom-in" title="${t('map.zoomin')}">＋</button>
-          <button class="map-btn" data-act="fit" title="${t('map.fit')}">⤢</button>
-          <button class="map-btn" data-act="immersive" title="${t('map.immersive')}">⛶</button>
-          ${isDM ? `<button class="map-btn" data-act="push-view" title="${t('map.pushview')}">👁</button>` : ''}
+          <button class="map-btn" data-act="zoom-in" title="${tr('map.zoomin')}">＋</button>
+          <button class="map-btn" data-act="fit" title="${tr('map.fit')}">⤢</button>
+          <button class="map-btn" data-act="immersive" title="${tr('map.immersive')}">⛶</button>
+          ${isDM ? `<button class="map-btn" data-act="push-view" title="${tr('map.pushview')}">👁</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${t('map.grp.draw')}">
-          <button class="map-tool" data-tool="draw" title="${t('map.draw.title')}${isDM ? '' : t('map.draw.ephemeral')}">✏</button>
-          <select id="map-draw-shape" class="map-sel" title="${t('map.draw.shapeTitle')}">
-            <option value="free">${t('map.draw.free')}</option>
-            <option value="rect">${t('map.draw.rect')}</option>
-            <option value="circle">${t('map.draw.circle')}</option>
-            <option value="arrow">${t('map.draw.arrow')}</option>
-            ${isDM ? `<option value="text">${t('map.draw.text')}</option>` : ''}
+        <div class="map-tool-group" data-label="${tr('map.grp.draw')}">
+          <button class="map-tool" data-tool="draw" title="${tr('map.draw.title')}${isDM ? '' : tr('map.draw.ephemeral')}">✏</button>
+          <select id="map-draw-shape" class="map-sel" title="${tr('map.draw.shapeTitle')}">
+            <option value="free">${tr('map.draw.free')}</option>
+            <option value="rect">${tr('map.draw.rect')}</option>
+            <option value="circle">${tr('map.draw.circle')}</option>
+            <option value="arrow">${tr('map.draw.arrow')}</option>
+            ${isDM ? `<option value="text">${tr('map.draw.text')}</option>` : ''}
           </select>
-          <input type="color" id="map-draw-color" class="map-color" value="#e06c75" title="${t('map.draw.colorTitle')}">
-          ${isDM ? `<button class="map-btn" data-act="draw-undo" title="${t('map.draw.undo')}">↶✏</button>
-                    <button class="map-btn" data-act="draw-clear" title="${t('map.draw.clear')}">🧹✏</button>` : ''}
+          <input type="color" id="map-draw-color" class="map-color" value="#e06c75" title="${tr('map.draw.colorTitle')}">
+          ${isDM ? `<button class="map-btn" data-act="draw-undo" title="${tr('map.draw.undo')}">↶✏</button>
+                    <button class="map-btn" data-act="draw-clear" title="${tr('map.draw.clear')}">🧹✏</button>` : ''}
         </div>
         ${
           isDM
-            ? `<div class="map-tool-group" data-label="${t('map.grp.scene')}">
-                 <select id="map-scene-sel" class="map-sel" title="${t('map.scene.sel')}"></select>
-                 <button class="map-btn" data-act="scene-new" title="${t('map.scene.new')}">➕🗺</button>
-                 <button class="map-btn" data-act="scene-rename" title="${t('map.scene.rename')}">✏</button>
-                 <button class="map-btn" data-act="scene-del" title="${t('map.scene.del')}">🗑</button>
-                 <button class="map-btn" data-act="scene-export" title="${t('map.scene.export')}">⬆</button>
-                 <label class="map-btn" title="${t('map.scene.import')}">⬇<input type="file" id="map-scene-file" accept="application/json,.json" hidden></label>
+            ? `<div class="map-tool-group" data-label="${tr('map.grp.scene')}">
+                 <select id="map-scene-sel" class="map-sel" title="${tr('map.scene.sel')}"></select>
+                 <button class="map-btn" data-act="scene-new" title="${tr('map.scene.new')}">➕🗺</button>
+                 <button class="map-btn" data-act="scene-rename" title="${tr('map.scene.rename')}">✏</button>
+                 <button class="map-btn" data-act="scene-del" title="${tr('map.scene.del')}">🗑</button>
+                 <button class="map-btn" data-act="scene-export" title="${tr('map.scene.export')}">⬆</button>
+                 <label class="map-btn" title="${tr('map.scene.import')}">⬇<input type="file" id="map-scene-file" accept="application/json,.json" hidden></label>
                </div>
-               <div class="map-tool-group" data-label="${t('map.grp.tokens')}">
-                 <label class="map-btn" title="${t('map.bg.import')}">🖼<input type="file" id="map-file" accept="image/*" hidden></label>
-                 <button class="map-btn" data-act="add-token" title="${t('map.token.add')}">➕</button>
-                 <button class="map-btn" data-act="add-prop" title="${t('map.prop.add')}">🪟➕</button>
-                 <button class="map-tool" data-tool="tile" title="${t('map.tile.tool')}">🪟</button>
-                 <button class="map-btn" data-act="party" title="${t('map.party')}">🛡</button>
-                 <button class="map-btn" data-act="token-lib" title="${t('map.tokenlib')}">🖼</button>
+               <div class="map-tool-group" data-label="${tr('map.grp.tokens')}">
+                 <label class="map-btn" title="${tr('map.bg.import')}">🖼<input type="file" id="map-file" accept="image/*" hidden></label>
+                 <button class="map-btn" data-act="add-token" title="${tr('map.token.add')}">➕</button>
+                 <button class="map-btn" data-act="add-prop" title="${tr('map.prop.add')}">🪟➕</button>
+                 <button class="map-tool" data-tool="tile" title="${tr('map.tile.tool')}">🪟</button>
+                 <button class="map-btn" data-act="party" title="${tr('map.party')}">🛡</button>
+                 <button class="map-btn" data-act="token-lib" title="${tr('map.tokenlib')}">🖼</button>
                </div>
-               <div class="map-tool-group" data-label="${t('map.grp.grid')}">
-                 <button class="map-btn" data-act="grid" title="${t('map.grid')}">▦</button>
-                 <button class="map-btn" data-act="grid-cal" title="${t('map.gridcal')}">📐</button>
-                 <label class="map-num" title="${t('map.grid.caseTitle')}">${t('map.grid.case')}<input type="number" id="map-grid" min="10" max="400" step="2"></label>
-                 <label class="map-num" title="${t('map.grid.opacTitle')}">${t('map.grid.opac')}<input type="range" id="map-gridop" min="0" max="60" step="2"></label>
-                 <label class="map-num" title="${t('map.grid.distTitle')}">${t('map.grid.dist')}<input type="number" id="map-feet" min="1" max="100"></label>
-                 <select id="map-unit" class="map-sel" title="${t('map.grid.unitTitle')}"><option value="ft">ft</option><option value="m">m</option></select>
+               <div class="map-tool-group" data-label="${tr('map.grp.grid')}">
+                 <button class="map-btn" data-act="grid" title="${tr('map.grid')}">▦</button>
+                 <button class="map-btn" data-act="grid-cal" title="${tr('map.gridcal')}">📐</button>
+                 <label class="map-num" title="${tr('map.grid.caseTitle')}">${tr('map.grid.case')}<input type="number" id="map-grid" min="10" max="400" step="2"></label>
+                 <label class="map-num" title="${tr('map.grid.opacTitle')}">${tr('map.grid.opac')}<input type="range" id="map-gridop" min="0" max="60" step="2"></label>
+                 <label class="map-num" title="${tr('map.grid.distTitle')}">${tr('map.grid.dist')}<input type="number" id="map-feet" min="1" max="100"></label>
+                 <select id="map-unit" class="map-sel" title="${tr('map.grid.unitTitle')}"><option value="ft">ft</option><option value="m">m</option></select>
                </div>
-               <div class="map-tool-group" data-label="${t('map.grp.fog')}">
-                 <button class="map-tool" data-tool="reveal" title="${t('map.fog.reveal')}">🔦</button>
-                 <button class="map-tool" data-tool="hide" title="${t('map.fog.hide')}">🌑</button>
-                 <button class="map-btn" data-act="fog" title="${t('map.fog.toggle')}">🌫</button>
-                 <button class="map-btn" data-act="fog-mode" id="map-fogmode" title="${t('map.fog.mode')}">▣</button>
-                 <button class="map-btn" data-act="reveal-all" title="${t('map.fog.revealAll')}">☀</button>
-                 <button class="map-btn" data-act="hide-all" title="${t('map.fog.hideAll')}">🕳</button>
+               <div class="map-tool-group" data-label="${tr('map.grp.fog')}">
+                 <button class="map-tool" data-tool="reveal" title="${tr('map.fog.reveal')}">🔦</button>
+                 <button class="map-tool" data-tool="hide" title="${tr('map.fog.hide')}">🌑</button>
+                 <button class="map-btn" data-act="fog" title="${tr('map.fog.toggle')}">🌫</button>
+                 <button class="map-btn" data-act="fog-mode" id="map-fogmode" title="${tr('map.fog.mode')}">▣</button>
+                 <button class="map-btn" data-act="reveal-all" title="${tr('map.fog.revealAll')}">☀</button>
+                 <button class="map-btn" data-act="hide-all" title="${tr('map.fog.hideAll')}">🕳</button>
                </div>
-               <div class="map-tool-group" data-label="${t('map.grp.walls')}">
-                 <button class="map-tool" data-tool="wall" title="${t('map.wall')}">🧱</button>
-                 <button class="map-tool" data-tool="door" title="${t('map.door')}">🚪</button>
-                 <button class="map-tool" data-tool="light" title="${t('map.light')}">🕯</button>
-                 <button class="map-btn" data-act="lighting" id="map-lighting" title="${t('map.lighting')}">💡</button>
-                 <button class="map-btn" data-act="wall-undo" title="${t('map.wall.undo')}">↶🧱</button>
-                 <button class="map-btn" data-act="wall-clear" title="${t('map.wall.clear')}">🧹🧱</button>
-                 <button class="map-btn" data-act="light-clear" title="${t('map.light.clear')}">🧹🕯</button>
-                 <button class="map-btn" data-act="explored-clear" title="${t('map.explored.clear')}">🌑👁</button>
+               <div class="map-tool-group" data-label="${tr('map.grp.walls')}">
+                 <button class="map-tool" data-tool="wall" title="${tr('map.wall')}">🧱</button>
+                 <button class="map-tool" data-tool="door" title="${tr('map.door')}">🚪</button>
+                 <button class="map-tool" data-tool="light" title="${tr('map.light')}">🕯</button>
+                 <button class="map-btn" data-act="lighting" id="map-lighting" title="${tr('map.lighting')}">💡</button>
+                 <button class="map-btn" data-act="wall-undo" title="${tr('map.wall.undo')}">↶🧱</button>
+                 <button class="map-btn" data-act="wall-clear" title="${tr('map.wall.clear')}">🧹🧱</button>
+                 <button class="map-btn" data-act="light-clear" title="${tr('map.light.clear')}">🧹🕯</button>
+                 <button class="map-btn" data-act="explored-clear" title="${tr('map.explored.clear')}">🌑👁</button>
                </div>
-               <div class="map-tool-group" data-label="${t('map.grp.atmo')}">
-                 <label class="map-num" title="${t('map.dark')}">🌙<input type="range" id="map-dark" min="0" max="100" step="5"></label>
-                 <select id="map-weather-sel" class="map-sel" title="${t('map.weather')}">
-                   <option value="none">${t('map.weather.none')}</option>
-                   <option value="rain">${t('map.weather.rain')}</option>
-                   <option value="snow">${t('map.weather.snow')}</option>
-                   <option value="fog">${t('map.weather.fog')}</option>
+               <div class="map-tool-group" data-label="${tr('map.grp.atmo')}">
+                 <label class="map-num" title="${tr('map.dark')}">🌙<input type="range" id="map-dark" min="0" max="100" step="5"></label>
+                 <select id="map-weather-sel" class="map-sel" title="${tr('map.weather')}">
+                   <option value="none">${tr('map.weather.none')}</option>
+                   <option value="rain">${tr('map.weather.rain')}</option>
+                   <option value="snow">${tr('map.weather.snow')}</option>
+                   <option value="fog">${tr('map.weather.fog')}</option>
                  </select>
-                 <button class="map-btn" data-act="soundscape" id="map-soundscape" title="${t('map.soundscape')}">🔊</button>
+                 <button class="map-btn" data-act="soundscape" id="map-soundscape" title="${tr('map.soundscape')}">🔊</button>
                </div>
-               <div class="map-tool-group" data-label="${t('map.grp.layers')}">
-                 <button class="map-btn layer-btn active" data-layer="grid" title="${t('map.layer.grid')}">▦</button>
-                 <button class="map-btn layer-btn active" data-layer="tokens" title="${t('map.layer.tokens')}">🎭</button>
-                 <button class="map-btn layer-btn active" data-layer="tiles" title="${t('map.layer.tiles')}">🪟</button>
-                 <button class="map-btn layer-btn active" data-layer="walls" title="${t('map.layer.walls')}">🧱</button>
-                 <button class="map-btn layer-btn active" data-layer="lights" title="${t('map.layer.lights')}">🕯</button>
-                 <button class="map-btn layer-btn active" data-layer="fog" title="${t('map.layer.fog')}">🌫</button>
-                 <button class="map-btn layer-btn active" data-layer="draw" title="${t('map.layer.draw')}">✏</button>
+               <div class="map-tool-group" data-label="${tr('map.grp.layers')}">
+                 <button class="map-btn layer-btn active" data-layer="grid" title="${tr('map.layer.grid')}">▦</button>
+                 <button class="map-btn layer-btn active" data-layer="tokens" title="${tr('map.layer.tokens')}">🎭</button>
+                 <button class="map-btn layer-btn active" data-layer="tiles" title="${tr('map.layer.tiles')}">🪟</button>
+                 <button class="map-btn layer-btn active" data-layer="walls" title="${tr('map.layer.walls')}">🧱</button>
+                 <button class="map-btn layer-btn active" data-layer="lights" title="${tr('map.layer.lights')}">🕯</button>
+                 <button class="map-btn layer-btn active" data-layer="fog" title="${tr('map.layer.fog')}">🌫</button>
+                 <button class="map-btn layer-btn active" data-layer="draw" title="${tr('map.layer.draw')}">✏</button>
                </div>`
             : ''
         }
@@ -400,7 +400,7 @@ export async function mountMap(container) {
     if (!isDM) return;
     centerOn(ix, iy);
     sendView({ px: view.px, py: view.py, z: view.z });
-    showToast('📍 Joueurs amenés ici.', { icon: '👁', timeout: 2000 });
+    showToast(tr('map.toast.pulled'), { icon: '👁', timeout: 2000 });
   }
 
   function toImage(clientX, clientY) {
@@ -452,7 +452,7 @@ export async function mountMap(container) {
       bgImg.style.display = 'none';
       emptyEl.style.display = isDM ? 'flex' : 'none';
       emptyEl.innerHTML = isDM
-        ? `<div>Aucun fond de carte.<br><span class="map-empty-hint">Cliquez sur 🖼 pour en importer un.</span></div>`
+        ? `<div>${tr('map.empty.noBg')}<br><span class="map-empty-hint">${tr('map.empty.hint')}</span></div>`
         : '';
     }
 
@@ -739,7 +739,7 @@ export async function mountMap(container) {
         const art = url ? `<span class="map-token-art" style="background-image:url('${url}'); transform:rotate(${rot}deg)"></span>` : '';
         const bg = url ? 'background:transparent;' : `background:${safeColor(t.color, 'var(--accent)')};`;
         const elev = Number(t.elev) || 0;
-        const elevBadge = elev ? `<span class="map-token-elev" title="Élévation">${elev > 0 ? '▲' : '▼'}${Math.abs(elev)}</span>` : '';
+        const elevBadge = elev ? `<span class="map-token-elev" title="${tr('map.elev')}">${elev > 0 ? '▲' : '▼'}${Math.abs(elev)}</span>` : '';
         // États repris du combattant lié (par entity_id ou char_id).
         const comb = combatantForToken(t);
         const conds = (comb?.conditions || [])
@@ -788,22 +788,22 @@ export async function mountMap(container) {
     const isTarget = targetIds.has(t.id);
     return `<div class="map-token-hud" data-hudfor="${t.id}" style="--hud-z:${(1 / view.z).toFixed(3)}">
         <div class="thud-row">
-          <button class="thud-btn" data-hud="hp-" title="−1 PV (Maj : −5)">➖</button>
-          <span class="thud-hp" title="Points de vie">${hpTxt}</span>
-          <button class="thud-btn" data-hud="hp+" title="+1 PV (Maj : +5)">➕</button>
+          <button class="thud-btn" data-hud="hp-" title="${tr('map.hud.hpMinus')}">➖</button>
+          <span class="thud-hp" title="${tr('map.hud.hp')}">${hpTxt}</span>
+          <button class="thud-btn" data-hud="hp+" title="${tr('map.hud.hpPlus')}">➕</button>
         </div>
         <div class="thud-row">
-          <button class="thud-btn ${isTarget ? 'on' : ''}" data-hud="target" title="Cibler / décibler">🎯</button>
-          <button class="thud-btn" data-hud="conds" title="États">🩹</button>
-          <button class="thud-btn ${t.hidden ? 'on' : ''}" data-hud="hide" title="${t.hidden ? 'Afficher aux joueurs' : 'Masquer aux joueurs'}">${t.hidden ? '👁' : '🙈'}</button>
-          ${t.charId ? `<button class="thud-btn" data-hud="sheet" title="Ouvrir la fiche">👤</button>` : ''}
-          <button class="thud-btn" data-hud="edit" title="Modifier (PV / infos)">📋</button>
+          <button class="thud-btn ${isTarget ? 'on' : ''}" data-hud="target" title="${tr('map.hud.target')}">🎯</button>
+          <button class="thud-btn" data-hud="conds" title="${tr('map.hud.conds')}">🩹</button>
+          <button class="thud-btn ${t.hidden ? 'on' : ''}" data-hud="hide" title="${t.hidden ? tr('map.hud.show') : tr('map.hud.hide')}">${t.hidden ? '👁' : '🙈'}</button>
+          ${t.charId ? `<button class="thud-btn" data-hud="sheet" title="${tr('map.hud.sheet')}">👤</button>` : ''}
+          <button class="thud-btn" data-hud="edit" title="${tr('map.hud.edit')}">📋</button>
         </div>
         <div class="thud-row">
-          <button class="thud-btn" data-hud="pull" title="Amener les joueurs ici">📍</button>
-          <button class="thud-btn" data-hud="shrink" title="Réduire">🔽</button>
-          <button class="thud-btn" data-hud="grow" title="Agrandir">🔼</button>
-          <button class="thud-btn danger" data-hud="del" title="Supprimer">🗑</button>
+          <button class="thud-btn" data-hud="pull" title="${tr('map.hud.pull')}">📍</button>
+          <button class="thud-btn" data-hud="shrink" title="${tr('map.hud.shrink')}">🔽</button>
+          <button class="thud-btn" data-hud="grow" title="${tr('map.hud.grow')}">🔼</button>
+          <button class="thud-btn danger" data-hud="del" title="${tr('map.hud.del')}">🗑</button>
         </div>
       </div>`;
   }
@@ -819,7 +819,7 @@ export async function mountMap(container) {
       const max = t.hpMax != null ? Number(t.hpMax) : Infinity;
       updateToken(t.id, { hp: Math.max(0, Math.min(max, (Number(t.hp) || 0) + delta)) });
     } else {
-      showToast('Ce jeton n’a pas de PV — utilise 📋 pour lui en donner.', { timeout: 2400 });
+      showToast(tr('map.toast.noHp'), { timeout: 2400 });
     }
   }
 
@@ -904,9 +904,9 @@ export async function mountMap(container) {
     ctxMenu = document.createElement('div');
     ctxMenu.className = 'map-ctx';
     ctxMenu.innerHTML = `
-      <button data-lc="edit">✏ Modifier le texte</button>
-      <button data-lc="reveal">${l.revealed ? '🙈 Masquer aux joueurs' : '👁 Révéler aux joueurs'}</button>
-      <button data-lc="del" class="danger">🗑 Supprimer</button>`;
+      <button data-lc="edit">${tr('map.label.editText')}</button>
+      <button data-lc="reveal">${l.revealed ? tr('map.ctx.hide') : tr('map.label.reveal')}</button>
+      <button data-lc="del" class="danger">${tr('map.ctx.del')}</button>`;
     document.body.appendChild(ctxMenu);
     const mr = ctxMenu.getBoundingClientRect();
     ctxMenu.style.left = `${Math.max(8, Math.min(e.clientX, window.innerWidth - mr.width - 8))}px`;
@@ -916,7 +916,7 @@ export async function mountMap(container) {
         const act = b.dataset.lc;
         closeCtx();
         if (act === 'edit') {
-          const nv = await modalPrompt('Texte de l’étiquette :', { title: 'Étiquette', defaultValue: l.text || '' });
+          const nv = await modalPrompt(tr('map.label.prompt'), { title: tr('map.label.modalTitle'), defaultValue: l.text || '' });
           if (nv !== null && nv.trim()) updateLabel(id, { text: nv.trim() });
         } else if (act === 'reveal') {
           updateLabel(id, { revealed: !l.revealed });
@@ -957,11 +957,11 @@ export async function mountMap(container) {
         const mx = (w.x1 + w.x2) / 2;
         const my = (w.y1 + w.y2) / 2;
         const icon = w.open ? '🔓' : w.locked ? '🔒' : w.secret ? '🕵' : '🚪';
-        const state = w.open ? 'Porte ouverte — clic pour fermer' : w.locked ? 'Porte verrouillée' : 'Porte fermée — clic pour ouvrir';
+        const state = w.open ? tr('map.door.open') : w.locked ? tr('map.door.locked') : tr('map.door.closed');
         const cls = ['map-door-mark', w.open ? 'open' : 'closed', w.locked ? 'locked' : '', w.secret ? 'secret' : ''].filter(Boolean).join(' ');
         return `<button class="${cls}" data-door="${i}"
           style="left:${mx}px; top:${my}px"
-          title="${state}${isDM ? ' (clic droit = options)' : ''}">${icon}</button>`;
+          title="${state}${isDM ? tr('map.door.rightClickOpts') : ''}">${icon}</button>`;
       })
       .join('');
     doorsEl.innerHTML = html;
@@ -1023,16 +1023,16 @@ export async function mountMap(container) {
     const p = (store.get().map?.pins || []).find((x) => x.id === id);
     if (!p) return;
     if (!isDM) {
-      if (p.revealed && p.note) modalAlert(p.note, { title: `Marqueur ${p.n}` });
+      if (p.revealed && p.note) modalAlert(p.note, { title: tr('map.pin.title2', { n: p.n }) });
       return;
     }
     closeCtx();
     ctxMenu = document.createElement('div');
     ctxMenu.className = 'map-ctx';
     ctxMenu.innerHTML = `
-      <button data-pc="note">✏ Note</button>
-      <button data-pc="reveal">${p.revealed ? '🙈 Masquer aux joueurs' : '👁 Révéler aux joueurs'}</button>
-      <button data-pc="del" class="danger">🗑 Supprimer</button>`;
+      <button data-pc="note">${tr('map.pin.note')}</button>
+      <button data-pc="reveal">${p.revealed ? tr('map.ctx.hide') : tr('map.label.reveal')}</button>
+      <button data-pc="del" class="danger">${tr('map.ctx.del')}</button>`;
     document.body.appendChild(ctxMenu);
     const mr = ctxMenu.getBoundingClientRect();
     ctxMenu.style.left = `${Math.max(8, Math.min(e.clientX, window.innerWidth - mr.width - 8))}px`;
@@ -1042,7 +1042,7 @@ export async function mountMap(container) {
         const act = b.dataset.pc;
         closeCtx();
         if (act === 'note') {
-          const nv = await modalPrompt('Note du marqueur :', { title: `Marqueur ${p.n}`, defaultValue: p.note || '', multiline: true });
+          const nv = await modalPrompt(tr('map.pin.notePrompt'), { title: tr('map.pin.title2', { n: p.n }), defaultValue: p.note || '', multiline: true });
           if (nv !== null) updatePin(id, { note: nv });
         } else if (act === 'reveal') {
           updatePin(id, { revealed: !p.revealed });
@@ -1147,8 +1147,8 @@ export async function mountMap(container) {
       sceneNav.innerHTML = scenes.length
         ? scenes
             .map((s) => `<button class="scene-chip ${s.id === active ? 'active' : ''}" data-scene="${s.id}" title="${escapeHtml(s.name)}">${s.id === active ? '👁 ' : ''}${escapeHtml(s.name)}</button>`)
-            .join('') + '<button class="scene-chip scene-add" data-act="scene-new" title="Nouvelle scène">＋</button>'
-        : '<button class="scene-chip scene-add" data-act="scene-new" title="Nouvelle scène">＋ Scène</button>';
+            .join('') + `<button class="scene-chip scene-add" data-act="scene-new" title="${tr('map.scene.new')}">＋</button>`
+        : `<button class="scene-chip scene-add" data-act="scene-new" title="${tr('map.scene.new')}">${tr('map.sceneAdd')}</button>`;
     }
   }
 
@@ -1179,7 +1179,10 @@ export async function mountMap(container) {
     const cells = rulerCells(pts);
     const canMove = rulerPts.length >= 2 && tokenAtRulerStart();
     hud.style.display = 'block';
-    hud.textContent = `${cells} cases · ${cells * m.feetPerCell} ${m.unit}${rulerPts.length > 1 ? ` (${rulerPts.length} étapes)` : ''}${canMove ? ' · Entrée = déplacer' : ''}`;
+    hud.textContent =
+      tr('map.ruler.hud', { cells, dist: cells * m.feetPerCell, unit: m.unit }) +
+      (rulerPts.length > 1 ? tr('map.ruler.steps', { n: rulerPts.length }) : '') +
+      (canMove ? tr('map.ruler.move') : '');
   }
   function clearRuler() {
     rulerPts = [];
@@ -1412,10 +1415,10 @@ export async function mountMap(container) {
     ctxMenu = document.createElement('div');
     ctxMenu.className = 'map-ctx';
     ctxMenu.innerHTML = `
-      <label class="map-ctx-color">🎨 Couleur <input type="color" value="${l.color || '#ffb86b'}" data-lcolor></label>
-      <button data-lr="1">➕ Rayon (${l.radius || 4})</button>
-      <button data-lr="-1">➖ Rayon</button>
-      <button data-ldel class="danger">🗑 Supprimer</button>`;
+      <label class="map-ctx-color">${tr('map.lightmenu.color')}<input type="color" value="${l.color || '#ffb86b'}" data-lcolor></label>
+      <button data-lr="1">${tr('map.lightmenu.radiusPlus', { r: l.radius || 4 })}</button>
+      <button data-lr="-1">${tr('map.lightmenu.radiusMinus')}</button>
+      <button data-ldel class="danger">${tr('map.ctx.del')}</button>`;
     document.body.appendChild(ctxMenu);
     const mr = ctxMenu.getBoundingClientRect();
     ctxMenu.style.left = `${Math.max(8, Math.min(e.clientX, window.innerWidth - mr.width - 8))}px`;
@@ -1445,10 +1448,10 @@ export async function mountMap(container) {
     ctxMenu = document.createElement('div');
     ctxMenu.className = 'map-ctx tmpl-pick';
     ctxMenu.innerHTML = `
-      <div class="tmpl-pick-h">🔮 Lancer sur ${store.get().targets.length} cible(s)</div>
-      ${spells.map((s, i) => `<button data-spick="${i}">✨ ${escapeHtml(s.nm || 'Sort')}${s.lvl ? ` (niv.${s.lvl})` : ''}</button>`).join('')}
-      ${atks.map((a, i) => `<button data-apick="${i}">⚔ ${escapeHtml(a.nm || 'Attaque')}</button>`).join('')}
-      <button data-pick-cancel>Annuler (garder les cibles)</button>`;
+      <div class="tmpl-pick-h">${tr('map.pick.castOn', { n: store.get().targets.length })}</div>
+      ${spells.map((s, i) => `<button data-spick="${i}">✨ ${escapeHtml(s.nm || tr('combat.action.spell'))}${s.lvl ? ` (${tr('sheet.lvl')}${s.lvl})` : ''}</button>`).join('')}
+      ${atks.map((a, i) => `<button data-apick="${i}">⚔ ${escapeHtml(a.nm || tr('combat.action.attack'))}</button>`).join('')}
+      <button data-pick-cancel>${tr('map.pick.cancel')}</button>`;
     document.body.appendChild(ctxMenu);
     const mr = ctxMenu.getBoundingClientRect();
     ctxMenu.style.left = `${Math.max(8, window.innerWidth / 2 - mr.width / 2)}px`;
@@ -1705,7 +1708,7 @@ export async function mountMap(container) {
           break;
         case 'push-view':
           sendView({ px: view.px, py: view.py, z: view.z });
-          showToast('Vue envoyée aux joueurs.', { icon: '👁', timeout: 2000 });
+          showToast(tr('map.toast.viewSent'), { icon: '👁', timeout: 2000 });
           break;
         case 'grid':
           patchMap({ grid: { ...m.grid, show: !m.grid.show } });
@@ -1720,7 +1723,7 @@ export async function mountMap(container) {
           removeLastDrawing();
           break;
         case 'draw-clear':
-          if (await modalConfirm('Effacer tous les dessins de cette scène ?', { title: 'Dessins', danger: true, okLabel: 'Effacer' })) {
+          if (await modalConfirm(tr('map.draw.clearConfirm'), { title: tr('map.draw.modalTitle'), danger: true, okLabel: tr('common.clear') })) {
             clearDrawings();
           }
           break;
@@ -1740,23 +1743,23 @@ export async function mountMap(container) {
           openTokenLibrary();
           break;
         case 'scene-new': {
-          const name = await modalPrompt('Nom de la nouvelle scène :', { title: 'Scènes', placeholder: 'Donjon, niveau 1' });
+          const name = await modalPrompt(tr('map.scene.newPrompt'), { title: tr('map.scene.modalTitle'), placeholder: tr('map.scene.newPh') });
           if (name && name.trim()) createScene(name.trim());
           break;
         }
         case 'scene-rename': {
           const sc = store.get().scenes.find((s) => s.id === store.get().activeSceneId);
-          const name = await modalPrompt('Renommer la scène :', { title: 'Scènes', defaultValue: sc?.name || '' });
+          const name = await modalPrompt(tr('map.scene.renamePrompt'), { title: tr('map.scene.modalTitle'), defaultValue: sc?.name || '' });
           if (name && name.trim()) renameScene(store.get().activeSceneId, name.trim());
           break;
         }
         case 'scene-del': {
           if (store.get().scenes.length <= 1) {
-            await modalAlert('Impossible de supprimer la dernière scène.', { title: 'Scènes' });
+            await modalAlert(tr('map.scene.lastOne'), { title: tr('map.scene.modalTitle') });
             break;
           }
           const sc = store.get().scenes.find((s) => s.id === store.get().activeSceneId);
-          if (await modalConfirm(`Supprimer la scène « ${sc?.name} » ? Son contenu sera perdu.`, { title: 'Scènes', danger: true, okLabel: 'Supprimer' }))
+          if (await modalConfirm(tr('map.scene.delConfirm', { name: sc?.name }), { title: tr('map.scene.modalTitle'), danger: true, okLabel: tr('common.delete') }))
             deleteScene(store.get().activeSceneId);
           break;
         }
@@ -1799,8 +1802,8 @@ export async function mountMap(container) {
           patchMap({ soundscape: playing });
           showToast(
             playing.length
-              ? `🔊 Ambiance liée à la scène (${playing.length} piste${playing.length > 1 ? 's' : ''}) — elle se relancera à l'activation.`
-              : '🔇 Ambiance déliée de la scène (aucune piste en lecture).',
+              ? tr('map.soundscape.linked', { n: playing.length })
+              : tr('map.soundscape.unlinked'),
             { timeout: 3000 }
           );
           break;
@@ -1809,15 +1812,15 @@ export async function mountMap(container) {
           removeLastWall();
           break;
         case 'wall-clear':
-          if (m.walls.length && (await modalConfirm('Effacer tous les murs ?', { title: 'Murs', danger: true, okLabel: 'Effacer' })))
+          if (m.walls.length && (await modalConfirm(tr('map.walls.clearConfirm'), { title: tr('map.walls.modalTitle'), danger: true, okLabel: tr('common.clear') })))
             clearWalls();
           break;
         case 'light-clear':
-          if (m.lights.length && (await modalConfirm('Effacer toutes les lumières ?', { title: 'Lumières', danger: true, okLabel: 'Effacer' })))
+          if (m.lights.length && (await modalConfirm(tr('map.lights.clearConfirm'), { title: tr('map.lights.modalTitle'), danger: true, okLabel: tr('common.clear') })))
             clearLights();
           break;
         case 'explored-clear':
-          if (await modalConfirm("Réinitialiser la mémoire d'exploration (tout redevient sombre) ?", { title: 'Mémoire d\'exploration', danger: true, okLabel: 'Réinitialiser' }))
+          if (await modalConfirm(tr('map.explored.confirm'), { title: tr('map.explored.modalTitle'), danger: true, okLabel: tr('map.resetOk') }))
             clearExplored();
           break;
       }
@@ -1833,7 +1836,7 @@ export async function mountMap(container) {
       await uploadBackground(file);
       fit();
     } catch (e) {
-      await modalAlert('Import impossible : ' + e.message, { title: 'Fond de carte' });
+      await modalAlert(tr('common.importErr') + e.message, { title: tr('map.bg.modalTitle') });
     }
     fileInput.value = '';
   });
@@ -1859,13 +1862,13 @@ export async function mountMap(container) {
     const sel = e.target;
     const name = sel.options[sel.selectedIndex]?.text || '';
     await switchScene(sel.value);
-    showToast(`👁 Scène active : ${name} — visible par les joueurs`, { icon: '🗺', timeout: 2600 });
+    showToast(tr('map.toast.sceneActive', { name }), { icon: '🗺', timeout: 2600 });
   });
   // Barre de scènes (vignettes) : changer de scène active ou en créer une.
   container.querySelector('#scene-nav')?.addEventListener('click', async (e) => {
     const newBtn = e.target.closest('[data-act="scene-new"]');
     if (newBtn) {
-      const name = await modalPrompt('Nom de la nouvelle scène :', { title: 'Scènes', placeholder: 'Donjon, niveau 1' });
+      const name = await modalPrompt(tr('map.scene.newPrompt'), { title: tr('map.scene.modalTitle'), placeholder: tr('map.scene.newPh') });
       if (name && name.trim()) createScene(name.trim());
       return;
     }
@@ -1873,7 +1876,7 @@ export async function mountMap(container) {
     if (!chip) return;
     const s = store.get().scenes.find((x) => x.id === chip.dataset.scene);
     await switchScene(chip.dataset.scene);
-    showToast(`👁 Scène active : ${s?.name || ''} — visible par les joueurs`, { icon: '🗺', timeout: 2600 });
+    showToast(tr('map.toast.sceneActive', { name: s?.name || '' }), { icon: '🗺', timeout: 2600 });
   });
   container.querySelector('#map-scene-file')?.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
@@ -1885,11 +1888,11 @@ export async function mountMap(container) {
       const name = obj.name || file.name.replace(/\.json$/i, '');
       const id = await importSceneState(name, state);
       if (id) {
-        showToast(`🗺 Scène « ${name} » importée.`, { timeout: 2600 });
+        showToast(tr('map.toast.sceneImported', { name }), { timeout: 2600 });
         setTimeout(fit, 80);
       }
     } catch (ex) {
-      await modalAlert('Scène JSON invalide : ' + ex.message, { title: 'Import de scène' });
+      await modalAlert(tr('map.scene.invalidJson') + ex.message, { title: tr('map.scene.importTitle') });
     }
   });
 
@@ -1968,7 +1971,7 @@ export async function mountMap(container) {
         e.preventDefault();
         addToken({ x: Math.round(x), y: Math.round(y), label: '', img: bankPath });
         await resolveTokenUrls();
-        showToast('🎭 Jeton ajouté.', { timeout: 1500 });
+        showToast(tr('map.toast.tokenAdded'), { timeout: 1500 });
         return;
       }
 
@@ -1983,7 +1986,7 @@ export async function mountMap(container) {
           return;
         }
         if (!['monster', 'npc', 'place'].includes(entry.kind)) {
-          showToast('Seuls les monstres/PNJ/lieux deviennent des jetons.', { timeout: 2200 });
+          showToast(tr('map.toast.onlyMonNpc'), { timeout: 2200 });
           return;
         }
         addToken({
@@ -1996,7 +1999,7 @@ export async function mountMap(container) {
           hpMax: entry.hpMax,
         });
         await resolveTokenUrls();
-        showToast(`🗺 ${entry.name} placé`, { timeout: 1600 });
+        showToast(tr('map.toast.placed', { name: entry.name }), { timeout: 1600 });
         return;
       }
 
@@ -2008,7 +2011,7 @@ export async function mountMap(container) {
         const path = await uploadLibraryImage(file);
         if (path) addToken({ x: Math.round(x), y: Math.round(y), label: '', img: path });
       } catch (ex) {
-        await modalAlert('Import impossible : ' + ex.message, { title: 'Jeton' });
+        await modalAlert(tr('common.importErr') + ex.message, { title: tr('map.token.modalTitle') });
       }
     });
   }
@@ -2044,14 +2047,14 @@ export async function mountMap(container) {
       if (isDM) addPin({ x: px, y: py });
       else {
         sendPlayerRequest({ kind: 'pin', x: px, y: py, note: store.get().profile?.display_name || '' });
-        showToast('📌 Marqueur envoyé.', { timeout: 1500 });
+        showToast(tr('map.toast.pinSent'), { timeout: 1500 });
       }
       return;
     }
     if (isDM && tool === 'label') {
       const px = Math.round(img.x);
       const py = Math.round(img.y);
-      modalPrompt('Texte de l’étiquette :', { title: 'Étiquette de zone', placeholder: 'Taverne, Pont…' }).then((txt) => {
+      modalPrompt(tr('map.label.prompt'), { title: tr('map.label.zoneTitle'), placeholder: tr('map.label.zonePh') }).then((txt) => {
         if (txt && txt.trim()) addLabel({ x: px, y: py, text: txt.trim() });
       });
       return;
@@ -2114,7 +2117,7 @@ export async function mountMap(container) {
     if (tool === 'draw') {
       if (isDM && drawShape === 'text') {
         const gs = store.get().map?.grid?.size || 70;
-        modalPrompt('Texte de l’annotation :', { title: 'Annotation' }).then((txt) => {
+        modalPrompt(tr('map.anno.prompt'), { title: tr('map.anno.modalTitle') }).then((txt) => {
           if (txt && txt.trim()) {
             addDrawing({ type: 'text', x: Math.round(img.x), y: Math.round(img.y), text: txt.trim(), color: drawColor, fs: Math.round(gs * 0.4) });
           }
@@ -2186,7 +2189,7 @@ export async function mountMap(container) {
         if (targetIds.has(tk.id)) targetIds.delete(tk.id);
         else targetIds.add(tk.id);
         store.set({ targets: [...targetIds] });
-        showToast(targetIds.has(tk.id) ? `🎯 ${tk.label || 'Cible'} ciblé(e) (${targetIds.size})` : `Cible retirée (${targetIds.size})`, { timeout: 1300 });
+        showToast(targetIds.has(tk.id) ? tr('map.toast.targeted', { label: tk.label || tr('map.targetDefault'), n: targetIds.size }) : tr('map.toast.untargeted', { n: targetIds.size }), { timeout: 1300 });
         renderAll();
         return;
       }
@@ -2248,7 +2251,7 @@ export async function mountMap(container) {
       const r = Math.hypot(img.x - dragging.a.x, img.y - dragging.a.y);
       lightPreview = { x: dragging.a.x, y: dragging.a.y, r };
       hud.style.display = 'block';
-      hud.textContent = `Lumière ${Math.round(r / gs) || 0} cases`;
+      hud.textContent = tr('map.lightHud', { n: Math.round(r / gs) || 0 });
       drawCanvas(m, ...Object.values(sceneDims()));
     } else if (dragging.type === 'draw') {
       if (dragging.shape === 'free') {
@@ -2447,7 +2450,7 @@ export async function mountMap(container) {
       if (tmplHits.size) {
         targetIds = new Set(tmplHits);
         store.set({ targets: [...targetIds] });
-        showToast(`🎯 ${targetIds.size} cible(s) sous le gabarit`, { timeout: 1900 });
+        showToast(tr('map.toast.targetsUnder', { n: targetIds.size }), { timeout: 1900 });
         renderAll();
         updateTemplateHits();
         openSpellChooserForTargets(); // propose de lancer un sort sur ces cibles
@@ -2470,7 +2473,7 @@ export async function mountMap(container) {
     const t = (store.get().map?.tokens || []).find((x) => x.id === id);
     if (!t) return;
     // Renommage simple. Suppression/visibilité/taille : via le menu contextuel (clic droit).
-    const label = await modalPrompt('Étiquette du jeton :', { title: 'Renommer le jeton', defaultValue: t.label || '' });
+    const label = await modalPrompt(tr('map.token.labelPrompt'), { title: tr('map.token.renameTitle'), defaultValue: t.label || '' });
     if (label !== null) updateToken(id, { label: label.trim() });
   });
 
@@ -2500,9 +2503,9 @@ export async function mountMap(container) {
     if (!isDM) {
       const own = canMoveToken(t);
       ctxMenu.innerHTML = `
-        <button data-ctx="target">${targetIds.has(id) ? '🎯 Cible (retirer)' : '🎯 Ajouter aux cibles'}</button>
-        ${targetIds.size ? `<button data-ctx="cleartargets">🎯 Effacer les cibles (${targetIds.size})</button>` : ''}
-        ${own ? `<button data-ctx="attack">⚔ Attaquer${targetIds.size ? ` (${targetIds.size})` : ''}…</button>` : ''}`;
+        <button data-ctx="target">${targetIds.has(id) ? tr('map.ctx.targetRemove') : tr('map.ctx.targetAdd')}</button>
+        ${targetIds.size ? `<button data-ctx="cleartargets">${tr('map.ctx.clearTargets', { n: targetIds.size })}</button>` : ''}
+        ${own ? `<button data-ctx="attack">${targetIds.size ? tr('map.ctx.attackN', { n: targetIds.size }) : tr('map.ctx.attack')}</button>` : ''}`;
       document.body.appendChild(ctxMenu);
       const mr0 = ctxMenu.getBoundingClientRect();
       ctxMenu.style.left = `${Math.max(8, Math.min(e.clientX, window.innerWidth - mr0.width - 8))}px`;
@@ -2515,7 +2518,7 @@ export async function mountMap(container) {
             if (targetIds.has(id)) targetIds.delete(id);
             else targetIds.add(id);
             store.set({ targets: [...targetIds] });
-            showToast(targetIds.size ? `🎯 ${targetIds.size} cible(s)` : 'Cibles effacées', { timeout: 1500 });
+            showToast(targetIds.size ? tr('map.toast.nTargets', { n: targetIds.size }) : tr('map.toast.targetsCleared'), { timeout: 1500 });
             renderAll();
           } else if (act === 'cleartargets') {
             targetIds.clear();
@@ -2530,23 +2533,23 @@ export async function mountMap(container) {
     }
 
     ctxMenu.innerHTML = `
-      <button data-ctx="edit">📋 Modifier (PV / infos)…</button>
-      <button data-ctx="tocombat">⚔ Ajouter au combat</button>
-      <button data-ctx="attack">⚔ Attaquer${targetIds.size > 1 ? ` (${targetIds.size} cibles)` : ''}…</button>
-      <button data-ctx="target">${targetIds.has(id) ? '🎯 Cible (retirer)' : '🎯 Ajouter aux cibles'}</button>
-      ${targetIds.size ? `<button data-ctx="cleartargets">🎯 Effacer les cibles (${targetIds.size})</button>` : ''}
-      <button data-ctx="image">🖼 Image…</button>
-      <button data-ctx="conds">🩹 États…</button>
-      <button data-ctx="vis">${t.hidden ? '👁 Afficher aux joueurs' : '🙈 Masquer aux joueurs'}</button>
-      <button data-ctx="pull">📍 Amener les joueurs ici</button>
-      <button data-ctx="vision">🔦 Vision : ${t.vision ? `${t.vision} cases` : 'aucune'}</button>
-      <button data-ctx="lock">${t.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller'}</button>
-      <button data-ctx="rename">✏ Renommer</button>
-      <button data-ctx="grow">⬆ Agrandir</button>
-      <button data-ctx="shrink">⬇ Réduire</button>
-      <button data-ctx="dup">🔁 Dupliquer${selectedIds.size > 1 && selectedIds.has(id) ? ` (${selectedIds.size})` : ''}</button>
-      ${selectedIds.size > 1 ? `<button data-ctx="delsel" class="danger">🗑 Supprimer la sélection (${selectedIds.size})</button>` : ''}
-      <button data-ctx="del" class="danger">🗑 Supprimer</button>`;
+      <button data-ctx="edit">${tr('map.ctx.edit')}</button>
+      <button data-ctx="tocombat">${tr('map.ctx.toCombat')}</button>
+      <button data-ctx="attack">${targetIds.size > 1 ? tr('map.ctx.attackTargets', { n: targetIds.size }) : tr('map.ctx.attack')}</button>
+      <button data-ctx="target">${targetIds.has(id) ? tr('map.ctx.targetRemove') : tr('map.ctx.targetAdd')}</button>
+      ${targetIds.size ? `<button data-ctx="cleartargets">${tr('map.ctx.clearTargets', { n: targetIds.size })}</button>` : ''}
+      <button data-ctx="image">${tr('map.ctx.image')}</button>
+      <button data-ctx="conds">${tr('map.ctx.conds')}</button>
+      <button data-ctx="vis">${t.hidden ? tr('map.ctx.show') : tr('map.ctx.hide')}</button>
+      <button data-ctx="pull">${tr('map.ctx.pull')}</button>
+      <button data-ctx="vision">${t.vision ? tr('map.ctx.visionN', { n: t.vision }) : tr('map.ctx.visionNone')}</button>
+      <button data-ctx="lock">${t.locked ? tr('map.ctx.unlock') : tr('map.ctx.lock')}</button>
+      <button data-ctx="rename">${tr('map.ctx.rename')}</button>
+      <button data-ctx="grow">${tr('map.ctx.grow')}</button>
+      <button data-ctx="shrink">${tr('map.ctx.shrink')}</button>
+      <button data-ctx="dup">${selectedIds.size > 1 && selectedIds.has(id) ? tr('map.ctx.dupN', { n: selectedIds.size }) : tr('map.ctx.dup')}</button>
+      ${selectedIds.size > 1 ? `<button data-ctx="delsel" class="danger">${tr('map.ctx.delSel', { n: selectedIds.size })}</button>` : ''}
+      <button data-ctx="del" class="danger">${tr('map.ctx.del')}</button>`;
     document.body.appendChild(ctxMenu);
     // Repositionne le menu pour qu'il reste dans la fenêtre.
     const mr = ctxMenu.getBoundingClientRect();
@@ -2565,14 +2568,14 @@ export async function mountMap(container) {
             break;
           case 'tocombat': {
             if (combatantForToken(cur)) {
-              showToast('Ce jeton est déjà dans le combat.', { timeout: 2000 });
+              showToast(tr('map.toast.alreadyCombat'), { timeout: 2000 });
               break;
             }
             const ch = cur?.charId ? store.get().characters.find((c) => c.id === cur.charId) : null;
             const eid = await addCombatant({
               // Pour un jeton lié à une fiche, on prend le nom du perso (le label
               // du jeton est souvent une simple initiale).
-              name: ch?.name || cur?.label || 'Combattant',
+              name: ch?.name || cur?.label || tr('map.combatantDefault'),
               initiative: 0,
               hp: ch ? ch.data?.hp : cur?.hp,
               hpMax: ch ? ch.data?.hpMax : cur?.hpMax,
@@ -2581,7 +2584,7 @@ export async function mountMap(container) {
             });
             if (eid) {
               updateToken(id, { entityId: eid });
-              showToast('⚔ Ajouté au combat (jeton lié).', { timeout: 2200 });
+              showToast(tr('map.toast.addedCombat'), { timeout: 2200 });
             }
             break;
           }
@@ -2592,7 +2595,7 @@ export async function mountMap(container) {
             if (targetIds.has(id)) targetIds.delete(id);
             else targetIds.add(id);
             store.set({ targets: [...targetIds] });
-            showToast(targetIds.size ? `🎯 ${targetIds.size} cible(s)` : 'Cibles effacées', { timeout: 1600 });
+            showToast(targetIds.size ? tr('map.toast.nTargets', { n: targetIds.size }) : tr('map.toast.targetsCleared'), { timeout: 1600 });
             renderAll();
             break;
           case 'cleartargets':
@@ -2616,15 +2619,15 @@ export async function mountMap(container) {
             if (cur) pullPlayersTo(cur.x, cur.y);
             break;
           case 'vision': {
-            const nv = await modalPrompt('Rayon de vision du jeton, en cases (0 = aucune) :', {
-              title: 'Vision du jeton',
+            const nv = await modalPrompt(tr('map.token.visionPrompt'), {
+              title: tr('map.token.visionTitle'),
               defaultValue: String(cur?.vision ?? 0),
             });
             if (nv !== null) setTokenVision(id, nv);
             break;
           }
           case 'rename': {
-            const nv = await modalPrompt('Étiquette du jeton :', { title: 'Renommer le jeton', defaultValue: cur?.label || '' });
+            const nv = await modalPrompt(tr('map.token.labelPrompt'), { title: tr('map.token.renameTitle'), defaultValue: cur?.label || '' });
             if (nv !== null) updateToken(id, { label: nv.trim() });
             break;
           }
@@ -2638,16 +2641,16 @@ export async function mountMap(container) {
             if (selectedIds.size > 1 && selectedIds.has(id)) {
               const sel = (store.get().map?.tokens || []).filter((x) => selectedIds.has(x.id));
               sel.forEach(dupToken);
-              showToast(`🔁 ${sel.length} jeton(s) dupliqué(s)`, { timeout: 1800 });
+              showToast(tr('map.toast.duped', { n: sel.length }), { timeout: 1800 });
             } else {
               dupToken(cur);
-              showToast('🔁 Jeton dupliqué', { timeout: 1500 });
+              showToast(tr('map.toast.duped1'), { timeout: 1500 });
             }
             break;
           }
           case 'delsel': {
             const n = selectedIds.size;
-            if (await modalConfirm(`Supprimer ${n} jeton(s) sélectionné(s) ?`, { title: 'Jetons', danger: true, okLabel: 'Supprimer' })) {
+            if (await modalConfirm(tr('map.token.delConfirm', { n }), { title: tr('map.token.modalTitle2'), danger: true, okLabel: tr('common.delete') })) {
               const m = store.get().map;
               if (m) patchMap({ tokens: m.tokens.filter((x) => !selectedIds.has(x.id)) });
               selectedIds.clear();
@@ -2747,7 +2750,7 @@ export async function mountMap(container) {
       return;
     }
     if (store.get().paused) {
-      showToast('⏸ Jeu en pause.', { timeout: 1500 });
+      showToast(tr('map.toast.paused'), { timeout: 1500 });
       return;
     }
     // Joueur : il faut un de ses jetons à proximité de la porte.
@@ -2755,7 +2758,7 @@ export async function mountMap(container) {
     const w = m?.walls?.[i];
     if (!w) return;
     if (w.locked) {
-      showToast('🔒 Cette porte est verrouillée.', { timeout: 2000 });
+      showToast(tr('map.toast.doorLocked'), { timeout: 2000 });
       return;
     }
     const mx = (w.x1 + w.x2) / 2;
@@ -2763,7 +2766,7 @@ export async function mountMap(container) {
     const gs = m.grid.size || 70;
     const near = (m.tokens || []).some((t) => canMoveToken(t) && Math.hypot(t.x - mx, t.y - my) <= gs * 1.5);
     if (!near) {
-      showToast('🚪 Trop éloigné pour atteindre cette porte.', { timeout: 2200 });
+      showToast(tr('map.toast.doorFar'), { timeout: 2200 });
       return;
     }
     sendPlayerRequest({ kind: 'door', index: i }); // le MJ applique
@@ -2784,10 +2787,10 @@ export async function mountMap(container) {
     ctxMenu = document.createElement('div');
     ctxMenu.className = 'map-ctx';
     ctxMenu.innerHTML = `
-      <button data-dm="open">${w.open ? '🚪 Fermer' : '🔓 Ouvrir'}</button>
-      <button data-dm="lock">${w.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller'}</button>
-      <button data-dm="secret">${w.secret ? '👁 Rendre visible' : '🕵 Rendre secrète'}</button>
-      <button data-dm="del" class="danger">🗑 Supprimer</button>`;
+      <button data-dm="open">${w.open ? tr('map.doormenu.close') : tr('map.doormenu.open')}</button>
+      <button data-dm="lock">${w.locked ? tr('map.ctx.unlock') : tr('map.ctx.lock')}</button>
+      <button data-dm="secret">${w.secret ? tr('map.doormenu.makeVisible') : tr('map.doormenu.makeSecret')}</button>
+      <button data-dm="del" class="danger">${tr('map.ctx.del')}</button>`;
     document.body.appendChild(ctxMenu);
     const mr = ctxMenu.getBoundingClientRect();
     ctxMenu.style.left = `${Math.max(8, Math.min(e.clientX, window.innerWidth - mr.width - 8))}px`;
@@ -2826,7 +2829,7 @@ export async function mountMap(container) {
       try {
         await uploadTokenImage(file, id);
       } catch (e) {
-        await modalAlert('Image impossible : ' + e.message, { title: 'Image du jeton' });
+        await modalAlert(tr('cmp.img.err') + e.message, { title: tr('map.tokenImg.modalTitle') });
       }
     });
     inp.click();
@@ -2852,9 +2855,9 @@ export async function mountMap(container) {
         selectedTile = id;
         await resolveTokenUrls();
         setTool('tile');
-        showToast('🪟 Décor ajouté — outil Décor actif pour le placer.', { timeout: 2600 });
+        showToast(tr('map.toast.propAdded'), { timeout: 2600 });
       } catch (e) {
-        await modalAlert('Image impossible : ' + e.message, { title: 'Décor' });
+        await modalAlert(tr('cmp.img.err') + e.message, { title: tr('map.prop.modalTitle') });
       }
     });
     inp.click();
@@ -2931,19 +2934,19 @@ export async function mountMap(container) {
     ov.className = 'modal-overlay show';
     ov.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" style="width:300px;max-width:92vw">
-        <h3 class="modal-title">🪟 Décor</h3>
+        <h3 class="modal-title">${tr('map.tile.title')}</h3>
         <div class="atk-row atk-grid2">
-          <div><label>Largeur (px)</label><input class="atk-in" id="tl-w" type="number" min="10" value="${Math.round(t.w)}"></div>
-          <div><label>Hauteur (px)</label><input class="atk-in" id="tl-h" type="number" min="10" value="${Math.round(t.h)}"></div>
+          <div><label>${tr('map.tile.width')}</label><input class="atk-in" id="tl-w" type="number" min="10" value="${Math.round(t.w)}"></div>
+          <div><label>${tr('map.tile.height')}</label><input class="atk-in" id="tl-h" type="number" min="10" value="${Math.round(t.h)}"></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Rotation (°)</label><input class="atk-in" id="tl-rot" type="number" step="15" value="${t.rot || 0}"></div>
-          <div><label>Opacité (%)</label><input class="atk-in" id="tl-op" type="number" min="10" max="100" value="${Math.round((t.opacity ?? 1) * 100)}"></div>
+          <div><label>${tr('map.te.rot')}</label><input class="atk-in" id="tl-rot" type="number" step="15" value="${t.rot || 0}"></div>
+          <div><label>${tr('map.tile.opacity')}</label><input class="atk-in" id="tl-op" type="number" min="10" max="100" value="${Math.round((t.opacity ?? 1) * 100)}"></div>
         </div>
-        <label class="atk-row" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="tl-above" ${t.above ? 'checked' : ''}> Au-dessus des jetons (toit / surplomb)</label>
+        <label class="atk-row" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="tl-above" ${t.above ? 'checked' : ''}> ${tr('map.tile.above')}</label>
         <div class="modal-actions">
-          <button class="modal-btn danger" id="tl-del">🗑 Supprimer</button>
-          <button class="modal-btn modal-ok" id="tl-ok">Appliquer</button>
+          <button class="modal-btn danger" id="tl-del">${tr('map.ctx.del')}</button>
+          <button class="modal-btn modal-ok" id="tl-ok">${tr('common.apply')}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -3022,64 +3025,64 @@ export async function mountMap(container) {
     overlay.className = 'modal-overlay show';
     overlay.innerHTML = `
       <div class="modal-card tokedit-card" role="dialog" aria-modal="true">
-        <h3 class="modal-title">${existing ? '📋 Modifier le jeton' : '➕ Nouveau jeton'}</h3>
-        <div class="atk-row"><label>Nom / étiquette</label><input class="atk-in" id="te-label" value="${escapeHtml(String(f.label))}" placeholder="Gobelin"></div>
-        <div class="atk-row"><label>Lié à (PV/états/tour)</label><select class="atk-sel" id="te-link">${linkOptions}</select></div>
-        <p class="modal-msg" id="te-linkmsg" style="display:none">Lié au turn order / à une fiche : les PV sont pilotés par le combat ou la fiche.</p>
+        <h3 class="modal-title">${existing ? tr('map.te.titleEdit') : tr('map.te.titleNew')}</h3>
+        <div class="atk-row"><label>${tr('map.te.label')}</label><input class="atk-in" id="te-label" value="${escapeHtml(String(f.label))}" placeholder="${tr('map.te.labelPh')}"></div>
+        <div class="atk-row"><label>${tr('map.te.link')}</label><select class="atk-sel" id="te-link">${linkOptions}</select></div>
+        <p class="modal-msg" id="te-linkmsg" style="display:none">${tr('map.te.linkMsg')}</p>
         <div class="atk-row atk-grid2">
-          <div><label>PV actuels</label><input class="atk-in" id="te-hp" type="number" value="${escapeHtml(String(f.hp))}"></div>
-          <div><label>PV max</label><input class="atk-in" id="te-hpmax" type="number" value="${escapeHtml(String(f.hpMax))}"></div>
+          <div><label>${tr('map.te.hp')}</label><input class="atk-in" id="te-hp" type="number" value="${escapeHtml(String(f.hp))}"></div>
+          <div><label>${tr('map.te.hpMax')}</label><input class="atk-in" id="te-hpmax" type="number" value="${escapeHtml(String(f.hpMax))}"></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>PV temp</label><input class="atk-in" id="te-hptemp" type="number" value="${escapeHtml(String(f.hpTemp))}"></div>
-          <div><label>CA</label><input class="atk-in" id="te-ac" type="number" value="${escapeHtml(String(f.ac))}"></div>
+          <div><label>${tr('map.te.hpTemp')}</label><input class="atk-in" id="te-hptemp" type="number" value="${escapeHtml(String(f.hpTemp))}"></div>
+          <div><label>${tr('map.te.ac')}</label><input class="atk-in" id="te-ac" type="number" value="${escapeHtml(String(f.ac))}"></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Taille (cases)</label>
+          <div><label>${tr('map.te.size')}</label>
             <select class="atk-sel" id="te-size">
-              ${[1, 2, 3, 4].map((s) => `<option value="${s}" ${s === f.size ? 'selected' : ''}>${s}×${s}${s === 1 ? ' (Moyen)' : ''}</option>`).join('')}
+              ${[1, 2, 3, 4].map((s) => `<option value="${s}" ${s === f.size ? 'selected' : ''}>${s}×${s}${s === 1 ? tr('map.te.sizeMedium') : ''}</option>`).join('')}
             </select></div>
-          <div><label>Vision (cases, 0 = aucune)</label><input class="atk-in" id="te-vision" type="number" min="0" value="${escapeHtml(String(f.vision))}"></div>
-          <div><label>Vision dans le noir (cases, vide = comme vision)</label>
+          <div><label>${tr('map.te.vision')}</label><input class="atk-in" id="te-vision" type="number" min="0" value="${escapeHtml(String(f.vision))}"></div>
+          <div><label>${tr('map.te.darkvision')}</label>
             <div style="display:flex;gap:6px;align-items:center">
               <input class="atk-in" id="te-dvision" type="number" min="0" value="${escapeHtml(String(f.darkvision))}" style="flex:1">
-              <button class="modal-btn" id="te-dv-sync" type="button" title="Reprendre la vision dans le noir de la fiche liée (auto par défaut)" style="white-space:nowrap">↺ Fiche</button>
+              <button class="modal-btn" id="te-dv-sync" type="button" title="${tr('map.te.dvSync.title')}" style="white-space:nowrap">${tr('map.te.dvSync')}</button>
             </div>
           </div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Aura / portée (cases)</label><input class="atk-in" id="te-aura" type="number" min="0" value="${escapeHtml(String(f.auraR))}"></div>
-          <div><label>Couleur aura</label><input class="atk-in tokedit-color" id="te-auracolor" type="color" value="${f.auraColor}"></div>
+          <div><label>${tr('map.te.aura')}</label><input class="atk-in" id="te-aura" type="number" min="0" value="${escapeHtml(String(f.auraR))}"></div>
+          <div><label>${tr('map.te.auraColor')}</label><input class="atk-in tokedit-color" id="te-auracolor" type="color" value="${f.auraColor}"></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Lumière portée (cases)</label><input class="atk-in" id="te-light" type="number" min="0" value="${escapeHtml(String(f.lightR))}"></div>
-          <div><label>Couleur lumière</label><input class="atk-in tokedit-color" id="te-lightcolor" type="color" value="${f.lightColor}"></div>
+          <div><label>${tr('map.te.light')}</label><input class="atk-in" id="te-light" type="number" min="0" value="${escapeHtml(String(f.lightR))}"></div>
+          <div><label>${tr('map.te.lightColor')}</label><input class="atk-in tokedit-color" id="te-lightcolor" type="color" value="${f.lightColor}"></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Rotation (°)</label><input class="atk-in" id="te-rot" type="number" step="15" value="${escapeHtml(String(f.rot))}"></div>
-          <div><label>Élévation (± pieds)</label><input class="atk-in" id="te-elev" type="number" value="${escapeHtml(String(f.elev))}"></div>
+          <div><label>${tr('map.te.rot')}</label><input class="atk-in" id="te-rot" type="number" step="15" value="${escapeHtml(String(f.rot))}"></div>
+          <div><label>${tr('map.te.elev')}</label><input class="atk-in" id="te-elev" type="number" value="${escapeHtml(String(f.elev))}"></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Couleur</label><input class="atk-in tokedit-color" id="te-color" type="color" value="${f.color}"></div>
-          <div><label>Image</label>
+          <div><label>${tr('map.te.color')}</label><input class="atk-in tokedit-color" id="te-color" type="color" value="${f.color}"></div>
+          <div><label>${tr('map.te.image')}</label>
             <div class="tokedit-img">
               <span class="tokedit-thumb" id="te-thumb"></span>
-              <button class="modal-btn" id="te-imgbtn" type="button">Choisir…</button>
+              <button class="modal-btn" id="te-imgbtn" type="button">${tr('map.te.choose')}</button>
               <button class="modal-btn" id="te-imgclr" type="button" ${f.img ? '' : 'style="display:none"'}>✕</button>
             </div></div>
         </div>
-        <div class="atk-row"><label>Disposition (couleur de l'anneau)</label>
+        <div class="atk-row"><label>${tr('map.te.disp')}</label>
           <select class="atk-sel" id="te-disp">
-            <option value="auto" ${f.disp === 'auto' ? 'selected' : ''}>Auto (selon le lien)</option>
-            <option value="ally" ${f.disp === 'ally' ? 'selected' : ''}>🟢 Allié</option>
-            <option value="neutral" ${f.disp === 'neutral' ? 'selected' : ''}>🟡 Neutre</option>
-            <option value="hostile" ${f.disp === 'hostile' ? 'selected' : ''}>🔴 Hostile</option>
-            <option value="custom" ${f.disp === 'custom' ? 'selected' : ''}>🎨 Couleur perso</option>
+            <option value="auto" ${f.disp === 'auto' ? 'selected' : ''}>${tr('map.te.dispAuto')}</option>
+            <option value="ally" ${f.disp === 'ally' ? 'selected' : ''}>${tr('map.te.dispAlly')}</option>
+            <option value="neutral" ${f.disp === 'neutral' ? 'selected' : ''}>${tr('map.te.dispNeutral')}</option>
+            <option value="hostile" ${f.disp === 'hostile' ? 'selected' : ''}>${tr('map.te.dispHostile')}</option>
+            <option value="custom" ${f.disp === 'custom' ? 'selected' : ''}>${tr('map.te.dispCustom')}</option>
           </select></div>
-        <div class="atk-row"><label>Note (MJ)</label><textarea class="atk-in tokedit-note" id="te-note" placeholder="Tactique, butin, rappel…">${escapeHtml(String(f.note))}</textarea></div>
+        <div class="atk-row"><label>${tr('map.te.note')}</label><textarea class="atk-in tokedit-note" id="te-note" placeholder="${tr('map.te.notePh')}">${escapeHtml(String(f.note))}</textarea></div>
         <div class="modal-actions">
-          <button class="modal-btn tokedit-cancel">Annuler</button>
-          <button class="modal-btn modal-ok tokedit-save">${existing ? 'Enregistrer' : 'Créer'}</button>
+          <button class="modal-btn tokedit-cancel">${tr('common.cancel')}</button>
+          <button class="modal-btn modal-ok tokedit-save">${existing ? tr('common.save') : tr('common.create')}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -3114,7 +3117,7 @@ export async function mountMap(container) {
             setThumb();
           }
         } catch (err) {
-          await modalAlert('Image impossible : ' + err.message, { title: 'Image du jeton' });
+          await modalAlert(tr('cmp.img.err') + err.message, { title: tr('map.tokenImg.modalTitle') });
         }
       });
       inp.click();
@@ -3140,7 +3143,7 @@ export async function mountMap(container) {
           : null;
       const ch = cid ? store.get().characters.find((c) => c.id === cid) : null;
       if (!ch) {
-        modalAlert('Lie d’abord ce jeton à une fiche pour reprendre sa vision dans le noir.', { title: 'Vision dans le noir' });
+        modalAlert(tr('map.te.dvNeedLink'), { title: tr('map.te.dvTitle') });
         return;
       }
       const cells = metersToCells(store.get().map, ch.data?.darkvision);
@@ -3240,12 +3243,12 @@ export async function mountMap(container) {
     const panel = document.createElement('div');
     panel.className = 'map-gridcal';
     panel.innerHTML = `
-      <div class="map-gridcal-head">📐 Calage de la grille<button class="map-gridcal-x" title="Fermer">✕</button></div>
-      <div class="map-gridcal-row"><span>Taille</span><button data-gc="size" data-d="-1">−</button><input type="number" id="gc-size" min="10" max="400"><button data-gc="size" data-d="1">+</button></div>
-      <div class="map-gridcal-row"><span>Décalage X</span><button data-gc="ox" data-d="-1">−</button><input type="number" id="gc-ox"><button data-gc="ox" data-d="1">+</button></div>
-      <div class="map-gridcal-row"><span>Décalage Y</span><button data-gc="oy" data-d="-1">−</button><input type="number" id="gc-oy"><button data-gc="oy" data-d="1">+</button></div>
-      <div class="map-gridcal-row"><button id="gc-align" style="flex:1" title="Clique deux coins opposés d'une même case : taille et décalage sont calculés">🎯 Aligner en 2 clics</button></div>
-      <div class="map-gridcal-hint">Ajustez jusqu'à ce que la grille colle à l'image.</div>`;
+      <div class="map-gridcal-head">${tr('map.gc.title')}<button class="map-gridcal-x" title="${tr('common.close')}">✕</button></div>
+      <div class="map-gridcal-row"><span>${tr('map.gc.size')}</span><button data-gc="size" data-d="-1">−</button><input type="number" id="gc-size" min="10" max="400"><button data-gc="size" data-d="1">+</button></div>
+      <div class="map-gridcal-row"><span>${tr('map.gc.offX')}</span><button data-gc="ox" data-d="-1">−</button><input type="number" id="gc-ox"><button data-gc="ox" data-d="1">+</button></div>
+      <div class="map-gridcal-row"><span>${tr('map.gc.offY')}</span><button data-gc="oy" data-d="-1">−</button><input type="number" id="gc-oy"><button data-gc="oy" data-d="1">+</button></div>
+      <div class="map-gridcal-row"><button id="gc-align" style="flex:1" title="${tr('map.gc.alignTitle')}">${tr('map.gc.align')}</button></div>
+      <div class="map-gridcal-hint">${tr('map.gc.hint')}</div>`;
     (container.querySelector('.map-viewport') || container).appendChild(panel);
     gridCalEl = panel;
     // Les clics dans le panneau ne doivent pas amorcer un pan de la carte.
@@ -3288,19 +3291,19 @@ export async function mountMap(container) {
       e.stopPropagation();
       alignPts.push(toImage(e.clientX, e.clientY));
       if (alignPts.length < 2) {
-        hintEl.textContent = 'Maintenant, le coin opposé de la même case.';
+        hintEl.textContent = tr('map.gc.hint2');
         return;
       }
       const res = gridFromCorners(alignPts[0], alignPts[1]);
       disarmAlign();
       if (!res) {
-        showToast('Coins trop proches ou trop éloignés — zoome et réessaie.', { type: 'warn', icon: '📐' });
+        showToast(tr('map.gc.tooClose'), { type: 'warn', icon: '📐' });
         return;
       }
       const m = store.get().map;
       patchMap({ grid: { ...curGrid(), size: res.size, ox: res.ox, oy: res.oy }, fog: { ...m.fog, cell: res.size } });
       syncInputs();
-      showToast(`Grille calée : case de ${res.size}px, décalage (${res.ox}, ${res.oy}).`, { type: 'info', icon: '📐' });
+      showToast(tr('map.gc.done', { size: res.size, ox: res.ox, oy: res.oy }), { type: 'info', icon: '📐' });
     };
     function disarmAlign() {
       alignPts = [];
@@ -3311,7 +3314,7 @@ export async function mountMap(container) {
     function armAlign() {
       alignPts = [];
       alignBtn.classList.add('active');
-      hintEl.textContent = 'Clique un coin d’une case de l’image…';
+      hintEl.textContent = tr('map.gc.hint1');
       vp.addEventListener('pointerdown', onAlignPick, true);
     }
     alignBtn.addEventListener('click', () => (alignBtn.classList.contains('active') ? disarmAlign() : armAlign()));
@@ -3338,7 +3341,7 @@ export async function mountMap(container) {
       temp -= ft;
       const after = Math.max(0, hp - (dmg - ft));
       updateCharacter(token.charId, { hp: after, hpTmp: temp });
-      logCombat(`💥 ${token.label || 'Jeton'} subit ${dmg} dégâts (PV ${hp}→${after}).`);
+      logCombat(tr('map.log.dmg', { label: token.label || tr('map.tokenDefault'), dmg, hp, after }));
       return;
     }
     if (token.hp != null || token.hpMax != null) {
@@ -3348,7 +3351,7 @@ export async function mountMap(container) {
       temp -= ft;
       const after = Math.max(0, hp - (dmg - ft));
       updateToken(token.id, { hp: after, hpTemp: temp });
-      logCombat(`💥 ${token.label || 'Jeton'} subit ${dmg} dégâts (PV ${hp}→${after}).`);
+      logCombat(tr('map.log.dmg', { label: token.label || tr('map.tokenDefault'), dmg, hp, after }));
     }
   }
 
@@ -3388,34 +3391,34 @@ export async function mountMap(container) {
   function openZoneSave() {
     if (!isDM) return;
     if (!template) {
-      showToast('Place d’abord un gabarit (🎯) sur la zone.', { timeout: 2600 });
+      showToast(tr('map.zs.needTemplate'), { timeout: 2600 });
       return;
     }
     const targets = tokensInTemplate();
     if (!targets.length) {
-      showToast('Aucun jeton sous le gabarit.', { timeout: 2600 });
+      showToast(tr('map.zs.noToken'), { timeout: 2600 });
       return;
     }
     closeZoneSave();
-    const ABS = [['dex', 'DEX'], ['con', 'CON'], ['wis', 'SAG'], ['str', 'FOR'], ['int', 'INT'], ['cha', 'CHA']];
+    const ABS = ['dex', 'con', 'wis', 'str', 'int', 'cha'];
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay show';
     overlay.innerHTML = `
       <div class="modal-card atk-card" role="dialog" aria-modal="true">
-        <h3 class="modal-title">💥 Sauvegarde de zone</h3>
-        <p class="modal-msg">${targets.length} jeton(s) sous le gabarit.</p>
+        <h3 class="modal-title">${tr('map.zs.title')}</h3>
+        <p class="modal-msg">${tr('map.zs.count', { n: targets.length })}</p>
         <div class="atk-row atk-grid2">
-          <div><label>DD</label><input class="atk-in" id="zs-dc" type="number" value="13"></div>
-          <div><label>Caractéristique</label><select class="atk-sel" id="zs-ab">${ABS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+          <div><label>${tr('map.zs.dc')}</label><input class="atk-in" id="zs-dc" type="number" value="13"></div>
+          <div><label>${tr('map.zs.ability')}</label><select class="atk-sel" id="zs-ab">${ABS.map((k) => `<option value="${k}">${tr('field.' + k)}</option>`).join('')}</select></div>
         </div>
         <div class="atk-row atk-grid2">
-          <div><label>Dégâts</label><input class="atk-in" id="zs-dmg" value="8d6" placeholder="8d6"></div>
-          <div><label>Si réussite</label><select class="atk-sel" id="zs-half"><option value="half">½ dégâts</option><option value="none">aucun dégât</option></select></div>
+          <div><label>${tr('combat.gs.dmg')}</label><input class="atk-in" id="zs-dmg" value="8d6" placeholder="8d6"></div>
+          <div><label>${tr('map.zs.onSuccess')}</label><select class="atk-sel" id="zs-half"><option value="half">${tr('map.zs.half')}</option><option value="none">${tr('map.zs.none')}</option></select></div>
         </div>
         <div class="atk-result" id="zs-result"></div>
         <div class="modal-actions">
-          <button class="modal-btn zs-close">Fermer</button>
-          <button class="modal-btn modal-ok" id="zs-go">🎲 Résoudre</button>
+          <button class="modal-btn zs-close">${tr('common.close')}</button>
+          <button class="modal-btn modal-ok" id="zs-go">${tr('map.zs.resolve')}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -3437,7 +3440,7 @@ export async function mountMap(container) {
         } while (buf[0] >= max);
         return (buf[0] % 20) + 1;
       };
-      logCombat(`💥 Sauvegarde de zone — DD ${dc} (${ab.toUpperCase()}), ${total} dégâts.`);
+      logCombat(tr('map.zs.log', { dc, ab: tr('field.' + ab), dmg: total }));
       const rows = tokensInTemplate().map((t) => {
         const ch = t.charId ? store.get().characters.find((c) => c.id === t.charId) : null;
         const bonus = ch ? saveBonus(ch.data, ab) : 0;
@@ -3446,7 +3449,7 @@ export async function mountMap(container) {
         const ok = roll >= dc;
         const dmg = ok ? (half ? Math.floor(total / 2) : 0) : total;
         applyTokenDamage(t, dmg);
-        return { name: t.label || ch?.name || 'Jeton', roll, ok, dmg, linked: !!ch || !!combatantForToken(t) || t.hp != null };
+        return { name: t.label || ch?.name || tr('map.tokenDefault'), roll, ok, dmg, linked: !!ch || !!combatantForToken(t) || t.hp != null };
       });
       overlay.querySelector('#zs-result').innerHTML = `
         <div class="zs-rows">${rows
@@ -3458,7 +3461,7 @@ export async function mountMap(container) {
       const applied = rows.filter((r) => r.linked && r.dmg).length;
       const unlinked = rows.filter((r) => !r.linked).length;
       showToast(
-        `💥 ${rows.length} cible(s), ${applied} touchée(s)${unlinked ? ` — ${unlinked} non liée(s) (PV non appliqués)` : ''}`,
+        tr('map.zs.summary', { n: rows.length, hit: applied }) + (unlinked ? tr('map.zs.summaryUnlinked', { n: unlinked }) : ''),
         { timeout: 3500 }
       );
     });
@@ -3481,7 +3484,7 @@ export async function mountMap(container) {
     condMenu.innerHTML = Object.entries(CONDITIONS)
       .map(
         ([k, v]) =>
-          `<button data-cond="${k}" class="${set.has(k) ? 'on' : ''}"><span>${v.icon} ${v.label}</span><span class="ck">${set.has(k) ? '✓' : ''}</span></button>`
+          `<button data-cond="${k}" class="${set.has(k) ? 'on' : ''}"><span>${v.icon} ${tr(v.label)}</span><span class="ck">${set.has(k) ? '✓' : ''}</span></button>`
       )
       .join('');
     document.body.appendChild(condMenu);
@@ -3519,9 +3522,9 @@ export async function mountMap(container) {
       e.preventDefault();
       if (undoMapPatch()) {
         renderAll();
-        showToast('↩ Dernière modification annulée.', { timeout: 1400 });
+        showToast(tr('map.toast.undone'), { timeout: 1400 });
       } else {
-        showToast('Rien à annuler sur cette scène.', { timeout: 1400 });
+        showToast(tr('map.toast.nothingUndo'), { timeout: 1400 });
       }
     } else if (e.key === 'Escape') {
       if (template) clearTemplate();
@@ -3544,7 +3547,7 @@ export async function mountMap(container) {
         const y = Math.round(Math.floor(end.y / gs) * gs + gs / 2);
         // Joueur : refuse la téléportation si le trajet traverse un mur / une porte fermée.
         if (!isDM && (m.walls || []).length && losBlocked(tk.x, tk.y, x, y, m.walls)) {
-          showToast('🧱 Un mur bloque ce déplacement.', { timeout: 2200 });
+          showToast(tr('map.toast.wallBlocks'), { timeout: 2200 });
           return;
         }
         if (isDM) {
@@ -3556,12 +3559,12 @@ export async function mountMap(container) {
         }
         clearRuler();
       } else {
-        showToast('Commence la règle sur ton jeton pour le déplacer.', { timeout: 2600 });
+        showToast(tr('map.toast.rulerStart'), { timeout: 2600 });
       }
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && isDM && selectedIds.size) {
       e.preventDefault();
       const n = selectedIds.size;
-      if (await modalConfirm(`Supprimer ${n} jeton${n > 1 ? 's' : ''} sélectionné${n > 1 ? 's' : ''} ?`, { title: 'Jetons', danger: true, okLabel: 'Supprimer' })) {
+      if (await modalConfirm(tr('map.token.delConfirm', { n }), { title: tr('map.token.modalTitle2'), danger: true, okLabel: tr('common.delete') })) {
         const m = store.get().map;
         if (m) patchMap({ tokens: m.tokens.filter((t) => !selectedIds.has(t.id)) });
         selectedIds.clear();
@@ -3595,9 +3598,9 @@ export async function mountMap(container) {
     ov.innerHTML = `
       <div class="tok-lib">
         <header class="tok-lib-head">
-          <strong>Bibliothèque de jetons</strong>
-          <label class="map-btn" title="Importer une image">⬆<input type="file" id="lib-file" accept="image/*" hidden></label>
-          <button class="tok-lib-close" title="Fermer">✕</button>
+          <strong>${tr('map.lib.title')}</strong>
+          <label class="map-btn" title="${tr('map.lib.import')}">⬆<input type="file" id="lib-file" accept="image/*" hidden></label>
+          <button class="tok-lib-close" title="${tr('common.close')}">✕</button>
         </header>
         <div class="tok-lib-hint" id="lib-hint"></div>
         <div class="tok-lib-grid" id="lib-grid"></div>
@@ -3609,18 +3612,18 @@ export async function mountMap(container) {
     const renderGrid = () => {
       const lib = store.get().map?.tokenLib || [];
       hint.textContent = selectedIds.size
-        ? `Clic : appliquer aux ${selectedIds.size} jeton(s) sélectionné(s).`
-        : 'Clic : créer un jeton au centre de la vue.';
+        ? tr('map.lib.hintSel', { n: selectedIds.size })
+        : tr('map.lib.hint');
       if (!lib.length) {
-        grid.innerHTML = `<div class="tok-lib-empty">Aucune image. Importez-en une avec ⬆.</div>`;
+        grid.innerHTML = `<div class="tok-lib-empty">${tr('map.lib.empty')}</div>`;
         return;
       }
       grid.innerHTML = lib
         .map((p) => {
           const u = tokenImgUrl(p);
-          return `<div class="tok-lib-cell" data-path="${escapeHtml(p)}" title="Utiliser">
+          return `<div class="tok-lib-cell" data-path="${escapeHtml(p)}" title="${tr('map.lib.use')}">
               ${u ? `<img src="${u}" alt="">` : '<span class="tok-lib-load">…</span>'}
-              <button class="tok-lib-rm" data-rm="${escapeHtml(p)}" title="Retirer de la bibliothèque">✕</button>
+              <button class="tok-lib-rm" data-rm="${escapeHtml(p)}" title="${tr('map.lib.remove')}">✕</button>
             </div>`;
         })
         .join('');
@@ -3644,7 +3647,7 @@ export async function mountMap(container) {
       try {
         await uploadLibraryImage(f);
       } catch (ex) {
-        await modalAlert('Import impossible : ' + ex.message, { title: 'Bibliothèque' });
+        await modalAlert(tr('common.importErr') + ex.message, { title: tr('map.lib.modalTitle') });
       }
       e.target.value = '';
     });
@@ -3695,7 +3698,7 @@ export async function mountMap(container) {
       view.py = p.py;
       view.z = p.z;
       applyTransform();
-      showToast(`👁 ${p.name || 'MJ'} recadre la vue`, { icon: '🗺', timeout: 2500 });
+      showToast(tr('map.toast.recenter', { name: p.name || tr('common.gm') }), { icon: '🗺', timeout: 2500 });
     },
     onDraw: (p) => {
       if (!p || p.by === store.get().user?.id) return; // déjà affiché localement par l'émetteur
@@ -3826,11 +3829,11 @@ export async function mountMap(container) {
       hoverBar.addEventListener('pointerleave', scheduleHideBar);
     }
     hoverBar.innerHTML = `
-      <button data-qd="-5" title="5 dégâts">−5</button>
-      <button data-qd="-1" title="1 dégât">−1</button>
-      <button data-qd="1" title="1 PV">+1</button>
-      <button data-qd="5" title="5 PV">+5</button>
-      ${isDM ? '<button data-qcond title="États">🩹</button>' : ''}`;
+      <button data-qd="-5" title="${tr('map.qd.dmg5')}">−5</button>
+      <button data-qd="-1" title="${tr('map.qd.dmg1')}">−1</button>
+      <button data-qd="1" title="${tr('map.qd.hp1')}">+1</button>
+      <button data-qd="5" title="${tr('map.qd.hp5')}">+5</button>
+      ${isDM ? `<button data-qcond title="${tr('map.hud.conds')}">🩹</button>` : ''}`;
     hoverBar.querySelectorAll('[data-qd]').forEach((b) =>
       b.addEventListener('click', (ev) => {
         ev.stopPropagation();
