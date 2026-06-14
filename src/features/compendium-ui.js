@@ -35,11 +35,11 @@ import { showToast } from '../lib/toast.js';
 
 /** Gabarits Markdown par type d'entrée (cadres vides à remplir, style « prep »). */
 const TEMPLATES = {
-  npc: '## Rôle\n\n## Apparence & voix\n\n## Objectifs\n\n## Infos clés\n\n## Pistes de roleplay\n',
-  monster: '**CA** : \n**PV** : \n**FP** : \n\n## Capacités\n\n## Actions\n\n## Tactique\n',
-  place: '## Description\n\n## Ce que perçoivent les joueurs\n\n## Rencontres\n\n## Secrets / butin\n\n## Liens (PNJ, scènes)\n',
-  item: '## Description\n\n## Propriétés\n\n## Comment l’obtenir\n',
-  class: '**Dé de vie** : \n**Jets de sauvegarde** : \n**Maîtrises** : \n\n## Aptitudes de classe\n\n## Sous-classes\n\n## Incantation\n',
+  npc: t('srd.tpl.npc'),
+  monster: t('srd.tpl.monster'),
+  place: t('srd.tpl.place'),
+  item: t('srd.tpl.item'),
+  class: t('srd.tpl.class'),
 };
 
 let filterKind = 'all';

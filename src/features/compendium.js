@@ -166,77 +166,75 @@ export async function srdList(kind) {
   return _srdCache[ep];
 }
 
-/* Glossaire FR pour traduire le squelette des fiches SRD (la prose reste EN). */
-const FR = {
-  size: { Tiny: 'Très petit', Small: 'Petit', Medium: 'Moyen', Large: 'Grand', Huge: 'Très grand', Gargantuan: 'Gigantesque' },
-  speed: { walk: 'marche', fly: 'vol', swim: 'nage', climb: 'escalade', burrow: 'fouissement', hover: 'vol stationnaire' },
-  school: { Abjuration: 'Abjuration', Conjuration: 'Invocation', Divination: 'Divination', Enchantment: 'Enchantement', Evocation: 'Évocation', Illusion: 'Illusion', Necromancy: 'Nécromancie', Transmutation: 'Transmutation' },
-  type: { aberration: 'aberration', beast: 'bête', celestial: 'céleste', construct: 'créature artificielle', dragon: 'dragon', elemental: 'élémentaire', fey: 'fée', fiend: 'fiélon', giant: 'géant', humanoid: 'humanoïde', monstrosity: 'monstruosité', ooze: 'vase', plant: 'plante', undead: 'mort-vivant' },
-  align: { lawful: 'loyal', chaotic: 'chaotique', neutral: 'neutre', good: 'bon', evil: 'mauvais', any: 'quelconque', alignment: 'alignement', unaligned: 'sans alignement' },
-};
-const frType = (t) => FR.type[String(t || '').toLowerCase()] || t || '';
-const frSize = (s) => FR.size[s] || s || '';
-const frAlign = (a) => String(a || '').replace(/[a-z]+/gi, (w) => FR.align[w.toLowerCase()] || w);
+/* Squelette i18n du rendu SRD (la prose des entrées reste EN — source dnd5eapi).
+ * Les libellés suivent toujours la locale ; le glossaire (taille/type/alignement/
+ * vitesse) n'est localisé que si `fr` (sinon vocabulaire brut de l'API). */
+const SIZE_KEY = { Tiny: 'tiny', Small: 'small', Medium: 'medium', Large: 'large', Huge: 'huge', Gargantuan: 'gargantuan' };
+const loc = (ns, k) => { const key = `${ns}.${k}`; const v = t(key); return v === key ? k : v; };
+const locSize = (s) => (SIZE_KEY[s] ? t('srd.size.' + SIZE_KEY[s]) : s || '');
+const locType = (ty) => loc('srd.type', String(ty || '').toLowerCase()) || '';
+const locSpeed = (k) => loc('srd.speed', k);
+const locAlign = (a) => String(a || '').replace(/[a-z]+/gi, (w) => loc('srd.align', w.toLowerCase()));
 
 function monsterFromSRD(d, fr = false) {
   const ac = Array.isArray(d.armor_class) ? d.armor_class[0]?.value : d.armor_class;
   const speed = Object.entries(d.speed || {})
-    .map(([k, v]) => `${fr ? FR.speed[k] || k : k} ${v}`)
+    .map(([k, v]) => `${fr ? locSpeed(k) : k} ${v}`)
     .join(', ');
   const mod = (s) => Math.floor((s - 10) / 2);
   const sm = (s) => `${s} (${mod(s) >= 0 ? '+' : ''}${mod(s)})`;
   const md = [];
-  const sz = fr ? frSize(d.size) : d.size || '';
-  const ty = fr ? frType(d.type) : d.type || '';
-  const al = fr ? frAlign(d.alignment) : d.alignment || '';
+  const sz = fr ? locSize(d.size) : d.size || '';
+  const ty = fr ? locType(d.type) : d.type || '';
+  const al = fr ? locAlign(d.alignment) : d.alignment || '';
   md.push(`*${sz} ${ty}, ${al}*`);
-  md.push(`**CA** ${ac} · **PV** ${d.hit_points} (${d.hit_dice || ''}) · **Vitesse** ${speed}`);
-  md.push(`**FP** ${d.challenge_rating}`);
-  md.push(`FOR ${sm(d.strength)} · DEX ${sm(d.dexterity)} · CON ${sm(d.constitution)} · INT ${sm(d.intelligence)} · SAG ${sm(d.wisdom)} · CHA ${sm(d.charisma)}`);
+  md.push(`**${t('srd.r.ac')}** ${ac} · **${t('srd.r.hp')}** ${d.hit_points} (${d.hit_dice || ''}) · **${t('srd.r.speed')}** ${speed}`);
+  md.push(`**${t('srd.r.cr')}** ${d.challenge_rating}`);
+  md.push(`${t('srd.r.str')} ${sm(d.strength)} · ${t('srd.r.dex')} ${sm(d.dexterity)} · ${t('srd.r.con')} ${sm(d.constitution)} · ${t('srd.r.int')} ${sm(d.intelligence)} · ${t('srd.r.wis')} ${sm(d.wisdom)} · ${t('srd.r.cha')} ${sm(d.charisma)}`);
   const section = (title, arr) => {
     if (!arr || !arr.length) return;
     md.push('', `### ${title}`);
     for (const a of arr) md.push(`**${a.name}.** ${a.desc || ''}`);
   };
-  section('Capacités', d.special_abilities);
-  section('Actions', d.actions);
-  section('Actions légendaires', d.legendary_actions);
+  section(t('srd.r.traits'), d.special_abilities);
+  section(t('srd.r.actions'), d.actions);
+  section(t('srd.r.legendaryActions'), d.legendary_actions);
   return { name: d.name, data: { ac, hp: d.hit_points, hpMax: d.hit_points, cr: String(d.challenge_rating), desc: md.join('\n\n') } };
 }
 
 function spellFromSRD(d, fr = false) {
   const md = [];
-  const school = d.school?.name ? (fr ? FR.school[d.school.name] || d.school.name : d.school.name) : '';
-  md.push(`*Niveau ${d.level}${school ? ` — ${school}` : ''}${d.ritual ? ' (rituel)' : ''}*`);
-  md.push(`**Incantation** : ${d.casting_time} · **Portée** : ${d.range}`);
-  md.push(`**Composantes** : ${(d.components || []).join(', ')}${d.material ? ` (${d.material})` : ''}`);
-  md.push(`**Durée** : ${d.duration}${d.concentration ? ' (concentration)' : ''}`);
+  const school = d.school?.name ? (fr ? loc('srd.school', d.school.name.toLowerCase()) : d.school.name) : '';
+  md.push(`*${t('srd.r.level')} ${d.level}${school ? ` — ${school}` : ''}${d.ritual ? ` (${t('srd.r.ritual')})` : ''}*`);
+  md.push(`**${t('srd.r.castingTime')}** : ${d.casting_time} · **${t('srd.r.range')}** : ${d.range}`);
+  md.push(`**${t('srd.r.components')}** : ${(d.components || []).join(', ')}${d.material ? ` (${d.material})` : ''}`);
+  md.push(`**${t('srd.r.duration')}** : ${d.duration}${d.concentration ? ` (${t('srd.r.concentration')})` : ''}`);
   md.push('', ...(d.desc || []));
-  if (d.higher_level?.length) md.push('', `**Aux niveaux supérieurs.** ${d.higher_level.join(' ')}`);
+  if (d.higher_level?.length) md.push('', `**${t('srd.r.higherLevels')}** ${d.higher_level.join(' ')}`);
   const classes = (d.classes || []).map((c) => c.name).filter(Boolean);
   return { name: d.name, data: { desc: md.join('\n\n'), level: d.level, classes } };
 }
 
 function classFromSRD(d, levels = []) {
   const md = [];
-  md.push(`**Dé de vie** : d${d.hit_die}`);
+  md.push(`**${t('srd.r.hitDie')}** : d${d.hit_die}`);
   const saves = (d.saving_throws || []).map((s) => s.name).join(', ');
-  if (saves) md.push(`**Jets de sauvegarde** : ${saves}`);
+  if (saves) md.push(`**${t('srd.r.saves')}** : ${saves}`);
   const profs = (d.proficiencies || []).map((p) => p.name).join(', ');
-  if (profs) md.push(`**Maîtrises** : ${profs}`);
-  if (d.spellcasting?.spellcasting_ability?.name) md.push(`**Caractéristique d'incantation** : ${d.spellcasting.spellcasting_ability.name}`);
+  if (profs) md.push(`**${t('srd.r.profs')}** : ${profs}`);
+  if (d.spellcasting?.spellcasting_ability?.name) md.push(`**${t('srd.r.spellAbility')}** : ${d.spellcasting.spellcasting_ability.name}`);
   const subs = (d.subclasses || []).map((s) => s.name).join(', ');
-  if (subs) md.push(`**Sous-classes** : ${subs}`);
+  if (subs) md.push(`**${t('srd.r.subclasses')}** : ${subs}`);
   if (d.spellcasting?.info?.length) {
-    md.push('', '### Incantation');
+    md.push('', `### ${t('srd.r.spellcasting')}`);
     for (const i of d.spellcasting.info) md.push(`**${i.name}.** ${(i.desc || []).join(' ')}`);
   }
   // Aptitudes par niveau (noms uniquement, depuis /classes/{}/levels).
   const byLevel = (Array.isArray(levels) ? levels : [])
     .filter((l) => l && l.level && (l.features || []).length)
-    .map((l) => `**Niv. ${l.level}** : ${l.features.map((f) => f.name).join(', ')}`);
+    .map((l) => `**${t('srd.r.levelN', { n: l.level })}** : ${l.features.map((f) => f.name).join(', ')}`);
   if (byLevel.length) {
-    md.push('', '### Aptitudes par niveau');
+    md.push('', `### ${t('srd.r.featuresByLevel')}`);
     md.push(...byLevel);
   }
   return { name: d.name, data: { desc: md.join('\n\n'), hitDie: d.hit_die } };
@@ -245,38 +243,38 @@ function classFromSRD(d, levels = []) {
 function raceFromSRD(d, traits = []) {
   const md = [];
   const ab = (d.ability_bonuses || []).map((b) => `${b.ability_score?.name || ''} +${b.bonus}`).join(' · ');
-  md.push(`**Bonus de caractéristiques** : ${ab || '—'}`);
-  md.push(`**Taille** : ${d.size || ''} · **Vitesse** : ${d.speed} ft`);
+  md.push(`**${t('srd.r.abilityBonuses')}** : ${ab || '—'}`);
+  md.push(`**${t('srd.r.size')}** : ${d.size || ''} · **${t('srd.r.speed')}** : ${d.speed} ft`);
   const langs = (d.languages || []).map((l) => l.name).join(', ');
-  if (langs) md.push(`**Langues** : ${langs}`);
+  if (langs) md.push(`**${t('srd.r.languages')}** : ${langs}`);
   const profs = (d.starting_proficiencies || []).map((p) => p.name).join(', ');
-  if (profs) md.push(`**Maîtrises** : ${profs}`);
+  if (profs) md.push(`**${t('srd.r.profs')}** : ${profs}`);
   if (d.size_description) md.push('', d.size_description);
-  if (d.age) md.push('', `**Âge.** ${d.age}`);
-  if (d.alignment) md.push('', `**Alignement.** ${d.alignment}`);
-  if (d.language_desc) md.push('', `**Langues.** ${d.language_desc}`);
-  const tr = (traits || []).filter((t) => t && t.name);
+  if (d.age) md.push('', `**${t('srd.r.age')}.** ${d.age}`);
+  if (d.alignment) md.push('', `**${t('srd.r.alignment')}.** ${d.alignment}`);
+  if (d.language_desc) md.push('', `**${t('srd.r.languages')}.** ${d.language_desc}`);
+  const tr = (traits || []).filter((tt) => tt && tt.name);
   if (tr.length) {
-    md.push('', '### Traits raciaux');
-    for (const t of tr) md.push(`**${t.name}.** ${(t.desc || []).join(' ')}`);
+    md.push('', `### ${t('srd.r.racialTraits')}`);
+    for (const tt of tr) md.push(`**${tt.name}.** ${(tt.desc || []).join(' ')}`);
   } else if ((d.traits || []).length) {
-    md.push('', '### Traits raciaux', (d.traits || []).map((t) => t.name).join(', '));
+    md.push('', `### ${t('srd.r.racialTraits')}`, (d.traits || []).map((tt) => tt.name).join(', '));
   }
   const subs = (d.subraces || []).map((s) => s.name).join(', ');
-  if (subs) md.push('', `**Sous-races** : ${subs}`);
+  if (subs) md.push('', `**${t('srd.r.subraces')}** : ${subs}`);
   return { name: d.name, data: { desc: md.join('\n\n'), speed: d.speed } };
 }
 
 function backgroundFromSRD(d) {
   const md = [];
   const profs = (d.starting_proficiencies || []).map((p) => p.name).join(', ');
-  if (profs) md.push(`**Maîtrises** : ${profs}`);
-  if (d.language_options?.choose) md.push(`**Langues** : ${d.language_options.choose} au choix`);
+  if (profs) md.push(`**${t('srd.r.profs')}** : ${profs}`);
+  if (d.language_options?.choose) md.push(`**${t('srd.r.languages')}** : ${t('srd.r.langChoose', { n: d.language_options.choose })}`);
   const equip = (d.starting_equipment || [])
     .map((e) => `${e.equipment?.name || ''}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`)
     .filter(Boolean)
     .join(', ');
-  if (equip) md.push(`**Équipement** : ${equip}`);
+  if (equip) md.push(`**${t('srd.r.equipment')}** : ${equip}`);
   if (d.feature?.name) {
     md.push('', `### ${d.feature.name}`);
     md.push(...(d.feature.desc || []));
@@ -314,7 +312,7 @@ async function srdMapped(kind, index, opts = {}) {
   return spellFromSRD(d, opts.fr);
 }
 
-/** Importe une entrée SRD dans le compendium (MJ). opts.fr = libellés en FR. */
+/** Importe une entrée SRD dans le compendium (MJ). opts.fr = vocabulaire localisé (sinon brut EN). */
 export async function srdImport(kind, index, opts = {}) {
   if (!store.get().isDM) return null;
   const { name, data } = await srdMapped(kind, index, opts);
