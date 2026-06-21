@@ -52,6 +52,7 @@ import {
   switchScene,
   renameScene,
   deleteScene,
+  reorderScenes,
   exportActiveScene,
   importSceneState,
   addPin,
@@ -1146,7 +1147,7 @@ export async function mountMap(container) {
       sceneNav.dataset.sig = sig;
       sceneNav.innerHTML = scenes.length
         ? scenes
-            .map((s) => `<button class="scene-chip ${s.id === active ? 'active' : ''}" data-scene="${s.id}" title="${escapeHtml(s.name)}">${s.id === active ? '👁 ' : ''}${escapeHtml(s.name)}</button>`)
+            .map((s) => `<button class="scene-chip ${s.id === active ? 'active' : ''}" data-scene="${s.id}" draggable="true" title="${escapeHtml(s.name)}">${s.id === active ? '👁 ' : ''}${escapeHtml(s.name)}</button>`)
             .join('') + `<button class="scene-chip scene-add" data-act="scene-new" title="${tr('map.scene.new')}">＋</button>`
         : `<button class="scene-chip scene-add" data-act="scene-new" title="${tr('map.scene.new')}">${tr('map.sceneAdd')}</button>`;
     }
@@ -1878,6 +1879,46 @@ export async function mountMap(container) {
     await switchScene(chip.dataset.scene);
     showToast(tr('map.toast.sceneActive', { name: s?.name || '' }), { icon: '🗺', timeout: 2600 });
   });
+  // Réordonnancement des onglets par glisser-déposer (MJ).
+  const sceneNavEl = container.querySelector('#scene-nav');
+  if (sceneNavEl) {
+    let dragId = null;
+    const clearCues = () => sceneNavEl.querySelectorAll('.scene-chip').forEach((c) => c.classList.remove('dragging', 'drag-before', 'drag-after'));
+    const dropAfter = (e, chip) => { const r = chip.getBoundingClientRect(); return e.clientX > r.left + r.width / 2; };
+    sceneNavEl.addEventListener('dragstart', (e) => {
+      const chip = e.target.closest('.scene-chip[data-scene]');
+      if (!chip) return;
+      dragId = chip.dataset.scene;
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', dragId); } catch {}
+      chip.classList.add('dragging');
+    });
+    sceneNavEl.addEventListener('dragend', () => { dragId = null; clearCues(); });
+    sceneNavEl.addEventListener('dragover', (e) => {
+      if (!dragId) return;
+      const chip = e.target.closest('.scene-chip[data-scene]');
+      if (!chip || chip.dataset.scene === dragId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const after = dropAfter(e, chip);
+      sceneNavEl.querySelectorAll('.scene-chip').forEach((c) => c.classList.remove('drag-before', 'drag-after'));
+      chip.classList.add(after ? 'drag-after' : 'drag-before'); // indicateur d'insertion
+    });
+    sceneNavEl.addEventListener('drop', async (e) => {
+      if (!dragId) return;
+      const chip = e.target.closest('.scene-chip[data-scene]');
+      if (!chip || chip.dataset.scene === dragId) { clearCues(); return; }
+      e.preventDefault();
+      const after = dropAfter(e, chip);
+      const ids = store.get().scenes.map((s) => s.id);
+      const from = ids.indexOf(dragId);
+      if (from < 0) { clearCues(); return; }
+      ids.splice(from, 1);
+      ids.splice(ids.indexOf(chip.dataset.scene) + (after ? 1 : 0), 0, dragId);
+      clearCues();
+      await reorderScenes(ids);
+    });
+  }
   container.querySelector('#map-scene-file')?.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';

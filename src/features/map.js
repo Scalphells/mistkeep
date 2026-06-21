@@ -181,6 +181,23 @@ export async function deleteScene(id) {
   if (store.get().activeSceneId === id) await switchScene(remaining[0].id);
 }
 
+/** Réordonne les scènes (MJ) selon une liste d'identifiants ; persiste `sort`. */
+export async function reorderScenes(orderedIds) {
+  if (!store.get().isDM) return;
+  const cur = store.get().scenes;
+  const byId = new Map(cur.map((s) => [s.id, s]));
+  const ordered = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+  for (const s of cur) if (!ordered.includes(s)) ordered.push(s); // sécurité : n'oublie aucune scène
+  const changed = [];
+  const next = ordered.map((s, i) => {
+    if (s.sort !== i) changed.push({ id: s.id, sort: i });
+    return { ...s, sort: i };
+  });
+  if (!changed.length) return;
+  store.set({ scenes: next });
+  await Promise.all(changed.map((c) => backend.db.from('scenes').update({ sort: c.sort }).eq('id', c.id)));
+}
+
 /** Exporte la scène active en objet JSON portable ({ type, name, state }). */
 export function exportActiveScene() {
   const sc = store.get().scenes.find((s) => s.id === store.get().activeSceneId);
@@ -847,9 +864,9 @@ export function subscribeMap() {
       // Tient la liste des scènes à jour (nom / ajout).
       const cur = store.get().scenes;
       const meta = { id: row.id, name: row.name, sort: row.sort };
-      store.set({
-        scenes: cur.some((s) => s.id === row.id) ? cur.map((s) => (s.id === row.id ? meta : s)) : [...cur, meta],
-      });
+      const list = cur.some((s) => s.id === row.id) ? cur.map((s) => (s.id === row.id ? meta : s)) : [...cur, meta];
+      list.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); // reflète un réordonnancement distant
+      store.set({ scenes: list });
       // Re-fusionne l'état seulement pour la scène active, et JAMAIS pour notre
       // propre écho (sinon il écrase l'état optimiste local pendant une bascule).
       if (row.id === activeId && row.state && !isSelfSceneEcho(row.id)) {

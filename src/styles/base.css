@@ -2825,6 +2825,10 @@ input, textarea, select { transition: border-color .14s ease, box-shadow .14s ea
 }
 .scene-chip.scene-add { color: var(--accent); border-style: dashed; }
 .scene-chip.scene-add:hover { background: var(--adim); }
+.scene-chip[data-scene] { cursor: grab; }
+.scene-chip.dragging { opacity: .45; cursor: grabbing; }
+.scene-chip.drag-before { box-shadow: inset 3px 0 0 0 var(--accent); }
+.scene-chip.drag-after { box-shadow: inset -3px 0 0 0 var(--accent); }
 
 /* ──── Habillage VTT (V3) : barre d'outils carte plus « console » ──── */
 .map-toolbar {
