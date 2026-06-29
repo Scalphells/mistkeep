@@ -419,12 +419,17 @@ body {
   border-radius: 8px;
   padding: 14px 16px;
 }
-/* Option « fiche translucide » (prefs.glass) : verre dépoli, s'adapte au thème. */
-html[data-glass="1"] .char-sheet {
-  background: color-mix(in srgb, var(--bg1) 68%, transparent);
-  backdrop-filter: blur(9px) saturate(1.08);
-  -webkit-backdrop-filter: blur(9px) saturate(1.08);
+/* Option « fenêtres translucides » (prefs.glass) : verre dépoli sur les fenêtres
+   flottantes (la carte transparaît derrière). S'adapte au thème clair/sombre. */
+html[data-glass="1"] .sheet-window {
+  background: color-mix(in srgb, var(--bg1) 58%, transparent);
+  backdrop-filter: blur(11px) saturate(1.12);
+  -webkit-backdrop-filter: blur(11px) saturate(1.12);
 }
+html[data-glass="1"] .sheet-window-bar {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg3) 55%, transparent), color-mix(in srgb, var(--bg2) 48%, transparent));
+}
+html[data-glass="1"] .sheet-window .char-sheet { background: transparent; border-color: transparent; }
 
 /* ── Skins de fiche par système de jeu (#8) ──────────────────────────
    Chaque système pose data-skin sur .char-sheet (cf. characters-ui.js).
