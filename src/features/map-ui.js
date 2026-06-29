@@ -4,7 +4,7 @@ import { templateSvg, templateLabel } from '../lib/tmplgeom.js';
 import { modalAlert, modalConfirm, modalPrompt } from '../lib/modal.js';
 import { showToast } from '../lib/toast.js';
 import { loadCharacters, updateCharacter, saveBonus } from './characters.js';
-import { loadInitiative, subscribeInitiative, adjustHp, toggleCondition, logCombat, addCombatant, sendPlayerRequest } from './initiative.js';
+import { loadInitiative, subscribeInitiative, adjustHp, toggleCondition, setCondValue, logCombat, addCombatant, sendPlayerRequest } from './initiative.js';
 import { rollDice } from './dice.js';
 import { condIcon, condIconHtml, condLabel, condDesc, condValued, systemConditions } from '../lib/conditions.js';
 import { t as tr } from '../lib/i18n.js';
@@ -643,21 +643,25 @@ export async function mountMap(container) {
       // Rouge si le déplacement dépasse la vitesse du jeton (budget de mouvement).
       ctx.fillStyle = movePreview.over ? 'rgba(224,86,108,0.26)' : 'rgba(124,106,247,0.22)';
       for (const c of movePreview.cells) ctx.fillRect(c.cx * gs + ox, c.cy * gs + oy, gs, gs);
-      // Distance cumulée affichée à CHAQUE case traversée (règle 5e : diagonale = 1 case).
+      // Distance cumulée à chaque case : petit jeton sombre discret en bas de case
+      // (règle 5e : diagonale = 1 case), rouge si la vitesse est dépassée.
       const fpc = movePreview.fpc || 5;
       ctx.save();
-      ctx.font = `bold ${Math.max(11, Math.round(gs * 0.26))}px system-ui, sans-serif`;
+      ctx.font = `600 ${Math.max(9, Math.round(gs * 0.2))}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.lineWidth = Math.max(2, gs * 0.05);
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillStyle = '#fff';
+      const chipH = Math.max(13, gs * 0.24);
       movePreview.cells.forEach((c, i) => {
         if (i === 0) return; // case de départ = 0
-        const tx = c.cx * gs + ox + gs / 2;
-        const ty = c.cy * gs + oy + gs / 2;
         const label = String(Math.round(i * fpc * 10) / 10);
-        ctx.strokeText(label, tx, ty);
+        const tx = c.cx * gs + ox + gs / 2;
+        const ty = c.cy * gs + oy + gs - chipH * 0.85;
+        const chipW = ctx.measureText(label).width + chipH * 0.7;
+        ctx.fillStyle = movePreview.over ? 'rgba(150,22,34,0.92)' : 'rgba(15,15,22,0.82)';
+        ctx.beginPath();
+        ctx.roundRect(tx - chipW / 2, ty - chipH / 2, chipW, chipH, chipH / 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
         ctx.fillText(label, tx, ty);
       });
       ctx.restore();
@@ -3575,36 +3579,71 @@ export async function mountMap(container) {
     const live = () => (comb ? combatantForToken(tok) : (store.get().map?.tokens || []).find((x) => x.id === id)) || {};
     condMenu = document.createElement('div');
     condMenu.className = 'map-ctx map-conds';
+    const tgtConds = () => live().conditions || [];
+    const tgtVals = () => live().cond_values || {};
     const render = () => {
-      const src = live();
-      const set = new Set(src.conditions || []);
-      condMenu.innerHTML = systemConditions()
-        .map((c) => {
-          const on = set.has(c.n);
-          const val = on && c.valued ? src.cond_values?.[c.n] || 1 : '';
-          return `<button data-cond="${escapeHtml(c.n)}" class="${on ? 'on' : ''}" title="${escapeHtml(condDesc(c.n) || '')}"><span>${c.i} ${escapeHtml(condLabel(c.n))}${val ? ` <b>${val}</b>` : ''}</span><span class="ck">${on ? '✓' : ''}</span></button>`;
-        })
-        .join('');
+      const set = new Set(tgtConds());
+      const vals = tgtVals();
+      condMenu.innerHTML =
+        `<div class="conds-hint">${tr('map.conds.hint')}</div>` +
+        systemConditions()
+          .map((c) => {
+            const on = set.has(c.n);
+            const val = on && c.valued ? vals[c.n] || 1 : '';
+            return `<button data-cond="${escapeHtml(c.n)}" class="${on ? 'on' : ''}" title="${escapeHtml(condDesc(c.n) || '')}"><span>${c.i} ${escapeHtml(condLabel(c.n))}${val ? ` <b class="cval">${val}</b>` : ''}</span><span class="ck">${on ? '✓' : ''}</span></button>`;
+          })
+          .join('');
     };
     render();
     document.body.appendChild(condMenu);
     const mr = condMenu.getBoundingClientRect();
     condMenu.style.left = `${Math.max(8, Math.min(cx, window.innerWidth - mr.width - 8))}px`;
     condMenu.style.top = `${Math.max(8, Math.min(cy, window.innerHeight - mr.height - 8))}px`;
+    // Clic gauche = +1 / activer ; clic droit = −1 / retirer.
+    const bump = (name, dir) => {
+      const c = systemConditions().find((x) => x.n === name);
+      const valued = !!c?.valued;
+      const has = tgtConds().includes(name);
+      const cur = tgtVals()[name] || 0;
+      if (comb) {
+        if (!valued) {
+          if (dir > 0 || has) toggleCondition(comb.entity_id, name);
+        } else if (!has) {
+          if (dir > 0) toggleCondition(comb.entity_id, name); // ajoute (valeur 1)
+        } else {
+          const next = (cur || 1) + dir;
+          if (next <= 0) toggleCondition(comb.entity_id, name); // retire
+          else setCondValue(comb.entity_id, name, next);
+        }
+      } else {
+        const s = new Set(tgtConds());
+        const cv = { ...tgtVals() };
+        if (!valued) {
+          if (dir > 0) { if (s.has(name)) s.delete(name); else s.add(name); }
+          else s.delete(name);
+        } else if (!has) {
+          if (dir > 0) { s.add(name); cv[name] = 1; }
+        } else {
+          const next = (cur || 1) + dir;
+          if (next <= 0) { s.delete(name); delete cv[name]; }
+          else cv[name] = next;
+        }
+        updateToken(id, { conditions: [...s], cond_values: cv });
+      }
+      setTimeout(render, 40); // reflète l'état (mise à jour asynchrone)
+    };
     condMenu.addEventListener('click', (ev) => {
       const b = ev.target.closest('[data-cond]');
       if (!b) return;
       ev.stopPropagation();
-      const name = b.dataset.cond;
-      if (comb) {
-        toggleCondition(comb.entity_id, name); // gère valeur par défaut + tracker + jeton
-      } else {
-        const s = new Set(tok.conditions || []);
-        if (s.has(name)) s.delete(name);
-        else s.add(name);
-        updateToken(id, { conditions: [...s] });
-      }
-      setTimeout(render, 40); // reflète l'état (mise à jour asynchrone du combattant)
+      bump(b.dataset.cond, 1);
+    });
+    condMenu.addEventListener('contextmenu', (ev) => {
+      const b = ev.target.closest('[data-cond]');
+      if (!b) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      bump(b.dataset.cond, -1);
     });
     const onClose = (ev) => {
       if (condMenu && !condMenu.contains(ev.target)) {

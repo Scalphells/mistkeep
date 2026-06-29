@@ -339,6 +339,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Panneau opaque : reste lisible même quand « Fenêtres translucides » est actif. */
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
 }
 
 .char-card {
@@ -1234,6 +1239,8 @@ html[data-glass="1"] .sheet-window-bar {
 .map-conds button { display:flex; justify-content:space-between; gap:10px; }
 .map-conds button.on { background:var(--adim); color:var(--ah); }
 .map-conds .ck { color:var(--green); }
+.map-conds .conds-hint { font-size:10px; color:var(--muted); padding:6px 10px 4px; border-bottom:1px solid var(--border); margin-bottom:2px; cursor:default; }
+.map-conds .cval { background:rgba(0,0,0,0.32); border-radius:6px; padding:0 5px; font-weight:800; }
 
 .map-ctx { position:fixed; z-index:200; display:flex; flex-direction:column; min-width:190px; background:var(--bg2); border:1px solid var(--border-l); border-radius:10px; padding:5px; box-shadow:0 8px 24px rgba(0,0,0,0.5); }
 .map-ctx button { display:block; width:100%; text-align:left; padding:8px 12px; border:none; background:transparent; color:var(--text); cursor:pointer; border-radius:6px; font-size:13px; }

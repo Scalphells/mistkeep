@@ -1552,6 +1552,7 @@
   "map.hud.hpPlus": "+1 HP (Shift: +5)",
   "map.hud.target": "Target / untarget",
   "map.hud.conds": "Conditions",
+  "map.conds.hint": "Left-click: +1 / on · Right-click: −1 / off",
   "map.hud.show": "Show to players",
   "map.hud.hide": "Hide from players",
   "map.hud.sheet": "Open the sheet",

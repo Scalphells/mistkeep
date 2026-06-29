@@ -1552,6 +1552,7 @@
   "map.hud.hpPlus": "+1 PV (Maj : +5)",
   "map.hud.target": "Cibler / décibler",
   "map.hud.conds": "États",
+  "map.conds.hint": "Clic G : +1 / activer · Clic D : −1 / retirer",
   "map.hud.show": "Afficher aux joueurs",
   "map.hud.hide": "Masquer aux joueurs",
   "map.hud.sheet": "Ouvrir la fiche",
