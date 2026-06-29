@@ -1138,6 +1138,11 @@ html[data-glass="1"] .char-sheet {
 .map-token-hp .hptmp { position:absolute; left:0; top:0; bottom:0; background:rgba(97,175,239,0.9); }
 .map-token.hidden-dm { opacity:0.55; outline:2px dashed rgba(124,106,247,0.8); }
 .map-token-eye { position:absolute; top:-6%; right:-6%; font-size:0.5em; background:var(--accent); border-radius:50%; padding:1px 2px; }
+/* PV masqués aux joueurs : palier nommé sous le jeton (#4). */
+.map-token-hpstate { position:absolute; left:-20%; right:-20%; bottom:-16%; text-align:center; font-size:0.32em; font-weight:700; letter-spacing:.02em; text-shadow:0 1px 3px #000, 0 0 2px #000; pointer-events:none; white-space:nowrap; }
+.map-token.hp-cloaked .map-token-hp { outline:1px dashed rgba(255,255,255,0.55); outline-offset:1px; }
+.tokedit-check { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+.tokedit-check input { width:auto; margin:0; }
 /* Combattant actif : anneau pulsé. */
 .map-token.active-turn { border-color:var(--yellow); box-shadow:0 0 15px 3px rgba(229,192,123,0.85), 0 3px 9px rgba(0,0,0,0.5); animation:tokenPulse 1.4s ease-in-out infinite; }
 @keyframes tokenPulse { 0%,100% { box-shadow:0 0 0 3px var(--yellow), 0 0 10px 1px rgba(229,192,123,0.6); } 50% { box-shadow:0 0 0 4px var(--yellow), 0 0 18px 4px rgba(229,192,123,0.95); } }

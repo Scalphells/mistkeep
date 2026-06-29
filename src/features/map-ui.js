@@ -728,10 +728,12 @@ export async function mountMap(container) {
         const d = gs * (t.size || 1);
         const hp = hpFor(t);
         const hpBar = hp
-          ? `<div class="map-token-hp">
+          ? (!isDM && t.hpHidden
+              ? `<div class="map-token-hpstate" style="color:${hp.color}">${tr(hpTierKey(hp.pct))}</div>`
+              : `<div class="map-token-hp">
                <span class="hpfill" style="width:${hp.pct}%; background:${hp.color}"></span>
                ${hp.tempPct ? `<span class="hptmp" style="width:${hp.tempPct}%"></span>` : ''}
-             </div>`
+             </div>`)
           : '';
         const url = t.img ? tokenImgUrl(t.img) : null;
         const rot = Number(t.rot) || 0;
@@ -753,6 +755,7 @@ export async function mountMap(container) {
           t.hidden ? 'hidden-dm' : '',
           isActive ? 'active-turn' : '',
           t.locked ? 'locked' : '',
+          isDM && t.hpHidden ? 'hp-cloaked' : '',
           url ? 'has-img' : '',
           targetIds.has(t.id) ? 'targeted' : '',
           tmplHits.has(t.id) ? 'tmpl-hit' : '',
@@ -1111,6 +1114,16 @@ export async function mountMap(container) {
     const tempPct = temp ? Math.max(0, Math.min(100, (temp / max) * 100)) : 0;
     const color = pct > 50 ? 'var(--green)' : pct > 25 ? 'var(--yellow)' : 'var(--red)';
     return { pct, tempPct, color };
+  }
+
+  /** Palier de PV nommé (PV masqués aux joueurs) : clé i18n selon le ratio. */
+  function hpTierKey(pct) {
+    if (pct <= 0) return 'map.hpState.down';
+    if (pct < 25) return 'map.hpState.critical';
+    if (pct < 50) return 'map.hpState.bloodied';
+    if (pct < 75) return 'map.hpState.injured';
+    if (pct < 100) return 'map.hpState.scratched';
+    return 'map.hpState.full';
   }
 
   function syncControls(m) {
@@ -3081,6 +3094,7 @@ export async function mountMap(container) {
       rot: existing?.rot ?? '',
       elev: existing?.elev ?? '',
       disp: existing?.disp ?? 'auto',
+      hpHidden: existing?.hpHidden ?? false,
     };
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay show';
@@ -3140,6 +3154,7 @@ export async function mountMap(container) {
             <option value="hostile" ${f.disp === 'hostile' ? 'selected' : ''}>${tr('map.te.dispHostile')}</option>
             <option value="custom" ${f.disp === 'custom' ? 'selected' : ''}>${tr('map.te.dispCustom')}</option>
           </select></div>
+        <div class="atk-row"><label class="tokedit-check"><input type="checkbox" id="te-hphidden" ${f.hpHidden ? 'checked' : ''}> ${tr('map.te.hpHidden')}</label> <small style="color:var(--muted)">${tr('map.te.hpHidden.note')}</small></div>
         <div class="atk-row"><label>${tr('map.te.note')}</label><textarea class="atk-in tokedit-note" id="te-note" placeholder="${tr('map.te.notePh')}">${escapeHtml(String(f.note))}</textarea></div>
         <div class="modal-actions">
           <button class="modal-btn tokedit-cancel">${tr('common.cancel')}</button>
@@ -3244,6 +3259,7 @@ export async function mountMap(container) {
         dvManual, // true = vision dans le noir figée à la main (pas d'auto-synchro)
         color: overlay.querySelector('#te-color').value,
         disp: overlay.querySelector('#te-disp').value,
+        hpHidden: overlay.querySelector('#te-hphidden').checked,
         note: overlay.querySelector('#te-note').value.trim(),
         img: f.img,
       };
