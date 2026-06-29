@@ -1486,6 +1486,8 @@
   "map.hud.pull": "Bring players here",
   "map.hud.shrink": "Shrink",
   "map.hud.grow": "Enlarge",
+  "map.hud.elevUp": "Raise (Shift: +5)",
+  "map.hud.elevDown": "Lower (Shift: −5)",
   "map.hud.del": "Delete",
   "map.toast.pulled": "📍 Players brought here.",
   "map.toast.noHp": "This token has no HP — use 📋 to give it some.",

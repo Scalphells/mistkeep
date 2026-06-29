@@ -1486,6 +1486,8 @@
   "map.hud.pull": "Amener les joueurs ici",
   "map.hud.shrink": "Réduire",
   "map.hud.grow": "Agrandir",
+  "map.hud.elevUp": "Monter (Maj : +5)",
+  "map.hud.elevDown": "Descendre (Maj : −5)",
   "map.hud.del": "Supprimer",
   "map.toast.pulled": "📍 Joueurs amenés ici.",
   "map.toast.noHp": "Ce jeton n’a pas de PV — utilise 📋 pour lui en donner.",

@@ -262,7 +262,7 @@ export async function mountMap(container) {
                  <button class="map-btn" data-act="grid-cal" title="${tr('map.gridcal')}">📐</button>
                  <label class="map-num" title="${tr('map.grid.caseTitle')}">${tr('map.grid.case')}<input type="number" id="map-grid" min="10" max="400" step="2"></label>
                  <label class="map-num" title="${tr('map.grid.opacTitle')}">${tr('map.grid.opac')}<input type="range" id="map-gridop" min="0" max="60" step="2"></label>
-                 <label class="map-num" title="${tr('map.grid.distTitle')}">${tr('map.grid.dist')}<input type="number" id="map-feet" min="1" max="100"></label>
+                 <label class="map-num" title="${tr('map.grid.distTitle')}">${tr('map.grid.dist')}<input type="number" id="map-feet" min="0.5" max="100" step="0.5"></label>
                  <select id="map-unit" class="map-sel" title="${tr('map.grid.unitTitle')}"><option value="ft">ft</option><option value="m">m</option></select>
                </div>
                <div class="map-tool-group" data-label="${tr('map.grp.fog')}">
@@ -792,6 +792,11 @@ export async function mountMap(container) {
           <button class="thud-btn" data-hud="hp-" title="${tr('map.hud.hpMinus')}">➖</button>
           <span class="thud-hp" title="${tr('map.hud.hp')}">${hpTxt}</span>
           <button class="thud-btn" data-hud="hp+" title="${tr('map.hud.hpPlus')}">➕</button>
+        </div>
+        <div class="thud-row">
+          <button class="thud-btn" data-hud="elev-" title="${tr('map.hud.elevDown')}">⏷</button>
+          <span class="thud-hp" data-hud="elev0" title="${tr('map.elev')}">${(Number(t.elev) || 0) ? `${(Number(t.elev) || 0) > 0 ? '▲' : '▼'}${Math.abs(Number(t.elev) || 0)}` : '0'}</span>
+          <button class="thud-btn" data-hud="elev+" title="${tr('map.hud.elevUp')}">⏶</button>
         </div>
         <div class="thud-row">
           <button class="thud-btn ${isTarget ? 'on' : ''}" data-hud="target" title="${tr('map.hud.target')}">🎯</button>
@@ -1849,7 +1854,7 @@ export async function mountMap(container) {
     patchMap({ grid: { ...m.grid, size }, fog: { ...m.fog, cell: size } });
   });
   container.querySelector('#map-feet')?.addEventListener('change', (e) => {
-    patchMap({ feetPerCell: Math.max(1, Number(e.target.value) || 5) });
+    patchMap({ feetPerCell: Math.max(0.5, Number(e.target.value) || 5) });
   });
   container.querySelector('#map-gridop')?.addEventListener('input', (e) => {
     const m = store.get().map || DEFAULT_MAP;
@@ -1857,7 +1862,13 @@ export async function mountMap(container) {
     patchMap({ grid: { ...m.grid, opacity } });
   });
   container.querySelector('#map-unit')?.addEventListener('change', (e) => {
-    patchMap({ unit: e.target.value });
+    const m = store.get().map || DEFAULT_MAP;
+    const unit = e.target.value;
+    let dist = m.feetPerCell || 5;
+    // Case standard 5 ft ↔ 1,5 m ; les valeurs custom sont converties proportionnellement.
+    if (unit === 'm' && m.unit !== 'm') dist = Math.round(dist * 0.3048 * 2) / 2; // ft → m
+    else if (unit === 'ft' && m.unit !== 'ft') dist = Math.round(dist / 0.3048); // m → ft
+    patchMap({ unit, feetPerCell: Math.max(0.5, dist) });
   });
   container.querySelector('#map-scene-sel')?.addEventListener('change', async (e) => {
     const sel = e.target;
@@ -2762,6 +2773,15 @@ export async function mountMap(container) {
           break;
         case 'shrink':
           updateToken(t.id, { size: Math.max(1, (t.size || 1) - 1) });
+          break;
+        case 'elev+':
+          updateToken(t.id, { elev: (Number(t.elev) || 0) + (e.shiftKey ? 5 : 1) });
+          break;
+        case 'elev-':
+          updateToken(t.id, { elev: (Number(t.elev) || 0) - (e.shiftKey ? 5 : 1) });
+          break;
+        case 'elev0':
+          updateToken(t.id, { elev: 0 });
           break;
         case 'sheet':
           if (t.charId) window.dispatchEvent(new CustomEvent('vaultmj:opensheet', { detail: { charId: t.charId } }));
