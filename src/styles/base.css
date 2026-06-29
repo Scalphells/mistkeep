@@ -434,27 +434,31 @@ html[data-glass="1"] .sheet-window .char-sheet { background: transparent; border
 /* ── Skins de fiche par système de jeu (#8) ──────────────────────────
    Chaque système pose data-skin sur .char-sheet (cf. characters-ui.js).
    Pour ajouter un système : une ligne de variables --skin-* suffit. */
-.char-sheet[data-skin="pf2e"]      { --skin-a:#5c0f1b; --skin-b:#a83246; --skin-edge:#d9b24a; }
-.char-sheet[data-skin="dnd5e2014"] { --skin-a:#5a0a0a; --skin-b:#9b1c1c; --skin-edge:#e63a3a; }
-.char-sheet[data-skin="dnd5e2024"] { --skin-a:#4a0d12; --skin-b:#b5402f; --skin-edge:#e0a13a; }
-.char-sheet[data-skin="custom"]    { --skin-a:var(--adim); --skin-b:var(--accent); --skin-edge:var(--accent); }
+.char-sheet[data-skin="pf2e"]       { --skin-a:#6b0f1e; --skin-b:#c0392b; --skin-edge:#e9b949; }
+.char-sheet[data-skin="dnd5e-2014"] { --skin-a:#6e0a0a; --skin-b:#c0392b; --skin-edge:#ee3b3b; }
+.char-sheet[data-skin="dnd5e-2024"] { --skin-a:#5a0a14; --skin-b:#9b1c2e; --skin-edge:#e0a13a; }
+.char-sheet[data-skin="custom"]     { --skin-a:var(--adim); --skin-b:var(--accent); --skin-edge:var(--accent); }
 
 .sheet-skin-banner { display:none; }
-.char-sheet[data-skin] {
-  border-top:2px solid var(--skin-edge, var(--accent));
-}
+.char-sheet[data-skin] { border-top:3px solid var(--skin-edge, var(--accent)); }
+/* Bannière titrée (nom du système) — repère de thème bien visible. */
 .char-sheet[data-skin] .sheet-skin-banner {
-  display:block; height:14px; margin:-14px -16px 14px; border-radius:8px 8px 0 0;
-  background:linear-gradient(90deg, var(--skin-a, var(--adim)), var(--skin-b, var(--accent)) 60%, var(--skin-a, var(--adim)));
+  display:flex; align-items:center; justify-content:center;
+  height:26px; margin:-14px -16px 14px; border-radius:8px 8px 0 0;
+  background:linear-gradient(90deg, var(--skin-a, var(--adim)), var(--skin-b, var(--accent)) 55%, var(--skin-a, var(--adim)));
   border-bottom:2px solid var(--skin-edge, var(--accent));
-  box-shadow:inset 0 1px 8px rgba(0,0,0,0.35);
+  box-shadow:inset 0 1px 10px rgba(0,0,0,0.4);
+  color:#fff; font-weight:800; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  text-shadow:0 1px 3px rgba(0,0,0,0.6);
 }
 .char-sheet[data-skin] .sheet-rail {
-  border:1px solid color-mix(in srgb, var(--skin-edge, var(--accent)) 38%, var(--border));
+  border:1px solid color-mix(in srgb, var(--skin-edge, var(--accent)) 55%, var(--border));
   border-radius:8px; padding:8px;
-  background:color-mix(in srgb, var(--skin-a, var(--bg2)) 22%, var(--bg2));
+  background:color-mix(in srgb, var(--skin-a, var(--bg2)) 38%, var(--bg2));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--skin-edge, var(--accent)) 22%, transparent);
 }
-.char-sheet[data-skin] .rail-sub { color:color-mix(in srgb, var(--skin-edge, var(--accent)) 70%, var(--td)); }
+.char-sheet[data-skin] .sheet-name { border-bottom:1px solid color-mix(in srgb, var(--skin-edge, var(--accent)) 45%, transparent); }
+.char-sheet[data-skin] .rail-sub { color:var(--skin-edge, var(--accent)); font-weight:600; }
 .char-sheet[data-skin] .sheet-tab.active {
   border-bottom-color:var(--skin-edge, var(--accent)); color:var(--text);
 }
@@ -1822,7 +1826,7 @@ body.dock-resizing { cursor:ew-resize; user-select:none; }
 .tok-quickbar button:hover { border-color:var(--accent); background:var(--bg4); }
 
 /* ── Éditeur de jeton (PV / infos) ── */
-.tokedit-card { width:420px; max-width:94vw; }
+.tokedit-card { width:420px; max-width:94vw; max-height:92vh; overflow-y:auto; }
 .tokedit-color { height:38px; padding:3px; cursor:pointer; }
 .tokedit-note { min-height:60px; resize:vertical; font-family:inherit; line-height:1.5; }
 .tokedit-img { display:flex; align-items:center; gap:6px; }

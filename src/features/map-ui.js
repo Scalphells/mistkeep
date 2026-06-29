@@ -2396,7 +2396,7 @@ export async function mountMap(container) {
         const dist = cells * m.feetPerCell;
         // Budget de vitesse : si le jeton a une vitesse, on l'affiche et on
         // signale le dépassement (texte + trajet rouge).
-        const tok = (m.tokens || []).find((tt) => tt.id === dragging.el?.dataset.token);
+        const tok = (m.tokens || []).find((tt) => tt.id === dragging.id);
         const speed = Number(tok?.speed) || 0;
         const over = speed > 0 && dist > speed;
         hud.style.display = 'block';

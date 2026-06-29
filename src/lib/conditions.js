@@ -73,8 +73,8 @@ export const COND_PF2E = [
 
 /** Jeu d'états par identifiant de système. */
 const COND_BY_SYSTEM = {
-  dnd5e2014: COND_5E,
-  dnd5e2024: COND_5E,
+  'dnd5e-2014': COND_5E,
+  'dnd5e-2024': COND_5E,
   pf2e: COND_PF2E,
   custom: COND_5E,
 };

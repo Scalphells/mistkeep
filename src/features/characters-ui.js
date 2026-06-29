@@ -1226,7 +1226,7 @@ function renderSheet(scrollTop = false) {
   const migrate = ed ? srdIdChanges(d, sys) : [];
 
   el.innerHTML = `
-    <div class="sheet-skin-banner" aria-hidden="true"></div>
+    <div class="sheet-skin-banner" aria-hidden="true">${escapeHtml(sys.label || '')}</div>
     <div class="sheet5e">
       <aside class="sheet-rail">
         <label class="rail-portrait ${isDM ? 'editable' : ''}" ${isDM ? `title="${t('char.portrait.change')}"` : ''}>
