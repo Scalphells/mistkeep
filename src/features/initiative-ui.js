@@ -43,7 +43,7 @@ import { t } from '../lib/i18n.js';
  * suivent le combat en temps réel (lecture seule).
  */
 
-import { CONDITIONS, condIcon, condIconHtml, condLabel } from '../lib/conditions.js';
+import { systemConditions, condIcon, condIconHtml, condLabel, condDesc } from '../lib/conditions.js';
 
 /** Rappel d'un jet de Concentration si un combattant concentré subit des dégâts. */
 function concentrationCheck(entityId, damage) {
@@ -261,7 +261,7 @@ function playerCombatPanel() {
                <button class="dice-btn" data-pp="leave">${t('dock.leave')}</button>
              </div>
              <div class="ipp-conds-lbl">${t('init.myConds')}</div>
-             <div class="ipp-conds">${CONDITIONS
+             <div class="ipp-conds">${systemConditions()
                .map((c) => `<button class="ipp-cond ${conds.includes(c.n) ? 'on' : ''}" data-cond="${escapeHtml(c.n)}" title="${escapeHtml(condLabel(c.n))}">${c.i}</button>`)
                .join('')}</div>`
           : `<button class="dice-btn" data-pp="join">${t('dock.join')}</button>`
@@ -607,7 +607,7 @@ function combatantRow(c, i, active, isDM, round) {
   const conds = (c.conditions || [])
     .map(
       (cond) =>
-        `<span class="cond-tag">${condIconHtml(cond)} ${escapeHtml(condLabel(cond))}${
+        `<span class="cond-tag" title="${escapeHtml(condDesc(cond) || condLabel(cond))}">${condIconHtml(cond)} ${escapeHtml(condLabel(cond))}${
           isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-delcond="${escapeHtml(cond)}">×</button>` : ''
         }</span>`
     )
@@ -689,7 +689,7 @@ function combatantRow(c, i, active, isDM, round) {
                <button class="init-st-btn ${c.status === 'delayed' ? 'on' : ''}" data-status="delayed" data-id="${c.entity_id}" title="${t('init.status.delayBtn')}">⏸</button>
                <select class="cond-select" data-cond="${c.entity_id}">
                  <option value="">${t('init.addCond')}</option>
-                 ${CONDITIONS.map((x) => `<option value="${x.n}">${x.i} ${escapeHtml(condLabel(x.n))}</option>`).join('')}
+                 ${systemConditions().map((x) => `<option value="${x.n}">${x.i} ${escapeHtml(condLabel(x.n))}</option>`).join('')}
                </select>
                <button class="mini-del" data-remove="${c.entity_id}">×</button>
              </div>`
