@@ -1187,6 +1187,7 @@ function renderSheet(scrollTop = false) {
   renderedSig = c ? `${JSON.stringify(c)}|${store.get().charPrivate?.[c.id] ?? ''}` : '';
 
   if (!c) {
+    el.dataset.skin = '';
     el.innerHTML = `<div class="char-empty">${t('char.empty')}</div>`;
     return;
   }
@@ -1195,6 +1196,7 @@ function renderSheet(scrollTop = false) {
   // Une campagne = un système : le descripteur vient de la campagne active,
   // avec repli sur celui posé sur la fiche (créations antérieures), puis 5e.
   const sys = getSystem(activeCampaign()?.system || d.system);
+  el.dataset.skin = sys.id || ''; // thème décoratif de fiche par système (cf. base.css)
   const ed = canEdit(c);
   const ro = ed ? '' : 'readonly disabled';
 
@@ -1224,6 +1226,7 @@ function renderSheet(scrollTop = false) {
   const migrate = ed ? srdIdChanges(d, sys) : [];
 
   el.innerHTML = `
+    <div class="sheet-skin-banner" aria-hidden="true"></div>
     <div class="sheet5e">
       <aside class="sheet-rail">
         <label class="rail-portrait ${isDM ? 'editable' : ''}" ${isDM ? `title="${t('char.portrait.change')}"` : ''}>
