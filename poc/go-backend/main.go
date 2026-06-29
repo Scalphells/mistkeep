@@ -249,6 +249,10 @@ var migrations = []string{
 	// SQLite UNIQUE indexes allow multiple NULLs, so codeless campaigns are fine.
 	`ALTER TABLE campaigns ADD COLUMN invite_code TEXT;
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_invite ON campaigns(invite_code);`,
+	// v7 — PF2e valued conditions (mirror of the Supabase 0029/0030 migration):
+	// a per-combatant map of condition name → numeric value (Frightened 1, …),
+	// stored as JSON text alongside `conditions` and `effects`.
+	`ALTER TABLE initiative ADD COLUMN cond_values TEXT DEFAULT '{}';`,
 }
 
 // migrate applies every pending migration in its own transaction, then stamps

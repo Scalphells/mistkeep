@@ -1242,6 +1242,8 @@
   "init.statblock": "Statblock / attacks",
   "init.tempHp": "Temporary HP",
   "init.addCond": "+ Condition",
+  "init.cond.inc": "Increase value",
+  "init.cond.dec": "Decrease value",
   "init.eff.expired": "over",
   "init.target.toggle": "Target / untarget",
   "init.target.none": "No token on the map",

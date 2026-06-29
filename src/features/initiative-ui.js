@@ -10,6 +10,7 @@ import {
   updateCombatant,
   adjustHp,
   toggleCondition,
+  setCondValue,
   addEffect,
   removeEffect,
   rollAllInitiative,
@@ -43,7 +44,7 @@ import { t } from '../lib/i18n.js';
  * suivent le combat en temps réel (lecture seule).
  */
 
-import { systemConditions, condIcon, condIconHtml, condLabel, condDesc } from '../lib/conditions.js';
+import { systemConditions, condIcon, condIconHtml, condLabel, condDesc, condValued } from '../lib/conditions.js';
 
 /** Rappel d'un jet de Concentration si un combattant concentré subit des dégâts. */
 function concentrationCheck(entityId, damage) {
@@ -485,6 +486,13 @@ function renderList(container) {
       toggleCondition(b.dataset.id, b.dataset.delcond)
     )
   );
+  el.querySelectorAll('[data-condval]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const c = store.get().initiative.find((x) => x.entity_id === b.dataset.id);
+      const cur = c?.cond_values?.[b.dataset.cond] || 1;
+      setCondValue(b.dataset.id, b.dataset.cond, b.dataset.condval === 'inc' ? cur + 1 : cur - 1);
+    })
+  );
   el.querySelectorAll('[data-add-effect]').forEach((b) =>
     b.addEventListener('click', async () => {
       const conc = b.dataset.concentration === '1';
@@ -605,12 +613,17 @@ function combatantRow(c, i, active, isDM, round) {
   const dead = c.hp === 0;
 
   const conds = (c.conditions || [])
-    .map(
-      (cond) =>
-        `<span class="cond-tag" title="${escapeHtml(condDesc(cond) || condLabel(cond))}">${condIconHtml(cond)} ${escapeHtml(condLabel(cond))}${
-          isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-delcond="${escapeHtml(cond)}">×</button>` : ''
-        }</span>`
-    )
+    .map((cond) => {
+      const valued = condValued(cond);
+      const valBadge = valued ? `<b class="cond-val">${c.cond_values?.[cond] || 1}</b>` : '';
+      const stepper =
+        isDM && valued
+          ? `<button class="cond-step" data-condval="dec" data-id="${c.entity_id}" data-cond="${escapeHtml(cond)}" title="${t('init.cond.dec')}">−</button><button class="cond-step" data-condval="inc" data-id="${c.entity_id}" data-cond="${escapeHtml(cond)}" title="${t('init.cond.inc')}">+</button>`
+          : '';
+      return `<span class="cond-tag" title="${escapeHtml(condDesc(cond) || condLabel(cond))}">${condIconHtml(cond)} ${escapeHtml(condLabel(cond))}${valBadge}${stepper}${
+        isDM ? `<button class="cond-x" data-id="${c.entity_id}" data-delcond="${escapeHtml(cond)}">×</button>` : ''
+      }</span>`;
+    })
     .join('');
 
   const effects = (c.effects || [])

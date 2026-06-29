@@ -6,6 +6,7 @@ import { loadCharacters, updateCharacter } from './characters.js';
 import { rollDice } from './dice.js';
 import { addPin, updatePin, updateToken, toggleDoor } from './map.js';
 import { showToast } from '../lib/toast.js';
+import { condValued } from '../lib/conditions.js';
 import { t as tr } from '../lib/i18n.js';
 import { getPref } from '../lib/prefs.js';
 import { playTurnChime } from '../lib/turnsound.js';
@@ -84,9 +85,18 @@ function normRow(c) {
       ds = null;
     }
   }
+  let cv = c.cond_values;
+  if (typeof cv === 'string') {
+    try {
+      cv = JSON.parse(cv);
+    } catch {
+      cv = {};
+    }
+  }
   return {
     ...c,
     conditions: Array.isArray(conds) ? conds : [],
+    cond_values: cv && typeof cv === 'object' ? cv : {},
     hp_temp: c.hp_temp ?? 0,
     char_id: c.char_id ?? null,
     death_saves: ds && typeof ds === 'object' ? ds : null,
@@ -409,9 +419,25 @@ export async function toggleCondition(entityId, cond) {
   const c = store.get().initiative.find((x) => x.entity_id === entityId);
   if (!c) return;
   const set = new Set(c.conditions || []);
-  if (set.has(cond)) set.delete(cond);
-  else set.add(cond);
+  const adding = !set.has(cond);
+  if (adding) set.add(cond);
+  else set.delete(cond);
   await updateCombatant(entityId, { conditions: [...set] });
+  // États à valeur (PF2e) : valeur par défaut 1 à l'ajout, nettoyée au retrait.
+  // Écriture séparée (la colonne `cond_values` peut manquer avant migration).
+  if (condValued(cond)) await setCondValue(entityId, cond, adding ? c.cond_values?.[cond] || 1 : 0);
+}
+
+/** Définit la valeur d'un état à valeur (PF2e) ; 0 = retire la valeur (MJ). */
+export async function setCondValue(entityId, cond, value) {
+  if (!store.get().isDM) return;
+  const c = store.get().initiative.find((x) => x.entity_id === entityId);
+  if (!c) return;
+  const cv = { ...(c.cond_values || {}) };
+  const v = Math.max(0, Math.min(99, Number(value) || 0));
+  if (v > 0) cv[cond] = v;
+  else delete cv[cond];
+  await updateCombatant(entityId, { cond_values: cv });
 }
 
 /** Ajoute un effet à durée à un combattant (MJ). `rounds` vide = indéfini. */

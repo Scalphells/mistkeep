@@ -1242,6 +1242,8 @@
   "init.statblock": "Statbloc / attaques",
   "init.tempHp": "PV temporaires",
   "init.addCond": "+ État",
+  "init.cond.inc": "Augmenter la valeur",
+  "init.cond.dec": "Diminuer la valeur",
   "init.eff.expired": "fini",
   "init.target.toggle": "Cibler / décibler",
   "init.target.none": "Aucun jeton sur la carte",
