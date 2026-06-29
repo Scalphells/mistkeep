@@ -419,6 +419,12 @@ body {
   border-radius: 8px;
   padding: 14px 16px;
 }
+/* Option « fiche translucide » (prefs.glass) : verre dépoli, s'adapte au thème. */
+html[data-glass="1"] .char-sheet {
+  background: color-mix(in srgb, var(--bg1) 68%, transparent);
+  backdrop-filter: blur(9px) saturate(1.08);
+  -webkit-backdrop-filter: blur(9px) saturate(1.08);
+}
 
 .sheet-head {
   border-bottom: 1px solid var(--border);

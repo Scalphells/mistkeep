@@ -17,7 +17,7 @@ import { t, setLocale, LOCALES, DEFAULT_LOCALE } from './i18n.js';
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true, turnSound: true, locale: DEFAULT_LOCALE };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true, glass: false, turnSound: true, locale: DEFAULT_LOCALE };
 
 function load() {
   try {
@@ -46,6 +46,8 @@ function apply() {
   html.dataset.theme = prefs.theme;
   if (prefs.vttRail) html.dataset.vttrail = '1';
   else delete html.dataset.vttrail;
+  if (prefs.glass) html.dataset.glass = '1';
+  else delete html.dataset.glass;
   // Le dock se reconfigure (rail unique on/off).
   window.dispatchEvent(new CustomEvent('vaultmj:chrome'));
 }
@@ -164,6 +166,13 @@ export function openPrefs() {
         </div>
       </div>
       <div class="atk-row">
+        <label>${t('prefs.glass')} <small style="color:var(--muted)">${t('prefs.glass.note')}</small></label>
+        <div class="atk-modes" id="pref-glass">
+          <button data-g="off">${t('prefs.glass.off')}</button>
+          <button data-g="on">${t('prefs.glass.on')}</button>
+        </div>
+      </div>
+      <div class="atk-row">
         <label>${t('prefs.vtt')} <small style="color:var(--muted)">${t('prefs.vtt.note')}</small></label>
         <div class="atk-modes" id="pref-vtt">
           <button data-v="off">${t('prefs.vtt.off')}</button>
@@ -207,6 +216,9 @@ export function openPrefs() {
     );
     overlay.querySelectorAll('#pref-theme button').forEach((b) =>
       b.classList.toggle('active', b.dataset.t === prefs.theme)
+    );
+    overlay.querySelectorAll('#pref-glass button').forEach((b) =>
+      b.classList.toggle('active', (b.dataset.g === 'on') === !!prefs.glass)
     );
     overlay.querySelectorAll('#pref-vtt button').forEach((b) =>
       b.classList.toggle('active', (b.dataset.v === 'on') === !!prefs.vttRail)
@@ -253,6 +265,12 @@ export function openPrefs() {
   overlay.querySelectorAll('#pref-theme button').forEach((b) =>
     b.addEventListener('click', () => {
       prefs.theme = b.dataset.t;
+      commit();
+    })
+  );
+  overlay.querySelectorAll('#pref-glass button').forEach((b) =>
+    b.addEventListener('click', () => {
+      prefs.glass = b.dataset.g === 'on';
       commit();
     })
   );
