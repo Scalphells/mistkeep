@@ -7,7 +7,7 @@
  *     (jamais mis en cache — auth, RLS et temps réel doivent rester live).
  */
 
-const CACHE = 'vaultmj-v4';
+const CACHE = 'mistkeep-v1'; // renommé → l'activate purge tous les anciens caches (auto-réparation au déploiement)
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -40,6 +40,9 @@ self.addEventListener('fetch', (e) => {
   // donc sans ce garde la stratégie stale-while-revalidate servirait des réponses
   // d'API périmées (états de scène, etc.). On laisse passer tel quel au réseau.
   if (/^\/(api|auth|storage|realtime)(\/|$)/.test(url.pathname)) return;
+  // Ne JAMAIS mettre le service worker lui-même en cache (sinon ses mises à jour
+  // peuvent rester bloquées et figer une version périmée → écran blanc).
+  if (url.pathname === '/sw.js') return;
 
   // Navigation : réseau d'abord (sans cache HTTP, pour toujours obtenir le shell
   // à jour qui référence les assets hashés courants), repli sur le cache.
@@ -47,10 +50,12 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req.url, { cache: 'no-store' })
         .then((res) => {
-          // Clone synchronously, before the body is consumed by `return res`;
-          // the cache write then runs on the copy.
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('/index.html', copy));
+          // On ne mémorise que les shells SAINS (évite de figer une réponse
+          // transitoire d'erreur de déploiement comme fallback hors-ligne).
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('/index.html', copy));
+          }
           return res;
         })
         .catch(() => caches.match('/index.html').then((r) => r || caches.match('/')))
