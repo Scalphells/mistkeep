@@ -658,10 +658,11 @@ export async function mountMap(container) {
       const gs = movePreview.gs;
       const ox = movePreview.ox || 0;
       const oy = movePreview.oy || 0;
-      ctx.fillStyle = 'rgba(124,106,247,0.22)';
+      // Rouge si le déplacement dépasse la vitesse du jeton (budget de mouvement).
+      ctx.fillStyle = movePreview.over ? 'rgba(224,86,108,0.26)' : 'rgba(124,106,247,0.22)';
       for (const c of movePreview.cells) ctx.fillRect(c.cx * gs + ox, c.cy * gs + oy, gs, gs);
       if (movePreview.end) {
-        ctx.strokeStyle = 'rgba(124,106,247,0.95)';
+        ctx.strokeStyle = movePreview.over ? 'rgba(224,86,108,0.95)' : 'rgba(124,106,247,0.95)';
         ctx.lineWidth = 2;
         ctx.strokeRect(movePreview.end.cx * gs + ox, movePreview.end.cy * gs + oy, gs, gs);
       }
@@ -2392,8 +2393,14 @@ export async function mountMap(container) {
         const dxC = Math.abs(x - dragging.start.x) / gs;
         const dyC = Math.abs(y - dragging.start.y) / gs;
         const cells = Math.round(Math.max(dxC, dyC));
+        const dist = cells * m.feetPerCell;
+        // Budget de vitesse : si le jeton a une vitesse, on l'affiche et on
+        // signale le dépassement (texte + trajet rouge).
+        const tok = (m.tokens || []).find((tt) => tt.id === dragging.el?.dataset.token);
+        const speed = Number(tok?.speed) || 0;
+        const over = speed > 0 && dist > speed;
         hud.style.display = 'block';
-        hud.textContent = `${cells} cases · ${cells * m.feetPerCell} ${m.unit}`;
+        hud.textContent = `${cells} cases · ${dist}${speed ? ` / ${speed}` : ''} ${m.unit}${over ? ' ⚠' : ''}`;
         // Trajet surligné uniquement (la vision n'est PAS recalculée pendant le
         // drag : elle ne se met à jour qu'au drop, pour éviter qu'un joueur
         // « explore » la carte en promenant son jeton sans le déposer).
@@ -2401,7 +2408,7 @@ export async function mountMap(container) {
         const oy = m.grid.oy || 0;
         const c0 = { cx: Math.floor((dragging.start.x - ox) / gs), cy: Math.floor((dragging.start.y - oy) / gs) };
         const c1 = { cx: Math.floor((x - ox) / gs), cy: Math.floor((y - oy) / gs) };
-        movePreview = { gs, ox, oy, cells: lineCells(c0, c1), end: c1 };
+        movePreview = { gs, ox, oy, cells: lineCells(c0, c1), end: c1, over };
         scheduleDragDraw();
       }
     }
@@ -3093,6 +3100,7 @@ export async function mountMap(container) {
       lightColor: existing?.light?.color ?? '#ffb86b',
       rot: existing?.rot ?? '',
       elev: existing?.elev ?? '',
+      speed: existing?.speed ?? '',
       disp: existing?.disp ?? 'auto',
       hpHidden: existing?.hpHidden ?? false,
     };
@@ -3136,6 +3144,7 @@ export async function mountMap(container) {
         <div class="atk-row atk-grid2">
           <div><label>${tr('map.te.rot')}</label><input class="atk-in" id="te-rot" type="number" step="15" value="${escapeHtml(String(f.rot))}"></div>
           <div><label>${tr('map.te.elev')}</label><input class="atk-in" id="te-elev" type="number" value="${escapeHtml(String(f.elev))}"></div>
+          <div><label>${tr('map.te.speed')}</label><input class="atk-in" id="te-speed" type="number" min="0" value="${escapeHtml(String(f.speed))}"></div>
         </div>
         <div class="atk-row atk-grid2">
           <div><label>${tr('map.te.color')}</label><input class="atk-in tokedit-color" id="te-color" type="color" value="${f.color}"></div>
@@ -3269,6 +3278,7 @@ export async function mountMap(container) {
       patch.light = lr ? { r: lr, color: overlay.querySelector('#te-lightcolor').value } : null;
       patch.rot = num('#te-rot') || 0;
       patch.elev = num('#te-elev') || 0;
+      patch.speed = num('#te-speed');
       // Lien : 'e:<entity_id>' (turn order) ou 'c:<char_id>' (fiche), ou aucun.
       const lv = linkSel.value;
       if (lv.startsWith('e:')) {

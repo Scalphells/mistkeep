@@ -1592,6 +1592,7 @@
   "map.te.lightColor": "Couleur lumière",
   "map.te.rot": "Rotation (°)",
   "map.te.elev": "Élévation (± pieds)",
+  "map.te.speed": "Vitesse",
   "map.te.color": "Couleur",
   "map.te.image": "Image",
   "map.te.choose": "Choisir…",
