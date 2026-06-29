@@ -429,7 +429,8 @@ html[data-glass="1"] .sheet-window {
 html[data-glass="1"] .sheet-window-bar {
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg3) 55%, transparent), color-mix(in srgb, var(--bg2) 48%, transparent));
 }
-html[data-glass="1"] .sheet-window .char-sheet { background: transparent; border-color: transparent; }
+/* La FICHE reste solide et thémée même quand le verre est actif (le verre ne
+   s'applique qu'au cadre de fenêtre et aux autres panneaux). Cf. skins #8. */
 
 /* ── Skins de fiche par système de jeu (#8) ──────────────────────────
    Chaque système pose data-skin sur .char-sheet (cf. characters-ui.js).
@@ -440,7 +441,11 @@ html[data-glass="1"] .sheet-window .char-sheet { background: transparent; border
 .char-sheet[data-skin="custom"]     { --skin-a:var(--adim); --skin-b:var(--accent); --skin-edge:var(--accent); }
 
 .sheet-skin-banner { display:none; }
-.char-sheet[data-skin] { border-top:3px solid var(--skin-edge, var(--accent)); }
+.char-sheet[data-skin] {
+  border-top:3px solid var(--skin-edge, var(--accent));
+  /* Fond solide thémé façon Foundry (teinte en haut → fond normal), opaque. */
+  background:linear-gradient(180deg, color-mix(in srgb, var(--skin-a, var(--bg1)) 30%, var(--bg1)), var(--bg1) 190px);
+}
 /* Bannière titrée (nom du système) — repère de thème bien visible. */
 .char-sheet[data-skin] .sheet-skin-banner {
   display:flex; align-items:center; justify-content:center;
@@ -462,6 +467,9 @@ html[data-glass="1"] .sheet-window .char-sheet { background: transparent; border
 .char-sheet[data-skin] .sheet-tab.active {
   border-bottom-color:var(--skin-edge, var(--accent)); color:var(--text);
 }
+/* En-têtes de section colorés + filet latéral (richesse façon ForgeVTT). */
+.char-sheet[data-skin] .sheet-block h3 { color:var(--skin-edge, var(--accent)); }
+.char-sheet[data-skin] .sheet-block { border-left:2px solid color-mix(in srgb, var(--skin-edge, var(--accent)) 40%, transparent); }
 
 .sheet-head {
   border-bottom: 1px solid var(--border);

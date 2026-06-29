@@ -6,7 +6,7 @@ import { showToast } from '../lib/toast.js';
 import { loadCharacters, updateCharacter, saveBonus } from './characters.js';
 import { loadInitiative, subscribeInitiative, adjustHp, toggleCondition, logCombat, addCombatant, sendPlayerRequest } from './initiative.js';
 import { rollDice } from './dice.js';
-import { condIcon, condIconHtml, condLabel, condDesc, condValued } from '../lib/conditions.js';
+import { condIcon, condIconHtml, condLabel, condDesc, condValued, systemConditions } from '../lib/conditions.js';
 import { t as tr } from '../lib/i18n.js';
 import { openAttackResolver } from '../lib/attack.js';
 import { openActionCard } from '../lib/actioncard.js';
@@ -97,24 +97,6 @@ const ZOOM_MAX = 4;
 // Vue (pan/zoom) mémorisée par scène, conservée entre les changements d'onglet.
 const mapViews = {};
 
-// États 5e affichables sur les jetons (clé -> { icône, clé i18n du libellé }).
-const CONDITIONS = {
-  blinded: { icon: '🙈', label: 'cond.blinded' },
-  charmed: { icon: '💗', label: 'cond.charmed' },
-  deafened: { icon: '🔇', label: 'cond.deafened' },
-  frightened: { icon: '😱', label: 'cond.frightened' },
-  grappled: { icon: '✊', label: 'cond.grappled' },
-  incapacitated: { icon: '💫', label: 'cond.incapacitated' },
-  invisible: { icon: '👻', label: 'cond.invisible' },
-  paralyzed: { icon: '🥶', label: 'cond.paralyzed' },
-  petrified: { icon: '🗿', label: 'cond.petrified' },
-  poisoned: { icon: '🤢', label: 'cond.poisoned' },
-  prone: { icon: '🛌', label: 'cond.prone' },
-  restrained: { icon: '⛓', label: 'cond.restrained' },
-  stunned: { icon: '😵', label: 'cond.stunned' },
-  unconscious: { icon: '💤', label: 'cond.unconscious' },
-  concentration: { icon: '🧠', label: 'cond.concentration' },
-};
 
 /* Barre d'outils repliable : chaque groupe gagne un en-tête cliquable qui
  * masque/affiche ses contrôles. État mémorisé par appareil ; tout est replié par
@@ -661,6 +643,24 @@ export async function mountMap(container) {
       // Rouge si le déplacement dépasse la vitesse du jeton (budget de mouvement).
       ctx.fillStyle = movePreview.over ? 'rgba(224,86,108,0.26)' : 'rgba(124,106,247,0.22)';
       for (const c of movePreview.cells) ctx.fillRect(c.cx * gs + ox, c.cy * gs + oy, gs, gs);
+      // Distance cumulée affichée à CHAQUE case traversée (règle 5e : diagonale = 1 case).
+      const fpc = movePreview.fpc || 5;
+      ctx.save();
+      ctx.font = `bold ${Math.max(11, Math.round(gs * 0.26))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = Math.max(2, gs * 0.05);
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillStyle = '#fff';
+      movePreview.cells.forEach((c, i) => {
+        if (i === 0) return; // case de départ = 0
+        const tx = c.cx * gs + ox + gs / 2;
+        const ty = c.cy * gs + oy + gs / 2;
+        const label = String(Math.round(i * fpc * 10) / 10);
+        ctx.strokeText(label, tx, ty);
+        ctx.fillText(label, tx, ty);
+      });
+      ctx.restore();
       if (movePreview.end) {
         ctx.strokeStyle = movePreview.over ? 'rgba(224,86,108,0.95)' : 'rgba(124,106,247,0.95)';
         ctx.lineWidth = 2;
@@ -744,10 +744,13 @@ export async function mountMap(container) {
         const bg = url ? 'background:transparent;' : `background:${safeColor(t.color, 'var(--accent)')};`;
         const elev = Number(t.elev) || 0;
         const elevBadge = elev ? `<span class="map-token-elev" title="${tr('map.elev')}">${elev > 0 ? '▲' : '▼'}${Math.abs(elev)}</span>` : '';
-        // États repris du combattant lié (par entity_id ou char_id).
+        // États : repris du combattant lié (par entity_id ou char_id), sinon
+        // ceux posés directement sur le jeton autonome.
         const comb = combatantForToken(t);
-        const conds = (comb?.conditions || [])
-          .map((c) => `<span class="tok-cond" title="${escapeHtml(condLabel(c) + (condDesc(c) ? ' — ' + condDesc(c) : ''))}">${condIconHtml(c)}${condValued(c) && comb.cond_values?.[c] ? `<sup class="tok-condval">${comb.cond_values[c]}</sup>` : ''}</span>`)
+        const condSrc = comb ? comb.conditions : t.conditions;
+        const condVals = comb ? comb.cond_values : t.cond_values;
+        const conds = (condSrc || [])
+          .map((c) => `<span class="tok-cond" title="${escapeHtml(condLabel(c) + (condDesc(c) ? ' — ' + condDesc(c) : ''))}">${condIconHtml(c)}${condValued(c) && condVals?.[c] ? `<sup class="tok-condval">${condVals[c]}</sup>` : ''}</span>`)
           .join('');
         const isActive = !!(active && comb && active.entity_id === comb.entity_id);
         const cls = [
@@ -2408,7 +2411,7 @@ export async function mountMap(container) {
         const oy = m.grid.oy || 0;
         const c0 = { cx: Math.floor((dragging.start.x - ox) / gs), cy: Math.floor((dragging.start.y - oy) / gs) };
         const c1 = { cx: Math.floor((x - ox) / gs), cy: Math.floor((y - oy) / gs) };
-        movePreview = { gs, ox, oy, cells: lineCells(c0, c1), end: c1, over };
+        movePreview = { gs, ox, oy, cells: lineCells(c0, c1), end: c1, over, fpc: m.feetPerCell };
         scheduleDragDraw();
       }
     }
@@ -3564,32 +3567,45 @@ export async function mountMap(container) {
   }
   function openConditionsPicker(id, cx, cy) {
     closeConds();
-    const cur = (store.get().map?.tokens || []).find((x) => x.id === id);
-    const set = new Set(cur?.conditions || []);
+    const tok = (store.get().map?.tokens || []).find((x) => x.id === id);
+    if (!tok) return;
+    // États du SYSTÈME actif (PF2e, 5e…). Si le jeton est lié à un combattant,
+    // on agit sur lui (valeurs + tracker + affichage) ; sinon sur le jeton.
+    const comb = combatantForToken(tok);
+    const live = () => (comb ? combatantForToken(tok) : (store.get().map?.tokens || []).find((x) => x.id === id)) || {};
     condMenu = document.createElement('div');
     condMenu.className = 'map-ctx map-conds';
-    condMenu.innerHTML = Object.entries(CONDITIONS)
-      .map(
-        ([k, v]) =>
-          `<button data-cond="${k}" class="${set.has(k) ? 'on' : ''}"><span>${v.icon} ${tr(v.label)}</span><span class="ck">${set.has(k) ? '✓' : ''}</span></button>`
-      )
-      .join('');
+    const render = () => {
+      const src = live();
+      const set = new Set(src.conditions || []);
+      condMenu.innerHTML = systemConditions()
+        .map((c) => {
+          const on = set.has(c.n);
+          const val = on && c.valued ? src.cond_values?.[c.n] || 1 : '';
+          return `<button data-cond="${escapeHtml(c.n)}" class="${on ? 'on' : ''}" title="${escapeHtml(condDesc(c.n) || '')}"><span>${c.i} ${escapeHtml(condLabel(c.n))}${val ? ` <b>${val}</b>` : ''}</span><span class="ck">${on ? '✓' : ''}</span></button>`;
+        })
+        .join('');
+    };
+    render();
     document.body.appendChild(condMenu);
     const mr = condMenu.getBoundingClientRect();
     condMenu.style.left = `${Math.max(8, Math.min(cx, window.innerWidth - mr.width - 8))}px`;
     condMenu.style.top = `${Math.max(8, Math.min(cy, window.innerHeight - mr.height - 8))}px`;
-    condMenu.querySelectorAll('[data-cond]').forEach((b) =>
-      b.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        const k = b.dataset.cond;
-        const s = new Set((store.get().map?.tokens || []).find((x) => x.id === id)?.conditions || []);
-        if (s.has(k)) s.delete(k);
-        else s.add(k);
+    condMenu.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-cond]');
+      if (!b) return;
+      ev.stopPropagation();
+      const name = b.dataset.cond;
+      if (comb) {
+        toggleCondition(comb.entity_id, name); // gère valeur par défaut + tracker + jeton
+      } else {
+        const s = new Set(tok.conditions || []);
+        if (s.has(name)) s.delete(name);
+        else s.add(name);
         updateToken(id, { conditions: [...s] });
-        b.classList.toggle('on', s.has(k));
-        b.querySelector('.ck').textContent = s.has(k) ? '✓' : '';
-      })
-    );
+      }
+      setTimeout(render, 40); // reflète l'état (mise à jour asynchrone du combattant)
+    });
     const onClose = (ev) => {
       if (condMenu && !condMenu.contains(ev.target)) {
         closeConds();
