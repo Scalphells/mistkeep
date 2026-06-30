@@ -2990,6 +2990,13 @@ html[data-vttrail] .mtg-flyout {
 }
 html[data-vttrail="right"] .mtg-flyout { left: 100%; margin-left: 6px; }
 html[data-vttrail="left"] .mtg-flyout { right: 100%; margin-right: 6px; }
+/* Barre de scènes flottante (haut-centre, translucide) : la carte passe plein cadre. */
+html[data-vttrail] .scene-nav {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 29;
+  max-width: min(70%, 720px); margin: 0; border-radius: 12px;
+  background: color-mix(in srgb, var(--bg1) 82%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
 
 /* ──── Disposition « Rail VTT » (préférence, rail droit = navigation unique) ──── */
 html[data-vttrail] #nav { display: none; }
