@@ -245,7 +245,8 @@ export async function mountMap(container) {
           <span class="map-zoom" id="map-zoom">50%</span>
           <button class="map-btn" data-act="zoom-in" title="${tr('map.zoomin')}">＋</button>
           <button class="map-btn" data-act="fit" title="${tr('map.fit')}">⤢</button>
-          <button class="map-btn" data-act="immersive" title="${tr('map.immersive')}">⛶</button>
+          <button class="map-btn" data-act="fullscreen" title="${tr('map.fullscreen')}">⛶</button>
+          <button class="map-btn" data-act="focus" title="${tr('map.focus')}">⊟</button>
           ${isDM ? `<button class="map-btn" data-act="push-view" title="${tr('map.pushview')}">👁</button>` : ''}
         </div>
         <div class="map-tool-group" data-icon="✏" data-label="${tr('map.grp.draw')}">
@@ -1769,10 +1770,16 @@ export async function mountMap(container) {
         case 'fit':
           fit();
           break;
-        case 'immersive':
-          document.body.classList.toggle('immersive');
+        case 'fullscreen':
+          toggleFullscreen();
+          break;
+        case 'focus': {
+          const on = document.body.classList.toggle('map-focus');
+          b.classList.toggle('active', on);
+          b.textContent = on ? '⊞' : '⊟';
           setTimeout(fit, 60); // recadre après le changement de taille du viewport
           break;
+        }
         case 'push-view':
           sendView({ px: view.px, py: view.py, z: view.z });
           showToast(tr('map.toast.viewSent'), { icon: '👁', timeout: 2000 });
@@ -4066,8 +4073,36 @@ export async function mountMap(container) {
   };
   window.addEventListener('vaultmj:chrome', onChrome);
 
+  // Plein écran navigateur (⛶) : bascule réelle + resynchro du bouton et recadrage
+  // (gère la sortie par Échap via l'évènement fullscreenchange).
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function toggleFullscreen() {
+    if (fsEl()) {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+    } else {
+      const el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+    }
+  }
+  const onFsChange = () => {
+    const btn = container.querySelector('[data-act="fullscreen"]');
+    if (btn) btn.classList.toggle('active', !!fsEl());
+    setTimeout(() => {
+      try {
+        fit();
+      } catch {
+        /* carte démontée entre-temps */
+      }
+    }, 80);
+  };
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
   return () => {
     window.removeEventListener('vaultmj:chrome', onChrome);
+    document.removeEventListener('fullscreenchange', onFsChange);
+    document.removeEventListener('webkitfullscreenchange', onFsChange);
+    if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
     flushSceneSave(); // persiste tout changement encore en debounce avant de quitter
     if (_storeRaf) cancelAnimationFrame(_storeRaf);
     unsubStore();
@@ -4087,6 +4122,6 @@ export async function mountMap(container) {
     clearInterval(tmplCleanup);
     tileEditor?.remove();
     hoverBar?.remove();
-    document.body.classList.remove('immersive'); // sortir du plein écran en quittant la carte
+    document.body.classList.remove('map-focus'); // ré-affiche l'interface en quittant la carte
   };
 }

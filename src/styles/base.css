@@ -2145,15 +2145,14 @@ body.dock-resizing { cursor:ew-resize; user-select:none; }
 .presence-mj { font-size:9px; background:var(--adim); color:var(--ah); border-radius:4px; padding:1px 4px; }
 @media (max-width:900px) { .presence { display:none; } }
 
-/* ── Carte plein écran immersif ── */
-body.immersive #shell { padding:0 !important; }
-body.immersive #shell > header, body.immersive #nav { display:none !important; }
-/* carte 100vh + outils en colonne verticale gauche (façon Foundry). */
-body.immersive .map-root { flex-direction:row; height:100vh; gap:0; }
-body.immersive .map-toolbar { flex-direction:column; flex-wrap:nowrap; align-items:stretch; width:190px; flex:none; height:100vh; overflow-y:auto; border:none; border-right:1px solid var(--border); border-radius:0; padding:6px; }
-body.immersive .map-tool-group { flex-flow:row wrap; border-right:none; border-bottom:1px solid var(--border); padding:16px 4px 8px; }
-body.immersive .map-tool-group:last-child { border-bottom:none; }
-body.immersive .map-viewport { border:none; border-radius:0; }
+/* ── « Masquer l'interface » (focus carte) ──
+   En-tête, nav et dock cachés, carte plein écran. Compose avec le rail d'outils. */
+body.map-focus #shell { padding:0 !important; }
+body.map-focus #shell > header, body.map-focus #nav { display:none !important; }
+body.map-focus .dock { display:none !important; }
+body.map-focus #view { padding:0 !important; }
+body.map-focus #view .map-root { height:100vh !important; }
+body.map-focus .map-viewport { border:none; border-radius:0; }
 
 /* ════════ Fiche perso — refonte visuelle façon Foundry ════════ */
 .sheet5e { gap:18px; }
