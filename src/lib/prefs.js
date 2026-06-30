@@ -17,7 +17,7 @@ import { t, setLocale, LOCALES, DEFAULT_LOCALE } from './i18n.js';
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', vttRail: true, glass: false, turnSound: true, locale: DEFAULT_LOCALE };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', density: 'aere', vttRail: true, glass: false, turnSound: true, locale: DEFAULT_LOCALE };
 
 function load() {
   try {
@@ -44,6 +44,7 @@ function apply() {
   html.dataset.motion = prefs.motion;
   html.dataset.accent = prefs.accent;
   html.dataset.theme = prefs.theme;
+  html.dataset.density = prefs.density; // compact | standard | aere → multiplicateur --density
   if (prefs.vttRail) html.dataset.vttrail = '1';
   else delete html.dataset.vttrail;
   if (prefs.glass) html.dataset.glass = '1';
@@ -150,6 +151,14 @@ export function openPrefs() {
         </div>
       </div>
       <div class="atk-row">
+        <label>${t('prefs.density')}</label>
+        <div class="atk-modes" id="pref-density">
+          <button data-d="compact">${t('prefs.density.compact')}</button>
+          <button data-d="standard">${t('prefs.density.standard')}</button>
+          <button data-d="aere">${t('prefs.density.aere')}</button>
+        </div>
+      </div>
+      <div class="atk-row">
         <label>${t('prefs.accent')}</label>
         <div class="pref-accents" id="pref-accent">
           <button data-a="violet" class="pref-acc" style="--p:#7c6af7" title="${t('prefs.accent.violet')}"></button>
@@ -211,6 +220,9 @@ export function openPrefs() {
     overlay.querySelectorAll('#pref-motion button').forEach((b) =>
       b.classList.toggle('active', b.dataset.m === prefs.motion)
     );
+    overlay.querySelectorAll('#pref-density button').forEach((b) =>
+      b.classList.toggle('active', b.dataset.d === prefs.density)
+    );
     overlay.querySelectorAll('#pref-accent button').forEach((b) =>
       b.classList.toggle('active', b.dataset.a === prefs.accent)
     );
@@ -247,6 +259,12 @@ export function openPrefs() {
   overlay.querySelectorAll('#pref-contrast button').forEach((b) =>
     b.addEventListener('click', () => {
       prefs.contrast = b.dataset.c;
+      commit();
+    })
+  );
+  overlay.querySelectorAll('#pref-density button').forEach((b) =>
+    b.addEventListener('click', () => {
+      prefs.density = b.dataset.d;
       commit();
     })
   );
