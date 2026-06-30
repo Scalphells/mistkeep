@@ -17,11 +17,19 @@ import { t, setLocale, LOCALES, DEFAULT_LOCALE } from './i18n.js';
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', density: 'aere', vttRail: true, glass: false, turnSound: true, locale: DEFAULT_LOCALE };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', density: 'aere', vttRail: 'left', glass: false, turnSound: true, locale: DEFAULT_LOCALE };
+
+/* Disposition : 'off' (classique) · 'left' (rail gauche, map-first) · 'right' (rail droit).
+   Tout ancien booléen (true/false) ou valeur inconnue tombe sur 'left' (map-first par défaut). */
+function coerceVtt(v) {
+  return v === 'off' || v === 'left' || v === 'right' ? v : 'left';
+}
 
 function load() {
   try {
-    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY)) || {}) };
+    const p = { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY)) || {}) };
+    p.vttRail = coerceVtt(p.vttRail);
+    return p;
   } catch {
     return { ...DEFAULTS };
   }
@@ -45,7 +53,7 @@ function apply() {
   html.dataset.accent = prefs.accent;
   html.dataset.theme = prefs.theme;
   html.dataset.density = prefs.density; // compact | standard | aere → multiplicateur --density
-  if (prefs.vttRail) html.dataset.vttrail = '1';
+  if (prefs.vttRail === 'left' || prefs.vttRail === 'right') html.dataset.vttrail = prefs.vttRail;
   else delete html.dataset.vttrail;
   if (prefs.glass) html.dataset.glass = '1';
   else delete html.dataset.glass;
@@ -97,6 +105,7 @@ export function syncPrefsFromProfile() {
   }
   if (remote && typeof remote === 'object') {
     prefs = { ...DEFAULTS, ...remote };
+    prefs.vttRail = coerceVtt(prefs.vttRail); // le profil distant peut porter l'ancien booléen
     save(prefs); // rafraîchit le cache local
     apply();
   } else {
@@ -185,7 +194,8 @@ export function openPrefs() {
         <label>${t('prefs.vtt')} <small style="color:var(--muted)">${t('prefs.vtt.note')}</small></label>
         <div class="atk-modes" id="pref-vtt">
           <button data-v="off">${t('prefs.vtt.off')}</button>
-          <button data-v="on">${t('prefs.vtt.on')}</button>
+          <button data-v="left">${t('prefs.vtt.left')}</button>
+          <button data-v="right">${t('prefs.vtt.right')}</button>
         </div>
       </div>
       <div class="atk-row">
@@ -233,7 +243,7 @@ export function openPrefs() {
       b.classList.toggle('active', (b.dataset.g === 'on') === !!prefs.glass)
     );
     overlay.querySelectorAll('#pref-vtt button').forEach((b) =>
-      b.classList.toggle('active', (b.dataset.v === 'on') === !!prefs.vttRail)
+      b.classList.toggle('active', b.dataset.v === prefs.vttRail)
     );
     overlay.querySelectorAll('#pref-turnsound button').forEach((b) =>
       b.classList.toggle('active', (b.dataset.s === 'on') === !!prefs.turnSound)
@@ -294,7 +304,7 @@ export function openPrefs() {
   );
   overlay.querySelectorAll('#pref-vtt button').forEach((b) =>
     b.addEventListener('click', () => {
-      prefs.vttRail = b.dataset.v === 'on';
+      prefs.vttRail = b.dataset.v; // 'off' | 'left' | 'right'
       commit();
     })
   );

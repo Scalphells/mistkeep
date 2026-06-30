@@ -4009,7 +4009,25 @@ export async function mountMap(container) {
     fit();
   }
 
+  // Recadre la carte quand la DISPOSITION change (rail ↔ classique), sans réagir
+  // aux autres changements de prefs (accent/thème/densité…) qui émettent aussi 'chrome'.
+  let lastLayout = document.documentElement.dataset.vttrail || '';
+  const onChrome = () => {
+    const cur = document.documentElement.dataset.vttrail || '';
+    if (cur === lastLayout) return;
+    lastLayout = cur;
+    setTimeout(() => {
+      try {
+        fit();
+      } catch {
+        /* carte démontée entre-temps */
+      }
+    }, 80);
+  };
+  window.addEventListener('vaultmj:chrome', onChrome);
+
   return () => {
+    window.removeEventListener('vaultmj:chrome', onChrome);
     flushSceneSave(); // persiste tout changement encore en debounce avant de quitter
     if (_storeRaf) cancelAnimationFrame(_storeRaf);
     unsubStore();

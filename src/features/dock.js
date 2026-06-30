@@ -57,7 +57,7 @@ function renderTabs() {
   const el = host?.querySelector('#dock-tabs');
   if (!el) return;
   const isDM = store.get().isDM;
-  const vtt = document.documentElement.dataset.vttrail === '1';
+  const vtt = document.documentElement.dataset.vttrail != null;
   if (!vtt) {
     el.innerHTML =
       railTab('dock', 'fiche', '🛡', t('dock.tab.fiche')) +
@@ -96,7 +96,7 @@ function highlightTabs() {
   const el = host?.querySelector('#dock-tabs');
   if (!el) return;
   el.querySelectorAll('[data-dock]').forEach((b) => b.classList.toggle('active', b.dataset.dock === open));
-  const vtt = document.documentElement.dataset.vttrail === '1';
+  const vtt = document.documentElement.dataset.vttrail != null;
   if (vtt) {
     // La carte est toujours visible (élément central) ; les autres vues sont
     // actives tant que leur fenêtre flottante est ouverte.
@@ -124,7 +124,7 @@ export function mountDock(container) {
     const navBtn = e.target.closest('[data-nav]');
     if (navBtn) {
       const id = navBtn.dataset.nav;
-      const vtt = document.documentElement.dataset.vttrail === '1';
+      const vtt = document.documentElement.dataset.vttrail != null;
       // En VTT, recliquer un onglet déjà ouvert referme sa fenêtre (bascule).
       if (vtt && id !== 'map' && isWindowOpen(id)) {
         closeWindow(id);
@@ -175,7 +175,11 @@ function initResizer(handle, body) {
   let startW = 0;
   const onMove = (e) => {
     const max = Math.min(window.innerWidth * 0.7, 720);
-    const w = Math.max(260, Math.min(max, startW + (startX - e.clientX)));
+    // Rail à gauche : la poignée est sur le bord DROIT du corps → le corps grandit
+    // quand le curseur va vers la droite (signe inverse du rail droit).
+    const left = document.documentElement.dataset.vttrail === 'left';
+    const dx = left ? e.clientX - startX : startX - e.clientX;
+    const w = Math.max(260, Math.min(max, startW + dx));
     applyWidth(body, w);
   };
   const onUp = () => {

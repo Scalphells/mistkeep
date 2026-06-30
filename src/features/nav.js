@@ -69,7 +69,7 @@ export function mountNav(navEl, viewEl) {
 
   // Vue par défaut : en disposition VTT la carte est l'élément central ; sinon on
   // restaure la dernière vue (ou la première accessible).
-  const vtt = document.documentElement.dataset.vttrail === '1';
+  const vtt = document.documentElement.dataset.vttrail != null;
   const initial = vtt
     ? 'map'
     : visible.some((v) => v.id === store.get().sideTab)
@@ -94,7 +94,7 @@ export function mountNav(navEl, viewEl) {
 function switchView(id, navEl, viewEl) {
   // En disposition VTT, la carte reste l'élément central permanent : toute autre
   // vue s'ouvre (ou revient au premier plan) dans une fenêtre flottante.
-  if (id !== 'map' && document.documentElement.dataset.vttrail === '1') {
+  if (id !== 'map' && document.documentElement.dataset.vttrail != null) {
     const view = VIEWS.find((v) => v.id === id);
     if (!view) return;
     store.set({ sideTab: id });

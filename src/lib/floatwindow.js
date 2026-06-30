@@ -96,7 +96,13 @@ export function openWindow(id, { title = tr('float.window'), mount, width, heigh
   // Cascade : décale chaque nouvelle fenêtre pour ne pas les empiler exactement
   // (sans Date.now/Math.random : on se base sur le nombre déjà ouvert).
   const idx = WINDOWS.size;
-  const baseL = Math.max(8, Math.round((window.innerWidth - w) / 2));
+  // Cascade ancrée du côté OPPOSÉ au rail pour ne pas naître sous la colonne d'onglets.
+  const railLeft = document.documentElement.dataset.vttrail === 'left';
+  const RAIL = 46;
+  const centerL = Math.max(8, Math.round((window.innerWidth - w) / 2));
+  const baseL = railLeft
+    ? Math.max(RAIL + 8, centerL) // rail gauche → fenêtres poussées à droite
+    : Math.min(centerL, Math.max(8, window.innerWidth - w - RAIL - 8)); // rail droit/classique → à gauche
   const baseT = Math.max(8, Math.round((window.innerHeight - h) / 2));
   win.style.width = `${w}px`;
   win.style.height = `${h}px`;
@@ -197,5 +203,5 @@ function initResize(handle, win) {
 // Quand on quitte la disposition VTT, on referme toutes les fenêtres flottantes
 // (la navigation redevient « plein écran central »).
 window.addEventListener('vaultmj:chrome', () => {
-  if (document.documentElement.dataset.vttrail !== '1') closeAllWindows();
+  if (document.documentElement.dataset.vttrail == null) closeAllWindows();
 });
