@@ -17,12 +17,12 @@ import { t, setLocale, LOCALES, DEFAULT_LOCALE } from './i18n.js';
  */
 
 const KEY = 'vaultmj_prefs';
-const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', density: 'aere', vttRail: 'left', glass: false, turnSound: true, locale: DEFAULT_LOCALE };
+const DEFAULTS = { scale: 1, contrast: 'normal', motion: 'system', accent: 'violet', theme: 'dark', density: 'aere', vttRail: 'right', glass: false, turnSound: true, locale: DEFAULT_LOCALE };
 
-/* Disposition : 'off' (classique) · 'left' (rail gauche, map-first) · 'right' (rail droit).
-   Tout ancien booléen (true/false) ou valeur inconnue tombe sur 'left' (map-first par défaut). */
+/* Disposition : 'off' (classique) · 'left' (rail gauche) · 'right' (rail droit, map-first par défaut).
+   Tout ancien booléen (true/false) ou valeur inconnue tombe sur 'right' (rail droit = mode VTT historique). */
 function coerceVtt(v) {
-  return v === 'off' || v === 'left' || v === 'right' ? v : 'left';
+  return v === 'off' || v === 'left' || v === 'right' ? v : 'right';
 }
 
 function load() {
