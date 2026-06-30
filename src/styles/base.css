@@ -2953,6 +2953,43 @@ input, textarea, select { transition: border-color .14s ease, box-shadow .14s ea
 .mtg-caret { font-size: 9px; width: 9px; }
 .map-tool-group.collapsed { padding-bottom: 0; }
 .map-tool-group.collapsed > *:not(.mtg-toggle) { display: none; }
+/* Intitulé de groupe : icône (rail) vs texte (classique) ; conteneur des sous-outils. */
+.mtg-ico { display: none; }
+.mtg-label { display: inline-flex; align-items: center; gap: 3px; }
+.mtg-flyout { display: contents; } /* transparent à la mise en page (mode classique) */
+
+/* ──── Rail d'outils carte façon VTT (mode disposition rail) ────
+   Le bordereau devient une colonne d'icônes sur le bord de la carte, opposé au
+   dock applicatif ; les sous-outils du groupe actif s'ouvrent en panneau flottant. */
+html[data-vttrail] .map-root { position: relative; }
+html[data-vttrail] .map-toolbar {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 30;
+  width: auto; flex-direction: column; flex-wrap: nowrap; gap: 2px; padding: 4px;
+  border-radius: 14px; background: color-mix(in srgb, var(--bg1) 84%, transparent);
+  background-image: none; border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+html[data-vttrail="right"] .map-toolbar { left: 8px; }   /* dock à droite → rail à gauche */
+html[data-vttrail="left"] .map-toolbar { right: 8px; }   /* dock à gauche → rail à droite */
+html[data-vttrail] .map-tool-group { position: relative; border-right: none; padding: 0; }
+html[data-vttrail] .mtg-toggle {
+  width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 10px;
+}
+html[data-vttrail] .mtg-toggle:hover { background: var(--bg3); }
+html[data-vttrail] .mtg-ico { display: inline; font-size: 18px; line-height: 1; }
+html[data-vttrail] .mtg-label { display: none; } /* libellé en infobulle (title) */
+html[data-vttrail] .map-tool-group:not(.collapsed) > .mtg-toggle {
+  background: var(--accent-grad); color: #fff; box-shadow: 0 3px 12px rgba(124,106,247,.34);
+}
+html[data-vttrail] .mtg-flyout {
+  display: flex; flex-flow: row wrap; align-content: flex-start; gap: 4px;
+  position: absolute; top: 0; max-width: 236px; padding: 7px;
+  border-radius: 12px; background: color-mix(in srgb, var(--bg1) 92%, transparent);
+  border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 31;
+}
+html[data-vttrail="right"] .mtg-flyout { left: 100%; margin-left: 6px; }
+html[data-vttrail="left"] .mtg-flyout { right: 100%; margin-right: 6px; }
 
 /* ──── Disposition « Rail VTT » (préférence, rail droit = navigation unique) ──── */
 html[data-vttrail] #nav { display: none; }

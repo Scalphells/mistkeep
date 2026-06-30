@@ -109,21 +109,45 @@ function setupCollapsibleToolbar(container) {
   } catch {
     /* no-op */
   }
+  // Mode « rail VTT » (façon Foundry) : le bordereau devient une colonne d'icônes
+  // sur le bord de la carte, et un seul groupe est ouvert à la fois (panneau volant).
+  const railMode = () => document.documentElement.dataset.vttrail != null;
   const groups = container.querySelectorAll('.map-tool-group[data-label]');
   groups.forEach((g, i) => {
     if (g.querySelector(':scope > .mtg-toggle')) return; // déjà traité
     const label = g.dataset.label;
+    const icon = g.dataset.icon || '•';
     g.classList.add('has-toggle');
+    // Les contrôles migrent dans un panneau .mtg-flyout : transparent à la mise en
+    // page en mode classique (display:contents), panneau flottant en mode rail.
+    const flyout = document.createElement('div');
+    flyout.className = 'mtg-flyout';
+    while (g.firstChild) flyout.appendChild(g.firstChild);
+    g.appendChild(flyout);
     const collapsed = label in state ? state[label] : i !== 0; // déplie « Outils »
     g.classList.toggle('collapsed', collapsed);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mtg-toggle';
+    btn.title = label; // libellé en infobulle (mode rail = icône seule)
     const paint = () => {
-      btn.innerHTML = `<span class="mtg-caret">${g.classList.contains('collapsed') ? '▸' : '▾'}</span>${escapeHtml(label)}`;
+      const caret = g.classList.contains('collapsed') ? '▸' : '▾';
+      btn.innerHTML = `<span class="mtg-ico">${escapeHtml(icon)}</span><span class="mtg-label"><span class="mtg-caret">${caret}</span>${escapeHtml(label)}</span>`;
     };
     paint();
+    g._mtgPaint = paint;
     btn.addEventListener('click', () => {
+      const willOpen = g.classList.contains('collapsed');
+      // Mode rail : ouvrir un groupe referme les autres (un seul panneau visible).
+      if (railMode() && willOpen) {
+        groups.forEach((o) => {
+          if (o !== g && !o.classList.contains('collapsed')) {
+            o.classList.add('collapsed');
+            state[o.dataset.label] = true;
+            if (o._mtgPaint) o._mtgPaint();
+          }
+        });
+      }
       g.classList.toggle('collapsed');
       state[label] = g.classList.contains('collapsed');
       try {
@@ -135,6 +159,22 @@ function setupCollapsibleToolbar(container) {
     });
     g.insertBefore(btn, g.firstChild);
   });
+  // En mode rail, normaliser à un seul groupe ouvert au montage (un état multi-
+  // ouvert hérité du mode classique empilerait plusieurs panneaux volants).
+  if (railMode()) {
+    let open = false;
+    groups.forEach((g) => {
+      if (g.classList.contains('collapsed')) return;
+      if (open) {
+        g.classList.add('collapsed');
+        if (g._mtgPaint) g._mtgPaint();
+      } else open = true;
+    });
+    if (!open && groups[0]) {
+      groups[0].classList.remove('collapsed');
+      if (groups[0]._mtgPaint) groups[0]._mtgPaint();
+    }
+  }
 }
 
 export async function mountMap(container) {
@@ -180,17 +220,17 @@ export async function mountMap(container) {
   container.innerHTML = `
     <div class="map-root">
       <div class="map-toolbar" id="map-tools">
-        <div class="map-tool-group" data-label="${tr('map.grp.nav')}">
+        <div class="map-tool-group" data-icon="✋" data-label="${tr('map.grp.nav')}">
           <button class="map-tool active" data-tool="move" title="${tr('map.move.title')}">✋</button>
           <button class="map-tool" data-tool="ruler" title="${tr('map.ruler.title')}">📏</button>
           ${isDM ? `<button class="map-tool" data-tool="select" title="${tr('map.select.title')}">⬚</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${tr('map.grp.markers')}">
+        <div class="map-tool-group" data-icon="📍" data-label="${tr('map.grp.markers')}">
           <button class="map-tool" data-tool="ping" title="${tr('map.ping.title')}">📍</button>
           <button class="map-tool" data-tool="pin" title="${tr('map.pin.title')}">📌</button>
           ${isDM ? `<button class="map-tool" data-tool="label" title="${tr('map.label.title')}">🏷</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${tr('map.grp.template')}">
+        <div class="map-tool-group" data-icon="🎯" data-label="${tr('map.grp.template')}">
           <button class="map-tool" data-tool="tmpl" title="${tr('map.tmpl.title')}">🎯</button>
           <select id="map-tmpl-shape" class="map-sel" title="${tr('map.tmpl.shapeTitle')}">
             <option value="circle">${tr('map.tmpl.circle')}</option>
@@ -200,7 +240,7 @@ export async function mountMap(container) {
           <label class="map-num" title="${tr('map.tmpl.distTitle')}">${tr('map.tmpl.dist')}<input type="number" id="map-tmpl-dist" min="0" step="5" placeholder="∞"></label>
           ${isDM ? `<button class="map-btn" data-act="zone-save" title="${tr('map.zonesave.title')}">💥</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${tr('map.grp.view')}">
+        <div class="map-tool-group" data-icon="🔍" data-label="${tr('map.grp.view')}">
           <button class="map-btn" data-act="zoom-out" title="${tr('map.zoomout')}">－</button>
           <span class="map-zoom" id="map-zoom">50%</span>
           <button class="map-btn" data-act="zoom-in" title="${tr('map.zoomin')}">＋</button>
@@ -208,7 +248,7 @@ export async function mountMap(container) {
           <button class="map-btn" data-act="immersive" title="${tr('map.immersive')}">⛶</button>
           ${isDM ? `<button class="map-btn" data-act="push-view" title="${tr('map.pushview')}">👁</button>` : ''}
         </div>
-        <div class="map-tool-group" data-label="${tr('map.grp.draw')}">
+        <div class="map-tool-group" data-icon="✏" data-label="${tr('map.grp.draw')}">
           <button class="map-tool" data-tool="draw" title="${tr('map.draw.title')}${isDM ? '' : tr('map.draw.ephemeral')}">✏</button>
           <select id="map-draw-shape" class="map-sel" title="${tr('map.draw.shapeTitle')}">
             <option value="free">${tr('map.draw.free')}</option>
@@ -223,7 +263,7 @@ export async function mountMap(container) {
         </div>
         ${
           isDM
-            ? `<div class="map-tool-group" data-label="${tr('map.grp.scene')}">
+            ? `<div class="map-tool-group" data-icon="🗺" data-label="${tr('map.grp.scene')}">
                  <select id="map-scene-sel" class="map-sel" title="${tr('map.scene.sel')}"></select>
                  <button class="map-btn" data-act="scene-new" title="${tr('map.scene.new')}">➕🗺</button>
                  <button class="map-btn" data-act="scene-rename" title="${tr('map.scene.rename')}">✏</button>
@@ -231,7 +271,7 @@ export async function mountMap(container) {
                  <button class="map-btn" data-act="scene-export" title="${tr('map.scene.export')}">⬆</button>
                  <label class="map-btn" title="${tr('map.scene.import')}">⬇<input type="file" id="map-scene-file" accept="application/json,.json" hidden></label>
                </div>
-               <div class="map-tool-group" data-label="${tr('map.grp.tokens')}">
+               <div class="map-tool-group" data-icon="🎭" data-label="${tr('map.grp.tokens')}">
                  <label class="map-btn" title="${tr('map.bg.import')}">🖼<input type="file" id="map-file" accept="image/*" hidden></label>
                  <button class="map-btn" data-act="add-token" title="${tr('map.token.add')}">➕</button>
                  <button class="map-btn" data-act="add-prop" title="${tr('map.prop.add')}">🪟➕</button>
@@ -239,7 +279,7 @@ export async function mountMap(container) {
                  <button class="map-btn" data-act="party" title="${tr('map.party')}">🛡</button>
                  <button class="map-btn" data-act="token-lib" title="${tr('map.tokenlib')}">🖼</button>
                </div>
-               <div class="map-tool-group" data-label="${tr('map.grp.grid')}">
+               <div class="map-tool-group" data-icon="▦" data-label="${tr('map.grp.grid')}">
                  <button class="map-btn" data-act="grid" title="${tr('map.grid')}">▦</button>
                  <button class="map-btn" data-act="grid-cal" title="${tr('map.gridcal')}">📐</button>
                  <label class="map-num" title="${tr('map.grid.caseTitle')}">${tr('map.grid.case')}<input type="number" id="map-grid" min="10" max="400" step="2"></label>
@@ -247,7 +287,7 @@ export async function mountMap(container) {
                  <label class="map-num" title="${tr('map.grid.distTitle')}">${tr('map.grid.dist')}<input type="number" id="map-feet" min="0.5" max="100" step="0.5"></label>
                  <select id="map-unit" class="map-sel" title="${tr('map.grid.unitTitle')}"><option value="ft">ft</option><option value="m">m</option></select>
                </div>
-               <div class="map-tool-group" data-label="${tr('map.grp.fog')}">
+               <div class="map-tool-group" data-icon="🌫" data-label="${tr('map.grp.fog')}">
                  <button class="map-tool" data-tool="reveal" title="${tr('map.fog.reveal')}">🔦</button>
                  <button class="map-tool" data-tool="hide" title="${tr('map.fog.hide')}">🌑</button>
                  <button class="map-btn" data-act="fog" title="${tr('map.fog.toggle')}">🌫</button>
@@ -255,7 +295,7 @@ export async function mountMap(container) {
                  <button class="map-btn" data-act="reveal-all" title="${tr('map.fog.revealAll')}">☀</button>
                  <button class="map-btn" data-act="hide-all" title="${tr('map.fog.hideAll')}">🕳</button>
                </div>
-               <div class="map-tool-group" data-label="${tr('map.grp.walls')}">
+               <div class="map-tool-group" data-icon="🧱" data-label="${tr('map.grp.walls')}">
                  <button class="map-tool" data-tool="wall" title="${tr('map.wall')}">🧱</button>
                  <button class="map-tool" data-tool="door" title="${tr('map.door')}">🚪</button>
                  <button class="map-tool" data-tool="light" title="${tr('map.light')}">🕯</button>
@@ -265,7 +305,7 @@ export async function mountMap(container) {
                  <button class="map-btn" data-act="light-clear" title="${tr('map.light.clear')}">🧹🕯</button>
                  <button class="map-btn" data-act="explored-clear" title="${tr('map.explored.clear')}">🌑👁</button>
                </div>
-               <div class="map-tool-group" data-label="${tr('map.grp.atmo')}">
+               <div class="map-tool-group" data-icon="🌙" data-label="${tr('map.grp.atmo')}">
                  <label class="map-num" title="${tr('map.dark')}">🌙<input type="range" id="map-dark" min="0" max="100" step="5"></label>
                  <select id="map-weather-sel" class="map-sel" title="${tr('map.weather')}">
                    <option value="none">${tr('map.weather.none')}</option>
@@ -275,7 +315,7 @@ export async function mountMap(container) {
                  </select>
                  <button class="map-btn" data-act="soundscape" id="map-soundscape" title="${tr('map.soundscape')}">🔊</button>
                </div>
-               <div class="map-tool-group" data-label="${tr('map.grp.layers')}">
+               <div class="map-tool-group" data-icon="🗂" data-label="${tr('map.grp.layers')}">
                  <button class="map-btn layer-btn active" data-layer="grid" title="${tr('map.layer.grid')}">▦</button>
                  <button class="map-btn layer-btn active" data-layer="tokens" title="${tr('map.layer.tokens')}">🎭</button>
                  <button class="map-btn layer-btn active" data-layer="tiles" title="${tr('map.layer.tiles')}">🪟</button>
