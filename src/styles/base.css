@@ -2374,6 +2374,9 @@ body.immersive .map-viewport { border:none; border-radius:0; }
 .dk-logrow { font-size:12px; line-height:1.4; color:var(--td); }
 .dk-logrow time { color:var(--muted); font-size:10px; margin-right:5px; }
 .init-hptier { font-size:11px; font-style:italic; color:var(--td); }
+/* PV masqués aux joueurs (#4) : repère MJ dans la liste d'initiative. */
+.init-hp-cloak { font-size:12px; line-height:1; cursor:help; opacity:.85; margin-right:1px; }
+.init-hp.cloaked { background:color-mix(in srgb, var(--accent) 8%, transparent); border-radius:6px; padding:0 4px; }
 .init-target { border:1px solid var(--border); background:var(--bg2); border-radius:6px; cursor:pointer; font-size:12px; padding:0 5px; line-height:1.6; opacity:.6; }
 .init-target:hover { opacity:1; border-color:var(--red); }
 .init-target.on { opacity:1; border-color:var(--red); background:color-mix(in srgb, var(--red) 22%, transparent); }

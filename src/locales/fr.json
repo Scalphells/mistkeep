@@ -1246,6 +1246,7 @@
   "init.grip": "Glisser pour réordonner",
   "init.statblock": "Statbloc / attaques",
   "init.tempHp": "PV temporaires",
+  "init.hpHidden.title": "PV masqués aux joueurs — ils voient une estimation",
   "init.addCond": "+ État",
   "init.cond.inc": "Augmenter la valeur",
   "init.cond.dec": "Diminuer la valeur",

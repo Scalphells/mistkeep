@@ -1246,6 +1246,7 @@
   "init.grip": "Drag to reorder",
   "init.statblock": "Statblock / attacks",
   "init.tempHp": "Temporary HP",
+  "init.hpHidden.title": "HP hidden from players — they see an estimate",
   "init.addCond": "+ Condition",
   "init.cond.inc": "Increase value",
   "init.cond.dec": "Decrease value",

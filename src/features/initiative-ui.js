@@ -561,6 +561,13 @@ function tokenIdForComb(c) {
   return t?.id || null;
 }
 
+/** PV masqués aux joueurs pour ce combattant ? (flag « PV cachés » du jeton lié, façon #4). */
+function combHpHidden(c) {
+  const toks = store.get().map?.tokens || [];
+  const tk = toks.find((x) => (c.entity_id && x.entityId === c.entity_id) || (c.char_id && x.charId === c.char_id));
+  return !!tk?.hpHidden;
+}
+
 /** Type d'un combattant pour la couleur du turn order. */
 function combType(c) {
   if (!c.char_id) return 'monster';
@@ -611,6 +618,7 @@ function combatantRow(c, i, active, isDM, round) {
       ? Math.max(0, Math.min(100, (c.hp / c.hp_max) * 100))
       : null;
   const dead = c.hp === 0;
+  const hidden = combHpHidden(c); // PV masqués aux joueurs (flag du jeton, façon #4)
 
   const conds = (c.conditions || [])
     .map((cond) => {
@@ -674,7 +682,8 @@ function combatantRow(c, i, active, isDM, round) {
         <div class="init-conds">${conds}${effects}${effAdd}</div>
         ${deathSavesHtml(c, isDM)}
       </div>
-      <div class="init-hp">
+      <div class="init-hp${isDM && hidden ? ' cloaked' : ''}">
+        ${isDM && hidden ? `<span class="init-hp-cloak" title="${t('init.hpHidden.title')}">🙈</span>` : ''}
         ${
           c.hp === null
             ? '<span class="init-nohp">—</span>'
@@ -687,13 +696,13 @@ function combatantRow(c, i, active, isDM, round) {
                  <span class="init-temp-lbl">${t('sheet.hp.tmp')}</span>
                  <input type="number" min="0" class="init-temp-in" value="${c.hp_temp ?? 0}" data-hptemp="${c.entity_id}" />
                </span>`
-            : c.char_id
-            ? `<span>${c.hp}${c.hp_max ? ` / ${c.hp_max}` : ''}</span>${
+            : hidden
+            ? `<span class="init-hptier">${hpPct !== null ? hpTierLabel(hpPct) : '—'}</span>`
+            : `<span>${c.hp}${c.hp_max ? ` / ${c.hp_max}` : ''}</span>${
                 c.hp_temp ? ` <span class="init-temp-badge" title="${t('init.tempHp')}">+${c.hp_temp}</span>` : ''
               }`
-            : `<span class="init-hptier">${hpPct !== null ? hpTierLabel(hpPct) : '—'}</span>`
         }
-        ${hpPct !== null ? `<div class="init-hpbar"><span style="width:${hpPct}%"></span></div>` : ''}
+        ${hpPct !== null && !(hidden && !isDM) ? `<div class="init-hpbar"><span style="width:${hpPct}%"></span></div>` : ''}
       </div>
       ${
         isDM
