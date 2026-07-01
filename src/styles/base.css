@@ -2146,12 +2146,10 @@ body.dock-resizing { cursor:ew-resize; user-select:none; }
 @media (max-width:900px) { .presence { display:none; } }
 
 /* ── « Masquer l'interface » (focus carte) ──
-   En-tête, nav et dock cachés, carte plein écran. Compose avec le rail d'outils. */
-body.map-focus #shell { padding:0 !important; }
+   On masque seulement l'en-tête et la nav du haut ; le dock (rail à droite) et sa
+   gouttière restent. Le shell en flex pleine hauteur (mode rail) fait que la carte
+   récupère automatiquement l'espace libéré par l'en-tête. */
 body.map-focus #shell > header, body.map-focus #nav { display:none !important; }
-body.map-focus .dock { display:none !important; }
-body.map-focus #view { padding:0 !important; }
-body.map-focus #view .map-root { height:100vh !important; }
 body.map-focus .map-viewport { border:none; border-radius:0; }
 
 /* ════════ Fiche perso — refonte visuelle façon Foundry ════════ */
@@ -2975,7 +2973,7 @@ html[data-vttrail="right"] .map-toolbar { left: 8px; }   /* dock à droite → r
 html[data-vttrail="left"] .map-toolbar { right: 8px; }   /* dock à gauche → rail à droite */
 html[data-vttrail] .map-tool-group { position: relative; border-right: none; padding: 0; }
 html[data-vttrail] .mtg-toggle {
-  width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 10px;
+  width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 10px;
 }
 html[data-vttrail] .mtg-toggle:hover { background: var(--bg3); }
 html[data-vttrail] .mtg-ico { display: inline; font-size: 18px; line-height: 1; }
@@ -2985,7 +2983,7 @@ html[data-vttrail] .map-tool-group:not(.collapsed) > .mtg-toggle {
 }
 html[data-vttrail] .mtg-flyout {
   display: flex; flex-flow: row wrap; align-content: flex-start; gap: 4px;
-  position: absolute; top: 0; max-width: 236px; padding: 7px;
+  position: absolute; top: 0; width: 224px; max-height: min(64vh, 480px); overflow-y: auto; padding: 7px;
   border-radius: 12px; background: color-mix(in srgb, var(--bg1) 92%, transparent);
   border: 1px solid var(--border); box-shadow: var(--shadow-lg);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 31;
@@ -3002,14 +3000,15 @@ html[data-vttrail] .scene-nav {
 
 /* ──── Disposition « Rail VTT » (préférence, rail droit = navigation unique) ──── */
 html[data-vttrail] #nav { display: none; }
-/* Un peu plus de hauteur utile pour la zone centrale quand la nav du haut est masquée. */
-html[data-vttrail] #view { min-height: calc(100vh - 70px); }
-/* Map-first : carte plein cadre. Le padding inline du shell (main.js) est neutralisé,
-   on réserve la gouttière du côté du rail, et la carte occupe toute la hauteur utile. */
-html[data-vttrail] #shell { padding-left: 0 !important; padding-right: 0 !important; }
+/* Map-first : le shell devient une colonne pleine hauteur (flex) et la carte occupe
+   TOUT l'espace restant sous l'en-tête — sans hauteur fixe devinée, donc le vrai
+   plein écran ne coupe plus rien. Le padding inline du shell est neutralisé, on
+   garde la gouttière du côté du rail. */
+html[data-vttrail] #shell { display: flex; flex-direction: column; height: 100vh; padding: 0 !important; }
+html[data-vttrail] #view { flex: 1; min-height: 0; }
 html[data-vttrail="left"] #view { padding-left: 46px; }
 html[data-vttrail="right"] #view { padding-right: 46px; }
-html[data-vttrail] #view .map-root { height: calc(100vh - 70px); }
+html[data-vttrail] #view .map-root { height: 100%; }
 html[data-vttrail] #view .map-viewport { border-radius: 0; }
 .dock-sep { height: 1px; margin: 6px 6px; background: color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: 1px; }
 
