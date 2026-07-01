@@ -2971,7 +2971,7 @@ html[data-vttrail] .map-toolbar {
 }
 html[data-vttrail="right"] .map-toolbar { left: 8px; }   /* dock à droite → rail à gauche */
 html[data-vttrail="left"] .map-toolbar { right: 8px; }   /* dock à gauche → rail à droite */
-html[data-vttrail] .map-tool-group { position: relative; border-right: none; padding: 0; }
+html[data-vttrail] .map-tool-group { position: static; border-right: none; padding: 0; }
 html[data-vttrail] .mtg-toggle {
   width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 10px;
 }
@@ -2981,15 +2981,18 @@ html[data-vttrail] .mtg-label { display: none; } /* libellé en infobulle (title
 html[data-vttrail] .map-tool-group:not(.collapsed) > .mtg-toggle {
   background: var(--accent-grad); color: #fff; box-shadow: 0 3px 12px rgba(124,106,247,.34);
 }
+/* Panneau vertical (colonne, de haut en bas), ancré au RAIL et centré — même
+   emplacement quel que soit le groupe ouvert (interface équilibrée). */
 html[data-vttrail] .mtg-flyout {
-  display: flex; flex-flow: row wrap; align-content: flex-start; gap: 4px;
-  position: absolute; top: 0; width: 224px; max-height: min(64vh, 480px); overflow-y: auto; padding: 7px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: max-content; max-width: 220px; max-height: 84vh; overflow-y: auto; padding: 7px;
   border-radius: 12px; background: color-mix(in srgb, var(--bg1) 92%, transparent);
   border: 1px solid var(--border); box-shadow: var(--shadow-lg);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 31;
 }
-html[data-vttrail="right"] .mtg-flyout { left: 100%; margin-left: 6px; }
-html[data-vttrail="left"] .mtg-flyout { right: 100%; margin-right: 6px; }
+html[data-vttrail="right"] .mtg-flyout { left: 100%; margin-left: 8px; }
+html[data-vttrail="left"] .mtg-flyout { right: 100%; margin-right: 8px; }
 /* Barre de scènes flottante (haut-centre, translucide) : la carte passe plein cadre. */
 html[data-vttrail] .scene-nav {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 29;
