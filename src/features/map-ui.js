@@ -241,9 +241,11 @@ export async function mountMap(container) {
           ${isDM ? `<button class="map-btn" data-act="zone-save" title="${tr('map.zonesave.title')}">💥</button>` : ''}
         </div>
         <div class="map-tool-group" data-icon="🔍" data-label="${tr('map.grp.view')}">
-          <button class="map-btn" data-act="zoom-out" title="${tr('map.zoomout')}">－</button>
-          <span class="map-zoom" id="map-zoom">50%</span>
-          <button class="map-btn" data-act="zoom-in" title="${tr('map.zoomin')}">＋</button>
+          <span class="map-zoombar">
+            <button class="map-btn" data-act="zoom-out" title="${tr('map.zoomout')}">－</button>
+            <span class="map-zoom" id="map-zoom">50%</span>
+            <button class="map-btn" data-act="zoom-in" title="${tr('map.zoomin')}">＋</button>
+          </span>
           <button class="map-btn" data-act="fit" title="${tr('map.fit')}">⤢</button>
           <button class="map-btn" data-act="fullscreen" title="${tr('map.fullscreen')}">⛶</button>
           <button class="map-btn" data-act="focus" title="${tr('map.focus')}">⊟</button>

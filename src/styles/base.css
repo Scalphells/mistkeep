@@ -2999,7 +2999,21 @@ html[data-vttrail] .mtg-flyout .map-tool,
 html[data-vttrail] .mtg-flyout .map-btn,
 html[data-vttrail] .mtg-flyout .map-color { min-width: 0; width: 40px; height: 34px; font-size: 13px; overflow: hidden; }
 html[data-vttrail] .mtg-flyout .map-sel,
-html[data-vttrail] .mtg-flyout .map-num { flex: 0 0 100%; max-width: 100%; }
+html[data-vttrail] .mtg-flyout .map-num,
+html[data-vttrail] .mtg-flyout .map-zoombar { flex: 0 0 100%; max-width: 100%; order: -1; }
+/* Zoom groupé en bandeau segmenté (− | affichage | +) plutôt que 3 cases isolées. */
+.map-zoombar { display: inline-flex; align-items: center; gap: 2px; }
+html[data-vttrail] .mtg-flyout .map-zoombar {
+  display: flex; align-items: stretch; gap: 0; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg2);
+}
+html[data-vttrail] .mtg-flyout .map-zoombar .map-btn {
+  flex: 1; width: auto; height: 32px; border: none; border-radius: 0; box-shadow: none; background: transparent;
+}
+html[data-vttrail] .mtg-flyout .map-zoombar .map-zoom {
+  flex: 1.5; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--td); border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+}
 /* Barre de scènes flottante (haut-centre, translucide) : la carte passe plein cadre. */
 html[data-vttrail] .scene-nav {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 29;
