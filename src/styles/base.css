@@ -2997,7 +2997,7 @@ html[data-vttrail="left"] .mtg-flyout { right: 100%; margin-right: 8px; }
 /* Boutons uniformes (2 par ligne) ; contrôles larges sur une ligne pleine. */
 html[data-vttrail] .mtg-flyout .map-tool,
 html[data-vttrail] .mtg-flyout .map-btn,
-html[data-vttrail] .mtg-flyout .map-color { min-width: 0; width: 36px; height: 34px; }
+html[data-vttrail] .mtg-flyout .map-color { min-width: 0; width: 40px; height: 34px; font-size: 13px; overflow: hidden; }
 html[data-vttrail] .mtg-flyout .map-sel,
 html[data-vttrail] .mtg-flyout .map-num { flex: 0 0 100%; max-width: 100%; }
 /* Barre de scènes flottante (haut-centre, translucide) : la carte passe plein cadre. */
