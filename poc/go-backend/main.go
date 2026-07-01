@@ -413,6 +413,8 @@ type Server struct {
 	store    *Store
 	hub      *Hub
 	throttle *loginThrottle
+	quit     chan struct{} // closed by rpcShutdown to stop the server from the app
+	quitOnce sync.Once
 }
 
 // ---- Login throttle -----------------------------------------------------
@@ -805,6 +807,26 @@ Environment:
 On launch it opens your browser at http://localhost:PORT. Create the first
 account — it becomes the DM.`
 
+// rpcShutdown gracefully stops the self-hosted server. Restricted to the server
+// owner (global "dm" role). Handy for the windowless Windows build, which has no
+// console to Ctrl-C: the app's Settings expose a "Stop the server" button.
+func (s *Server) rpcShutdown(w http.ResponseWriter, r *http.Request) {
+	u := s.userFrom(r)
+	if u == nil {
+		httpErr(w, 401, "unauthenticated")
+		return
+	}
+	if u.Role != "dm" {
+		httpErr(w, 403, "forbidden")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush() // make sure the client gets the reply before we stop serving
+	}
+	s.quitOnce.Do(func() { close(s.quit) })
+}
+
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -821,7 +843,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := &Server{store: store, hub: NewHub(), throttle: newLoginThrottle()}
+	s := &Server{store: store, hub: NewHub(), throttle: newLoginThrottle(), quit: make(chan struct{})}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /auth/signup", s.signup)
@@ -836,6 +858,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/{table}", s.apiDelete)
 	// Procedures named after their Supabase RPC counterparts (backend.rpc).
 	mux.HandleFunc("POST /rpc/join_campaign", s.rpcJoinCampaign)
+	mux.HandleFunc("POST /rpc/shutdown", s.rpcShutdown)
 
 	mux.HandleFunc("GET /realtime", s.ws)
 
@@ -887,7 +910,11 @@ func main() {
 	}()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+	case <-s.quit:
+		log.Println("shutdown requested from the app")
+	}
 	stop()
 	log.Println("shutting down…")
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

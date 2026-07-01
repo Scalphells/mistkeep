@@ -21,6 +21,8 @@ import { openProfileEditor } from './profile-ui.js';
 import { togglePause } from '../lib/pause.js';
 import { exportData } from '../lib/export.js';
 import { signOut } from '../lib/auth.js';
+import { backend, isGoBackend } from '../lib/backend.js';
+import { modalConfirm, modalAlert } from '../lib/modal.js';
 import { BUILD_ID } from '../lib/pwa.js';
 import { openSearch } from '../lib/search.js';
 import { toggleParty } from '../lib/party.js';
@@ -340,6 +342,8 @@ function buildPanel(body, which) {
           <button class="dk-set-btn" data-set="sfx">${t('dock.set.sfx')}</button>
           <button class="dk-set-btn" data-set="pause">${t('dock.set.pause')}</button>
           <button class="dk-set-btn" data-set="export">${t('dock.set.export')}</button>` : ''}
+        ${isGoBackend && isDM ? `<div class="dk-set-group">${t('dock.set.grp.server')}</div>
+          <button class="dk-set-btn danger" data-set="quit">${t('dock.set.quit')}</button>` : ''}
         <div class="dk-set-group">${t('dock.set.grp.session')}</div>
         <button class="dk-set-btn danger" data-set="logout">${t('dock.set.logout')}</button>
       </div>`;
@@ -366,6 +370,11 @@ function buildPanel(body, which) {
     body.querySelector('[data-set="sfx"]')?.addEventListener('click', () => toggleSfx());
     body.querySelector('[data-set="pause"]')?.addEventListener('click', () => togglePause());
     body.querySelector('[data-set="export"]')?.addEventListener('click', () => exportData());
+    body.querySelector('[data-set="quit"]')?.addEventListener('click', async () => {
+      if (!(await modalConfirm(t('dock.set.quit.confirm'), { title: t('dock.set.quit'), danger: true }))) return;
+      const { error } = await backend.rpc('shutdown');
+      await modalAlert(error ? error.message : t('dock.set.quit.done'), { title: t('dock.set.quit') });
+    });
     body.querySelector('[data-set="logout"]')?.addEventListener('click', async () => {
       await signOut();
       window.location.reload();

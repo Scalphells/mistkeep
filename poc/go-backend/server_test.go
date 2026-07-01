@@ -580,6 +580,43 @@ func TestJoinCampaignRPC(t *testing.T) {
 // Storage writes are scoped per campaign: the first path segment names the
 // campaign (front-prefixed keys); unprefixed paths belong to the default
 // campaign; the global "dm" keeps its server-owner bypass.
+func TestShutdownRPC(t *testing.T) {
+	h := newHarness(t)
+	h.srv.quit = make(chan struct{}) // main() sets this; the harness does not
+	call := func(tok string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "/rpc/shutdown", nil)
+		if tok != "" {
+			r.AddCookie(&http.Cookie{Name: "mk_session", Value: tok})
+		}
+		w := httptest.NewRecorder()
+		h.srv.rpcShutdown(w, r)
+		return w
+	}
+	quitClosed := func() bool {
+		select {
+		case <-h.srv.quit:
+			return true
+		default:
+			return false
+		}
+	}
+	if w := call(""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated: want 401, got %d", w.Code)
+	}
+	if w := call(h.p1Tok); w.Code != http.StatusForbidden {
+		t.Fatalf("player: want 403, got %d", w.Code)
+	}
+	if quitClosed() {
+		t.Fatal("a non-DM request must not stop the server")
+	}
+	if w := call(h.dmTok); w.Code != http.StatusOK {
+		t.Fatalf("DM: want 200, got %d", w.Code)
+	}
+	if !quitClosed() {
+		t.Fatal("a DM request must signal shutdown")
+	}
+}
+
 func TestStorageCampaignScoped(t *testing.T) {
 	h := newHarness(t)
 	t.Setenv("DATA_DIR", t.TempDir()) // uploads land in a throwaway dir

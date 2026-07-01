@@ -14,3 +14,7 @@ import { goAdapter } from './backend/go-adapter.js';
 const useGo = import.meta.env && import.meta.env.VITE_BACKEND === 'go';
 
 export const backend = useGo ? goAdapter : supabaseAdapter;
+
+// True on the self-hosted single binary. Gates server-only UI (e.g. "Stop the
+// server"), which has no meaning on the hosted Supabase deployment.
+export const isGoBackend = useGo;
