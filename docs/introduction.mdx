@@ -8,12 +8,14 @@ jeu de rôle en ligne : fiches de personnage, carte tactique avec jetons et
 vision dynamique, suivi d'initiative, chat, jets de dés partagés et compendium.
 Un même serveur héberge **plusieurs campagnes**, chacune avec son système de
 jeu : D&D 5e (2014 ou 2024), Pathfinder 2e, ou un système libre configurable.
+L'interface est entièrement disponible en **français et en anglais**, au choix
+dans les préférences.
 
 Elle s'auto-héberge en **un seul fichier** (aucune base de données à installer,
-aucun service cloud) ou se déploie sur le web. Le **premier compte créé devient
-le Maître du Jeu (MJ)** ; les suivants sont des joueurs.
+aucun service cloud) ou se déploie sur le web via Supabase. Le **premier compte
+créé devient le Maître du Jeu (MJ)** ; les suivants sont des joueurs.
 
-<Frame caption="L'interface en mode VTT : la carte au centre, les outils autour.">
+<Frame caption="L'interface map-first : la carte au centre, les outils autour.">
   <img src="/images/map-overview.png" alt="Vue d'ensemble de Mistkeep en mode VTT" />
 </Frame>
 
@@ -21,31 +23,68 @@ le Maître du Jeu (MJ)** ; les suivants sont des joueurs.
 
 <CardGroup cols={2}>
   <Card title="Campagnes & systèmes" icon="castle" href="/dm/campaigns">
-    Plusieurs campagnes cloisonnées, rôles MJ/joueur par campagne, et un
-    système de jeu par campagne — 5e 2014/2024, Pathfinder 2e, ou libre.
+    Plusieurs campagnes isolées, chacune avec ses rôles MJ/joueur, un accès
+    libre-service par code d'invitation, et un système de jeu par campagne —
+    5e 2014/2024, Pathfinder 2e ou libre. Export/import d'une campagne entière
+    en un seul fichier JSON.
   </Card>
   <Card title="Carte tactique" icon="map" href="/dm/map">
-    Fonds de carte, jetons, grille, brouillard de guerre, murs et lumières,
-    vision dynamique (vision dans le noir incluse).
+    Une disposition VTT map-first avec rail d'outils : fonds, jetons, grille,
+    distance des cases en pieds ou en mètres, budgets de déplacement, brouillard
+    à trois niveaux, murs, portes, lumières et vision dynamique (vision dans le
+    noir comprise).
   </Card>
   <Card title="Combat" icon="swords" href="/dm/combat">
-    Ordre d'initiative, tours, conditions, effets à durée, sauvegardes de
-    groupe, jets de mort.
+    Initiative adaptée au système (jets de groupe compris), PV, conditions et
+    effets à durée — jeu complet Pathfinder 2e avec conditions chiffrées —
+    jets de mort, sauvegardes de zone et journal de combat en cartes.
   </Card>
   <Card title="Fiches de personnage" icon="scroll" href="/dm/characters">
-    Caractéristiques, compétences, sorts, inventaire, repos — partagées à la
-    table, modifiables par le MJ ou le joueur propriétaire.
+    Fiches multi-système pilotées par le descripteur : caractéristiques,
+    compétences, sorts, inventaire, repos et import SRD — partagées à la table,
+    éditables par le MJ ou le joueur propriétaire, avec un habillage par système
+    en option.
   </Card>
   <Card title="Compendium" icon="book" href="/dm/compendium">
-    Votre bibliothèque de monstres, sorts, objets et PNJ, réutilisables en un
-    clic (ajout au combat, à la carte, à une fiche).
+    Votre bibliothèque de monstres, sorts, objets et PNJ avec import SRD,
+    réutilisables en un clic (ajout au combat, à la carte, à une fiche).
   </Card>
   <Card title="Dés partagés" icon="dice" href="/dm/dice">
-    Jets visibles par tous, en aveugle, privés ou réservés au MJ, avec macros.
+    Des jets visibles de tous, aveugles, privés ou réservés au MJ, avec un
+    raccourci de jet rapide (touche R).
   </Card>
-  <Card title="Handouts & ambiance" icon="image" href="/dm/extras">
-    Partagez images et lettres aux joueurs, lancez des musiques d'ambiance liées
-    à la scène, gérez trésor de groupe et quêtes.
+  <Card title="Documents & ambiance" icon="image" href="/dm/extras">
+    Partagez images et lettres avec les joueurs, jouez des ambiances sonores
+    liées aux scènes, et gérez le trésor de groupe et le journal de quêtes.
+  </Card>
+</CardGroup>
+
+## La disposition map-first
+
+En mode rail (par défaut), Mistkeep s'ouvre directement sur la carte et les
+autres vues apparaissent en fenêtres flottantes. Les outils de carte forment un
+rail vertical d'icônes de catégories sur le bord de la carte — cliquez une
+catégorie pour révéler ses sous-outils, un seul à la fois — avec une barre de
+scènes flottante en haut-centre.
+
+<CardGroup cols={2}>
+  <Card title="Trois dispositions" icon="table-columns">
+    Classique (barre de navigation en haut), rail gauche et rail droit (par
+    défaut), au choix dans la préférence « Disposition ».
+  </Card>
+  <Card title="Se concentrer sur la table" icon="expand">
+    Un vrai plein écran navigateur, plus un bouton « masquer l'interface »
+    distinct qui cache l'en-tête et la navigation du haut tout en gardant le
+    dock.
+  </Card>
+  <Card title="Densité & translucidité" icon="sliders">
+    Un réglage de densité d'affichage (compact / standard / aéré) et des
+    fenêtres flottantes (et fiches) translucides en option.
+  </Card>
+  <Card title="PV ennemis masqués" icon="eye-slash">
+    Marquez les PV d'un jeton comme masqués : les joueurs ne voient qu'une
+    estimation (En forme / Blessé / Mal en point) tandis que le MJ garde la
+    valeur exacte — sur la carte comme dans la liste d'initiative.
   </Card>
 </CardGroup>
 
@@ -53,12 +92,13 @@ le Maître du Jeu (MJ)** ; les suivants sont des joueurs.
 
 <Tabs>
   <Tab title="Maître du Jeu">
-    Le MJ contrôle la carte, les scènes, le combat, le compendium et l'ambiance.
-    C'est le premier compte inscrit. Commencez par la [prise en main](/quickstart).
+    Le MJ pilote la carte, les scènes, le combat, le compendium et l'ambiance.
+    C'est le premier compte inscrit. Commencez par la
+    [prise en main](/quickstart).
   </Tab>
   <Tab title="Joueur">
-    Un joueur consulte la carte active, joue sa fiche, lance ses dés et reçoit
-    les handouts. Voir le [guide du joueur](/player/playing).
+    Un joueur suit la carte active, joue sa fiche, lance les dés et reçoit les
+    documents. Voir le [guide du joueur](/player/playing).
   </Tab>
 </Tabs>
 
@@ -66,9 +106,9 @@ le Maître du Jeu (MJ)** ; les suivants sont des joueurs.
 
 <CardGroup cols={2}>
   <Card title="Installer Mistkeep" icon="download" href="/installation">
-    Télécharger et lancer le serveur en moins d'une minute.
+    Téléchargez et lancez le serveur en moins d'une minute.
   </Card>
   <Card title="Prise en main" icon="rocket" href="/quickstart">
-    Créer votre première session et votre première carte.
+    Créez votre première session et votre première carte.
   </Card>
 </CardGroup>

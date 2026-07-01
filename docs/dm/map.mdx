@@ -1,40 +1,125 @@
 ---
 title: "La carte"
-description: "Fonds, jetons, grille, brouillard, murs, lumières et vision dynamique."
+description: "Disposition « carte d'abord », rail d'outils VTT, jetons, grille, brouillard, murs, lumières, vision dynamique, distances et PV cachés."
 ---
 
 La carte est le cœur du mode VTT : elle reste affichée en permanence pendant
-que les autres vues s'ouvrent en fenêtres flottantes par-dessus.
+que les autres vues (fiches, compendium, notes…) s'ouvrent en fenêtres
+flottantes par-dessus.
 
 <Frame>
   <img src="/images/map-overview.png" alt="La carte tactique" />
 </Frame>
 
+## Disposition « carte d'abord »
+
+Le réglage **Disposition** (préférences) choisit l'agencement de l'application :
+
+<CardGroup cols={3}>
+  <Card title="Classique" icon="window">
+    Barre de navigation en haut, comme une application classique à onglets.
+  </Card>
+  <Card title="Rail à gauche" icon="arrow-left">
+    Barre d'outils latérale, ancrée sur le bord gauche.
+  </Card>
+  <Card title="Rail à droite" icon="arrow-right">
+    **Par défaut.** Rail latéral à droite — l'application s'ouvre directement
+    sur la carte.
+  </Card>
+</CardGroup>
+
+En mode rail, l'agencement est **carte d'abord** : au démarrage la carte occupe
+tout le cadre et les autres vues s'ouvrent en fenêtres flottantes par-dessus.
+
+<Tip>
+  Les fenêtres flottantes peuvent être rendues **translucides** pour garder la
+  carte visible en arrière-plan.
+</Tip>
+
+## Le rail d'outils
+
+Les outils de carte forment un **rail vertical d'icônes de catégories**, façon
+VTT, le long du bord de la carte (à l'opposé du dock de l'application). Cliquer
+sur une catégorie ouvre un **petit panneau flottant** de ses sous-outils — une
+seule catégorie à la fois.
+
+## Onglets de scènes flottants
+
+Les scènes restent accessibles en **onglets flottants**, en haut au centre de
+la carte. Le **+** crée une scène ; cliquer sur un onglet la rend active et la
+pousse à tous les joueurs (voir [Les scènes](/dm/scenes)).
+
+## Plein écran & interface
+
+<CardGroup cols={2}>
+  <Card title="Plein écran" icon="expand">
+    Bascule la carte en **vrai plein écran** du navigateur.
+  </Card>
+  <Card title="Masquer l'interface" icon="eye-slash">
+    Masque l'en-tête et la barre de navigation **tout en gardant le dock**.
+  </Card>
+</CardGroup>
+
+Un réglage de **densité d'affichage** (compact / standard / spacieux) ajuste
+l'espacement de l'interface.
+
 ## Fond de carte
 
-Importez une image de fond via l'outil dédié de la barre **Jetons & décor**.
-La grille s'ajuste par-dessus ; calibrez-la pour faire correspondre une case à
-1,5 m (5 ft).
+Importez une image de fond via l'outil dédié du rail. La grille s'ajuste
+par-dessus ; calibrez-la pour faire correspondre une case à la distance voulue.
+
+## Distances & vitesse
+
+Chaque case représente une distance configurable, en **pieds ou en mètres**
+(par défaut **5 ft / 1,5 m**). Pendant qu'un jeton se déplace :
+
+- la **distance parcourue** s'affiche case après case ;
+- un **budget de vitesse** matérialise le déplacement : le tracé **passe en
+  rouge** au-delà de la vitesse du jeton.
 
 ## Jetons
 
 Glissez une vignette depuis la **Banque d'images** sur la carte pour créer un
-jeton. Liez-le à une fiche de personnage pour afficher et ajuster ses PV
-directement sur la carte (barre rapide au survol).
+jeton. Liez-le à une fiche pour afficher et ajuster ses PV directement sur la
+carte. Chaque jeton gère sa **disposition**, ses **auras** et son **altitude**.
+
+Un **HUD de jeton** (barre rapide au survol) regroupe les réglages courants,
+dont une commande d'**altitude rapide**.
+
+## PV d'ennemi cachés
+
+Un jeton peut porter un indicateur **« PV cachés »** : quand il est activé, les
+joueurs ne voient plus qu'une **estimation qualitative** (par ex. *En forme /
+Blessé / Mal en point*) au lieu des PV exacts, tandis que le MJ conserve la
+**valeur exacte** avec un repère **« masqué aux joueurs »**.
+
+<Note>
+  L'indicateur s'applique **à la fois sur la carte et dans la liste
+  d'initiative** : le suivi de combat masque les PV des monstres de la même
+  façon (voir [Le combat](/dm/combat)).
+</Note>
 
 ## Brouillard de guerre
 
-Masquez les zones non explorées et révélez-les au fur et à mesure. Les joueurs
-ne voient que ce qui est découvert.
+Masquez les zones non explorées et révélez-les au fur et à mesure. Le brouillard
+est à **trois niveaux** et les joueurs ne voient que ce qui est découvert.
 
 ## Murs, lumières et vision
 
-Tracez des murs (avec portes) pour bloquer la ligne de vue, posez des sources
-de lumière, et activez la **vision dans le noir** par jeton — la zone visible
-se calcule dynamiquement pour chaque personnage.
+Tracez des **murs** (avec **portes**) pour bloquer la ligne de vue, posez des
+**sources de lumière**, et activez la **vision dans le noir** par jeton — la
+zone visible se calcule dynamiquement pour chaque personnage.
 
-## Outils en direct
+## Gabarits, dessin & pings
 
-- **Ping** : signalez un point à toute la table.
 - **Gabarits de sort** : matérialisez cônes, sphères et lignes.
+- **Dessin à main levée** : annotez la carte librement.
+- **Ping** : signalez un point à toute la table.
 - **Recadrer la vue** : amenez les joueurs sur une zone précise.
+
+## Scènes & ambiance
+
+Préparez plusieurs **scènes** (chacune avec son fond, ses jetons, son
+brouillard et son **ambiance** sonore) et **réordonnez-les par glisser-déposer**.
+Basculer de scène pousse le nouvel état à toute la table (voir
+[Les scènes](/dm/scenes)).
