@@ -1659,7 +1659,7 @@ html[data-vttrail="left"] .dock-body { border-left:none; border-right:1px solid 
 .cmp-fsel { flex:1; padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text); font-size:12px; }
 .cmp-lvl { margin-left:auto; font-size:10px; font-weight:700; color:var(--ah); background:var(--adim); border-radius:6px; padding:1px 6px; }
 .cmp-new { width:auto; margin:0; }
-.cmp-srd-btn { padding:7px 10px; border:1px dashed var(--border-l); border-radius:8px; background:transparent; color:var(--td); cursor:pointer; font-size:12px; }
+.cmp-srd-btn { padding:7px 10px; border:1px dashed var(--border-l); border-radius:8px; background:transparent; color:var(--td); cursor:pointer; font-size:12px; text-align:center; }
 .cmp-srd-btn:hover { border-color:var(--accent); color:var(--text); }
 .srd-overlay { position:fixed; inset:0; z-index:100000; display:flex; align-items:flex-start; justify-content:center; padding-top:8vh; background:rgba(0,0,0,0.55); }
 .srd-box { width:min(560px, 94vw); max-height:80vh; display:flex; flex-direction:column; background:var(--bg2); border:1px solid var(--border-l); border-radius:14px; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,0.6); }
