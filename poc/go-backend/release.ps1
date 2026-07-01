@@ -44,7 +44,9 @@ try {
     $env:GOARCH = $t.arch
     $name = "mistkeep-$($t.os)-$($t.arch)$($t.ext)"
     Write-Host "==> $name" -ForegroundColor Cyan
-    go build -trimpath -ldflags "-s -w -X main.version=$ver" -o (Join-Path $out $name) .
+    # Windows: -H=windowsgui runs it windowless (no console, not in the taskbar).
+    $lf = if ($t.os -eq 'windows') { "-s -w -H=windowsgui -X main.version=$ver" } else { "-s -w -X main.version=$ver" }
+    go build -trimpath -ldflags $lf -o (Join-Path $out $name) .
   }
 } finally {
   Remove-Item Env:\GOOS, Env:\GOARCH, Env:\CGO_ENABLED -ErrorAction SilentlyContinue

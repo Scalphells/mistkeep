@@ -30,7 +30,8 @@ if [ "${1:-}" = "release" ]; then
   while read -r os arch ext; do
     name="mistkeep-${os}-${arch}${ext}"
     echo "==> $name"
-    GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$ldflags" -o "release/$name" .
+    lf="$ldflags"; [ "$os" = windows ] && lf="$lf -H=windowsgui"  # Windows: run windowless
+    GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$lf" -o "release/$name" .
   done <<'TARGETS'
 windows amd64 .exe
 linux amd64

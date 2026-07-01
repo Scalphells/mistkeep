@@ -30,7 +30,8 @@ $ver = (git describe --tags --always --dirty 2>$null); if (-not $ver) { $ver = '
 Push-Location $be
 try {
   $env:CGO_ENABLED = '0'
-  go build -trimpath -ldflags "-s -w -X main.version=$ver" -o mistkeep.exe .
+  # -H=windowsgui: run windowless (no console window, not shown in the taskbar).
+  go build -trimpath -ldflags "-s -w -H=windowsgui -X main.version=$ver" -o mistkeep.exe .
 } finally {
   Remove-Item Env:\CGO_ENABLED -ErrorAction SilentlyContinue
   Pop-Location
