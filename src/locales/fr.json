@@ -184,6 +184,8 @@
   "migrate.f.traits": "Traits",
   "migrate.f.skillsPick": "{n} compétence(s) au choix",
   "sys.id.species": "Espèce",
+  "sys.prof": "Maîtrise",
+  "sys.expertise": "Expertise",
   "sys.abbr.str": "FOR",
   "sys.abbr.dex": "DEX",
   "sys.abbr.con": "CON",

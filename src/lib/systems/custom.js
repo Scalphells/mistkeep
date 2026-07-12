@@ -12,7 +12,7 @@
  * (aucune E/S) : il reçoit la config, il ne la charge pas.
  */
 
-import { abilityMod as rawMod, d20Degree } from '../rules.js';
+import { abilityMod as rawMod, d20Degree, d5eCheckParts } from '../rules.js';
 
 /** Modificateur tolérant : un score absent vaut 10 (mod +0). */
 function abilityMod(score) {
@@ -177,6 +177,19 @@ export const SHEET = {
   identity: 'free',
 };
 
+/** Décompose un test « Libre » en pastilles (carac + maîtrise/expertise), avec
+ *  les caractéristiques/compétences configurées par la campagne. */
+export function checkParts(data, kind, key) {
+  const skills = effSkills();
+  const abils = effAbilities();
+  return d5eCheckParts(
+    data, kind, key, abilityMod,
+    (k) => skills[k]?.ability,
+    (a) => abils.find((x) => x.key === a)?.label || a,
+    { prof: t('sys.prof'), exp: t('sys.expertise') }
+  );
+}
+
 /** Descripteur du système « Libre ». abilities/skills sont des accesseurs :
  *  ils reflètent la config de la campagne active dès qu'elle est injectée. */
 export const custom = {
@@ -200,6 +213,7 @@ export const custom = {
   abilityMod,
   fmtMod,
   degreeOfSuccess: d20Degree, // réussite/échec vs seuil (crit nat 20/1 si dé d20)
+  checkParts,
   saveBonus,
   skillBonus,
   initBonus,

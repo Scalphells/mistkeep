@@ -10,7 +10,7 @@
  * depuis `sys.srd` — à défaut elle retombe sur le SRD 5.1 (2014).
  */
 
-import { ABILITIES, SKILLS, fmtMod, saveBonus, skillBonus, initBonus, createDefaults as createDefaults2014, SHEET } from './dnd5e2014.js';
+import { ABILITIES, SKILLS, fmtMod, saveBonus, skillBonus, initBonus, checkParts, createDefaults as createDefaults2014, SHEET } from './dnd5e2014.js';
 import { abilityMod, d20Degree } from '../rules.js';
 import { t } from '../i18n.js';
 import {
@@ -36,6 +36,7 @@ export const dnd5e2024 = {
   skillBonus,
   initBonus,
   degreeOfSuccess: d20Degree, // touche/rate vs CA, crit nat 20 / échec nat 1
+  checkParts,
   encounterBudget: true, // mêmes maths de rencontre que 2014
   createDefaults,
   sheet: SHEET, // mêmes sections de fiche que 2014

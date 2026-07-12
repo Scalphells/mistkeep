@@ -15,7 +15,7 @@
  * qui permettra à une campagne de choisir son système sans coder le 5e en dur.
  */
 
-import { abilityMod, d20Degree } from '../rules.js';
+import { abilityMod, d20Degree, d5eCheckParts } from '../rules.js';
 import { t } from '../i18n.js';
 
 // Libellés résolus via i18n au rendu (FOR/SAG en FR, STR/WIS en EN). La clé
@@ -75,6 +75,16 @@ export function initBonus(data) {
   return abilityMod(data?.dex) || 0;
 }
 
+/** Décompose un test 5e en pastilles (carac + maîtrise/expertise). */
+export function checkParts(data, kind, key) {
+  return d5eCheckParts(
+    data, kind, key, abilityMod,
+    (k) => SKILLS[k]?.ability,
+    (a) => ABILITIES.find((x) => x.key === a)?.label || a,
+    { prof: t('sys.prof'), exp: t('sys.expertise') }
+  );
+}
+
 /** Blob `data` par défaut d'une nouvelle fiche 5e-2014. */
 export function createDefaults() {
   return {
@@ -119,6 +129,7 @@ export const dnd5e2014 = {
   skillBonus,
   initBonus,
   degreeOfSuccess: d20Degree, // touche/rate vs CA, crit nat 20 / échec nat 1
+  checkParts,
   encounterBudget: true, // budget XP/FP du DMG 2014
   createDefaults,
   sheet: SHEET,

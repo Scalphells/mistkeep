@@ -153,7 +153,7 @@ export async function sendD20Check(modifier = 0, label = '', opts = {}) {
     roll_name: (label || (formula === '1d20' ? 'd20' : formula)) + tag,
     dice: `${formula}${m > 0 ? `+${m}` : m < 0 ? `${m}` : ''}`,
     result: kept + m,
-    details: { rolls, kept, modifier: m, mode, vis: vis || undefined, owner: vis === 'self' ? user?.id : undefined },
+    details: { rolls, kept, modifier: m, mode, vis: vis || undefined, owner: vis === 'self' ? user?.id : undefined, parts: opts.parts?.length ? opts.parts : undefined },
     roll_type: rollType,
     roller_id: user?.id ?? null,
     roller_name: profile?.display_name || 'Anonyme',

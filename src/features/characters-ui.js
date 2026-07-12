@@ -2226,12 +2226,12 @@ function bindSheet(el, id, ed) {
       const mode = e.shiftKey ? 'adv' : e.ctrlKey || e.metaKey ? 'dis' : 'normal';
       if (rk === 'ability') {
         const lbl = sys.abilities.find((a) => a.key === k)?.label || k;
-        sendD20Check(sys.abilityMod(dd[k]), t('dock.checkLabel', { name: who, ability: lbl }), { mode });
+        sendD20Check(sys.abilityMod(dd[k]), t('dock.checkLabel', { name: who, ability: lbl }), { mode, parts: sys.checkParts?.(dd, 'ability', k) });
       } else if (rk === 'save') {
         const lbl = sys.saves?.find((s) => s.key === k)?.label || sys.abilities.find((a) => a.key === k)?.label || k;
-        sendD20Check(sys.saveBonus(dd, k), t('char.roll.save', { name: who, save: lbl }), { mode });
+        sendD20Check(sys.saveBonus(dd, k), t('char.roll.save', { name: who, save: lbl }), { mode, parts: sys.checkParts?.(dd, 'save', k) });
       } else if (rk === 'skill') {
-        sendD20Check(sys.skillBonus(dd, k), t('char.roll.skill', { name: who, skill: sys.skills[k]?.label || k }), { mode });
+        sendD20Check(sys.skillBonus(dd, k), t('char.roll.skill', { name: who, skill: sys.skills[k]?.label || k }), { mode, parts: sys.checkParts?.(dd, 'skill', k) });
       } else if (rk === 'atk') {
         const a = (dd.atks || [])[Number(node.dataset.i)];
         if (!a) return;

@@ -27,6 +27,24 @@ export function pf2eDegree(total, dc, nat) {
   return { degree: ['critFailure', 'failure', 'success', 'critSuccess'][step], margin };
 }
 
+/**
+ * Décompose un test 5e (caractéristique + maîtrise/expertise) en pastilles
+ * `{ label, value }` pour l'affichage façon « Constitution +2 · Maîtrise +3 ».
+ * @param mod          fonction modificateur de caractéristique
+ * @param abilityOf    (key) -> clé de caractéristique du test
+ * @param abilityLabel (abKey) -> libellé affichable
+ * @param labels       { prof, exp } libellés de maîtrise / expertise
+ */
+export function d5eCheckParts(data, kind, key, mod, abilityOf, abilityLabel, labels) {
+  const ab = kind === 'ability' ? key : abilityOf(key);
+  const parts = [{ label: abilityLabel(ab), value: mod(data[ab]) }];
+  if (kind === 'ability') return parts;
+  const p = Number(data.prof || 0);
+  if (kind === 'skill' && (data.exp || []).includes(key)) parts.push({ label: labels.exp, value: p * 2 });
+  else if ((kind === 'skill' ? data.profs : data.saves || [])?.includes?.(key) && p) parts.push({ label: labels.prof, value: p });
+  return parts;
+}
+
 const _ABBR = { for: 'str', str: 'str', dex: 'dex', con: 'con', int: 'int', sag: 'wis', wis: 'wis', cha: 'cha' };
 
 /**

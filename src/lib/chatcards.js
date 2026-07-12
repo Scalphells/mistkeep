@@ -76,6 +76,8 @@ export function rollCardHtml(r, { isDM, user }) {
   const color = colorFor(r.roller_id, r.roller_name);
   const rolls = r.details?.rolls ?? [];
   const mod = r.details?.modifier ?? 0;
+  // Décomposition du modificateur en pastilles (« Constitution +2 · Expert +7 »).
+  const parts = !masked && Array.isArray(r.details?.parts) ? r.details.parts : [];
 
   // Critique fiable sur les jets de d20 (details.mode présent). Les systèmes à
   // dé de test configurable (1d100, 2d6…) n'ont pas de notion de 20 naturel.
@@ -133,6 +135,7 @@ export function rollCardHtml(r, { isDM, user }) {
   return `<div class="roll-card ${critCls}">
       ${head}
       ${title ? `<div class="rc-title">${escapeHtml(title)}</div>` : ''}
+      ${parts.length ? `<div class="rc-parts">${parts.map((p) => `<span class="rc-part">${escapeHtml(p.label)} ${p.value >= 0 ? '+' : '−'}${escapeHtml(String(Math.abs(Number(p.value))))}</span>`).join('')}</div>` : ''}
       ${chips.length ? `<div class="rc-tags">${chips.map((c) => `<span class="rc-chip">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
       ${formula ? `<div class="rc-formula">${formula}</div>` : ''}
       <div class="rc-total ${critCls}">${escapeHtml(String(r.result))}</div>

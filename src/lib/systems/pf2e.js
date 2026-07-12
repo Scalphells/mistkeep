@@ -101,6 +101,22 @@ export function initBonus(data) {
   return saveBonus(data, 'per');
 }
 
+/** Décompose un test PF2e en pastilles : modificateur de caractéristique +
+ *  bonus de maîtrise (rang nommé — Qualifié/Expert/… — niveau inclus). */
+export function checkParts(data, kind, key) {
+  if (kind === 'ability') {
+    const ab = ABILITIES.find((a) => a.key === key);
+    return [{ label: ab?.label || key, value: abilityMod(data[key]) }];
+  }
+  const entry = kind === 'save' ? SAVES.find((s) => s.key === key) : SKILLS[key];
+  if (!entry) return [];
+  const abLabel = ABILITIES.find((a) => a.key === entry.ability)?.label || entry.ability;
+  const parts = [{ label: abLabel, value: abilityMod(data[entry.ability]) }];
+  const rank = Math.max(0, Math.min(PROF_RANKS.length - 1, Number(data.ranks?.[key]) || 0));
+  if (rank > 0) parts.push({ label: PROF_RANKS[rank].label, value: rankBonus(data, rank) });
+  return parts;
+}
+
 /** Blob `data` par défaut d'une nouvelle fiche pf2e. */
 export function createDefaults() {
   return {
@@ -139,6 +155,7 @@ export const pf2e = {
   skillBonus,
   initBonus,
   degreeOfSuccess: pf2eDegree, // 4 paliers PF2e (marge ±10, décalage nat 1/20)
+  checkParts, // décomposition en pastilles (carac + rang de maîtrise)
   // pas d'encounterBudget : le budget pf2e (par niveau) diffère du modèle XP 5e.
   createDefaults,
   sheet: SHEET,
