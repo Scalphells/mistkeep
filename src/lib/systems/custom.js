@@ -12,7 +12,7 @@
  * (aucune E/S) : il reçoit la config, il ne la charge pas.
  */
 
-import { abilityMod as rawMod } from '../rules.js';
+import { abilityMod as rawMod, d20Degree } from '../rules.js';
 
 /** Modificateur tolérant : un score absent vaut 10 (mod +0). */
 function abilityMod(score) {
@@ -199,6 +199,7 @@ export const custom = {
   },
   abilityMod,
   fmtMod,
+  degreeOfSuccess: d20Degree, // réussite/échec vs seuil (crit nat 20/1 si dé d20)
   saveBonus,
   skillBonus,
   initBonus,

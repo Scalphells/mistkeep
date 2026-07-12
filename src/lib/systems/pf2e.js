@@ -12,7 +12,7 @@
  * fiche calcule juste — listes de compétences, rangs, sauvegardes, niveau.
  */
 
-import { abilityMod as rawMod } from '../rules.js';
+import { abilityMod as rawMod, pf2eDegree } from '../rules.js';
 import { t } from '../i18n.js';
 import {
   ANCESTRIES, BACKGROUNDS_PF2E, CLASSES_PF2E,
@@ -138,6 +138,7 @@ export const pf2e = {
   saveBonus,
   skillBonus,
   initBonus,
+  degreeOfSuccess: pf2eDegree, // 4 paliers PF2e (marge ±10, décalage nat 1/20)
   // pas d'encounterBudget : le budget pf2e (par niveau) diffère du modèle XP 5e.
   createDefaults,
   sheet: SHEET,

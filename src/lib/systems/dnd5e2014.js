@@ -15,7 +15,7 @@
  * qui permettra à une campagne de choisir son système sans coder le 5e en dur.
  */
 
-import { abilityMod } from '../rules.js';
+import { abilityMod, d20Degree } from '../rules.js';
 import { t } from '../i18n.js';
 
 // Libellés résolus via i18n au rendu (FOR/SAG en FR, STR/WIS en EN). La clé
@@ -118,6 +118,7 @@ export const dnd5e2014 = {
   saveBonus,
   skillBonus,
   initBonus,
+  degreeOfSuccess: d20Degree, // touche/rate vs CA, crit nat 20 / échec nat 1
   encounterBudget: true, // budget XP/FP du DMG 2014
   createDefaults,
   sheet: SHEET,

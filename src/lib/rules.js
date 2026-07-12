@@ -8,6 +8,25 @@ export function abilityMod(score) {
   return Math.floor((Number(score) - 10) / 2);
 }
 
+/** Degré de succès d20 (5e / attaque) : touche/rate vs seuil (CA/DC), crit sur 20
+ *  naturel, échec critique sur 1 naturel. Renvoie { degree, margin }. */
+export function d20Degree(total, dc, nat) {
+  const margin = Number(total) - Number(dc);
+  if (nat === 20) return { degree: 'critSuccess', margin };
+  if (nat === 1) return { degree: 'critFailure', margin };
+  return { degree: margin >= 0 ? 'success' : 'failure', margin };
+}
+
+/** Degré de succès Pathfinder 2e : quatre paliers selon la marge (seuils ±10),
+ *  avec un décalage d'un cran sur 20 (vers le haut) ou 1 (vers le bas) naturel. */
+export function pf2eDegree(total, dc, nat) {
+  const margin = Number(total) - Number(dc);
+  let step = margin >= 10 ? 3 : margin >= 0 ? 2 : margin <= -10 ? 0 : 1;
+  if (nat === 20) step = Math.min(3, step + 1);
+  else if (nat === 1) step = Math.max(0, step - 1);
+  return { degree: ['critFailure', 'failure', 'success', 'critSuccess'][step], margin };
+}
+
 const _ABBR = { for: 'str', str: 'str', dex: 'dex', con: 'con', int: 'int', sag: 'wis', wis: 'wis', cha: 'cha' };
 
 /**

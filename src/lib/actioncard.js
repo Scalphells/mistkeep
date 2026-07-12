@@ -215,22 +215,22 @@ export function openActionCard({ charId, who, kind, item }) {
       return;
     }
     const isDM = store.get().isDM;
-    const crit = res.anyCrit;
     const tip = dmg ? t('ac.follow.tipDmg') : '';
-    let cls = 'hit';
-    let msg;
     if (!isDM) {
-      msg = t('ac.follow.sent') + (dmg ? t('ac.follow.sentDmg') : '');
-    } else if (res.anyHit) {
-      msg = crit ? t('ac.follow.crit') + (dmg ? t('ac.follow.critDmg') : '') : t('ac.follow.hit') + tip;
-    } else if (res.anyUnknownAc) {
-      cls = 'unknown';
-      msg = t('ac.follow.unknownAc') + tip;
-    } else {
-      cls = 'miss';
-      msg = t('ac.follow.miss');
+      followEl.innerHTML = `<div class="ac-follow hit">${t('ac.follow.sent')}${dmg ? t('ac.follow.sentDmg') : ''}</div>`;
+      return;
     }
-    followEl.innerHTML = `<div class="ac-follow ${cls}">${msg}</div>`;
+    if (res.degree === undefined) {
+      // Aucune CA connue : le MJ tranche lui-même.
+      followEl.innerHTML = `<div class="ac-follow unknown">${t('ac.follow.unknownAc')}${tip}</div>`;
+      return;
+    }
+    // MJ : degré de succès + marge + CA (façon Foundry).
+    const good = res.degree === 'success' || res.degree === 'critSuccess';
+    const parts = [t('deg.' + res.degree)];
+    if (res.margin != null) parts.push(res.margin >= 0 ? `+${res.margin}` : `${res.margin}`);
+    if (res.ac != null) parts.push(t('ac.follow.vsAc', { ac: res.ac }));
+    followEl.innerHTML = `<div class="ac-follow ${good ? 'hit' : 'miss'}">${parts.join(' · ')}${good && dmg ? tip : ''}</div>`;
   }
 
   // Annonce l'action dans le chat (carte façon Foundry) une seule fois par usage.

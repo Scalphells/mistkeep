@@ -11,7 +11,7 @@
  */
 
 import { ABILITIES, SKILLS, fmtMod, saveBonus, skillBonus, initBonus, createDefaults as createDefaults2014, SHEET } from './dnd5e2014.js';
-import { abilityMod } from '../rules.js';
+import { abilityMod, d20Degree } from '../rules.js';
 import { t } from '../i18n.js';
 import {
   SPECIES, CLASSES_2024, BACKGROUNDS_2024, SUBCLASSES_2024,
@@ -35,6 +35,7 @@ export const dnd5e2024 = {
   saveBonus,
   skillBonus,
   initBonus,
+  degreeOfSuccess: d20Degree, // touche/rate vs CA, crit nat 20 / échec nat 1
   encounterBudget: true, // mêmes maths de rencontre que 2014
   createDefaults,
   sheet: SHEET, // mêmes sections de fiche que 2014

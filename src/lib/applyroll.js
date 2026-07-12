@@ -6,6 +6,9 @@ import { parseDice } from '../features/dice.js';
 import { showToast } from './toast.js';
 import { openDamageApply } from './dmgapply.js';
 import { openApplyPicker } from './applypicker.js';
+import { getSystem } from './systems/index.js';
+import { activeCampaign } from './campaigns.js';
+import { d20Degree } from './rules.js';
 import { t } from './i18n.js';
 
 function rng(min, max) {
@@ -180,42 +183,31 @@ export function resolveAttackVsTargets(d20, who, nm, listOverride) {
   if (!list.length) return { any: false };
   const nat = Number(d20?.kept) || 0;
   const total = Number(d20?.total) || nat;
-  const crit = nat === 20;
-  const fumble = nat === 1;
-  let anyCrit = crit;
+  const sys = getSystem(activeCampaign()?.system);
+  const fmtSigned = (n) => (n >= 0 ? `+${n}` : `${n}`);
+  let anyCrit = false;
   let anyHit = false;
   let anyUnknownAc = false;
+  let first = null; // 1re cible à CA connue → degré/marge/CA pour le bandeau du MJ
   for (const tok of list) {
     const ac = acOf(tok);
-    const known = ac != null;
-    // Verdict : décisif sur 20/1, sinon comparé à la CA. Si la CA est inconnue,
-    // l'app ne tranche PAS (on ne prétend pas « touché ») : le MJ juge.
-    let hit;
-    let verdict;
-    if (crit) {
-      hit = true;
-      verdict = t('applyroll.verdict.crit');
-    } else if (fumble) {
-      hit = false;
-      verdict = t('applyroll.v.fumble');
-    } else if (!known) {
-      hit = null;
-      verdict = null;
-    } else {
-      hit = total >= ac;
-      verdict = hit ? t('applyroll.verdict.hit') : t('applyroll.verdict.miss');
-    }
-    if (hit === true) anyHit = true;
-    if (!known) anyUnknownAc = true;
-    // Le dé + le résultat sont déjà affichés par la carte de jet dans le chat ;
-    // ici on ne journalise que le verdict (MJ-only : c'est le MJ qui décide).
-    if (verdict) {
-      logAction(t('applyroll.log.resolve', { who, name: tokenName(tok), total, ac: known ? ac : '?', verdict }), true);
-    } else {
+    // Si la CA est inconnue, l'app ne tranche PAS : c'est le MJ qui juge.
+    if (ac == null) {
+      anyUnknownAc = true;
       logAction(t('applyroll.log.unknownAc', { who, name: tokenName(tok), total }), true);
+      continue;
     }
+    // Degré de succès piloté par le système : 4 paliers PF2e (marge ±10, décalage
+    // nat 1/20), touche/rate + crit nat 20 en 5e.
+    const { degree, margin } = (sys?.degreeOfSuccess || d20Degree)(total, ac, nat);
+    if (degree === 'success' || degree === 'critSuccess') anyHit = true;
+    if (degree === 'critSuccess') anyCrit = true;
+    if (!first) first = { degree, margin, ac };
+    // Le dé est déjà affiché par la carte de jet ; ici on journalise le verdict
+    // (MJ-only : c'est le MJ qui décide) avec la marge, façon Foundry.
+    logAction(t('applyroll.log.resolveDeg', { who, name: tokenName(tok), total, ac, verdict: t('deg.' + degree), margin: fmtSigned(margin) }), true);
   }
-  return { any: true, anyHit, anyCrit, anyUnknownAc };
+  return { any: true, anyHit, anyCrit, anyUnknownAc, ...(first || {}) };
 }
 
 /**
