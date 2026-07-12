@@ -981,6 +981,8 @@
   "applyroll.target": "target",
   "applyroll.heal": "💚 Heal",
   "applyroll.dmg": "💥 Damage",
+  "applyroll.half": "½ Half",
+  "applyroll.double": "×2 Double",
   "applyroll.log.hp": "{name}: HP {before}→{after}.",
   "applyroll.toast.targetFirstMap": "First target one or more tokens (right-click → 🎯) on the map.",
   "applyroll.toast.targetFirst": "First target one or more tokens (right-click → 🎯).",
@@ -1202,6 +1204,8 @@
 
   "cc.apply.dmg.title": "Apply as damage (the GM picks resistance/immunity)",
   "cc.apply.heal.title": "Apply as healing",
+  "cc.apply.half.title": "Apply half (resistance)",
+  "cc.apply.double.title": "Apply double (vulnerability)",
   "cc.crit": "CRITICAL!",
   "cc.fail": "FAIL",
   "cc.chip.dm": "🎭 GM",

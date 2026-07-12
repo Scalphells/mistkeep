@@ -981,6 +981,8 @@
   "applyroll.target": "cible",
   "applyroll.heal": "💚 Soin",
   "applyroll.dmg": "💥 Dégâts",
+  "applyroll.half": "½ Moitié",
+  "applyroll.double": "×2 Double",
   "applyroll.log.hp": "{name} : PV {before}→{after}.",
   "applyroll.toast.targetFirstMap": "Cible d’abord un ou des jetons (clic droit → 🎯) sur la carte.",
   "applyroll.toast.targetFirst": "Cible d’abord un ou des jetons (clic droit → 🎯).",
@@ -1202,6 +1204,8 @@
 
   "cc.apply.dmg.title": "Appliquer en dégâts (le MJ choisit résistance/immunité)",
   "cc.apply.heal.title": "Appliquer en soin",
+  "cc.apply.half.title": "Appliquer la moitié (résistance)",
+  "cc.apply.double.title": "Appliquer le double (vulnérabilité)",
   "cc.crit": "CRITIQUE !",
   "cc.fail": "ÉCHEC",
   "cc.chip.dm": "🎭 MJ",
